@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — 2026-10-03
+
+### Fixed
+
+- Hardened OpenAI-compatible provider calls for Vercel with explicit request timeout and bounded retries.
+- Added connection-failure logging that records the provider URL and exception type without logging API keys.
+- Added hosted AI network troubleshooting steps to the deployment guide.
+
+### Configuration
+
+- Added `AI_REQUEST_TIMEOUT_SECONDS` (default `45`).
+- Added `AI_MAX_RETRIES` (default `2`).
+
+
 ## v2.3.1 — 2026-10-01
 
 ### Fixed
