@@ -134,6 +134,8 @@ vercel.cmd link
 
 ### ۵. متغیرهای Vercel
 
+Vercel در حال حاضر FastAPI را با Python runtime به‌صورت zero-config پشتیبانی می‌کند؛ این پروژه عمداً ساختار فعلی خود را حفظ می‌کند تا مسیرهای موجود تغییر نکنند.
+
 در داشبورد Vercel، پروژه را باز کن و به `Settings → Environment Variables` برو. برای هر پنج مقدار زیر، هر دو محیط `Preview` و `Production` را انتخاب کن. برای Preview مقدارها را به همه شاخه‌ها اعمال کن.
 
 | نام | مقدار |
@@ -143,6 +145,8 @@ vercel.cmd link
 | `SECRET_KEY` | مقدار فعلی `SECRET_KEY` از `.env` محلی؛ مقدار بررسی‌شده ۴۳ کاراکتر داشت |
 | `DEFAULT_PROVIDER_API_KEY` | مقدار فعلی همین متغیر از `.env` محلی |
 | `ADMIN_PASSWORD` | همان رمز ادمین استفاده‌شده در تست Supabase |
+| `AI_REQUEST_TIMEOUT_SECONDS` | `45` |
+| `AI_MAX_RETRIES` | `2` |
 
 مقدارها را بدون نام متغیر، بدون علامت `=` و بدون کوتیشن وارد کن. فقط مقدار Secretها را در حساب Vercel خودت قرار بده؛ در پیام خطا یا اسکرین‌شات ارسالی منتشرشان نکن.
 
@@ -196,3 +200,21 @@ vercel.cmd --prod
 - متغیرهای Preview و Production: <https://vercel.com/docs/environment-variables>
 - فایل‌سیستم read-only: <https://vercel.com/docs/functions/runtimes>
 - مسیر CLI تا Production: <https://vercel.com/docs/projects/deploy-from-cli>
+
+### عیب‌یابی خطای اتصال سرویس AI در Vercel
+
+اگر لوکال مدل‌ها را می‌بیند اما Vercel پیام «اتصال به سرویس هوش مصنوعی برقرار نشد» نشان می‌دهد، این پیام مربوط به `APIConnectionError` است و قبل از دریافت پاسخ مدل رخ می‌دهد. نسخه فعلی کلاینت برای اجرای hosted، timeout و retry صریح دارد و خطای اتصال را در Runtime Logs با `base_url` و نوع خطا ثبت می‌کند؛ API key هرگز در لاگ ثبت نمی‌شود.
+
+ابتدا در سایت Vercel این مسیر را باز کن:
+
+`/api/settings/test-connection`
+
+این endpoint به احراز هویت نیاز دارد و نتیجه اتصال provider را برمی‌گرداند. سپس در Runtime Logs دنبال عبارت `AI provider connection failed` بگرد. اگر خطا `ConnectError`، DNS یا timeout باشد، مشکل مسیر شبکه Vercel به `DEFAULT_PROVIDER_BASE_URL` است و تغییر RAG یا مدل‌های داخل پروژه آن را حل نمی‌کند. در این حالت باید دسترسی خروجی Vercel به `racode-llm.partschool.ir` از همان deployment تأیید شود یا provider از یک endpoint عمومی که Vercel بتواند به آن وصل شود ارائه شود.
+
+برای تست مستقل، بعد از deployment این مسیرها را بررسی کن:
+
+- `/api/health` → اجرای FastAPI
+- `/api/settings/test-connection` → اتصال provider
+- `/api/playground/free-models` → لیست مدل‌های پیش‌فرض بدون تماس با provider
+
+نکته: وجود متغیر `DEFAULT_PROVIDER_API_KEY` در Vercel کافی نیست؛ deployment باید واقعاً بتواند به Base URL متصل شود.
