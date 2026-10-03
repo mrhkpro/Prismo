@@ -178,3 +178,21 @@ class ProviderDiagnosticsTests(unittest.TestCase):
             result = llm_client.provider_diagnostics(provider)
         self.assertTrue(result["ok"])
         self.assertEqual(result["stage"], "chat_probe")
+
+class ProviderRelayTests(unittest.TestCase):
+    def test_default_provider_uses_relay_when_configured(self):
+        with patch.object(llm_client.config, "AI_PROXY_BASE_URL", "https://relay.example/v1"), \
+             patch.object(llm_client.config, "AI_PROXY_API_KEY", "relay-key"):
+            provider = llm_client.resolve_provider(FakeSettings())
+        self.assertEqual(provider.base_url, "https://relay.example/v1")
+        self.assertEqual(provider.api_key, "relay-key")
+        self.assertTrue(provider.is_default)
+
+    def test_direct_default_provider_remains_fallback_without_relay(self):
+        with patch.object(llm_client.config, "AI_PROXY_BASE_URL", ""), \
+             patch.object(llm_client.config, "AI_PROXY_API_KEY", ""), \
+             patch.object(llm_client.config, "DEFAULT_PROVIDER_BASE_URL", "https://direct.example/v1"), \
+             patch.object(llm_client.config, "DEFAULT_PROVIDER_API_KEY", "direct-key"):
+            provider = llm_client.resolve_provider(FakeSettings())
+        self.assertEqual(provider.base_url, "https://direct.example/v1")
+        self.assertEqual(provider.api_key, "direct-key")
