@@ -1,0 +1,27 @@
+RAG Widget — Final Vercel-ready package
+
+1) Do NOT copy .venv into this package. Create it locally with setup.bat.
+2) Local run: setup.bat
+3) Vercel Environment Variables must contain the values from your local .env, especially:
+   APP_ENV=production
+   DATABASE_URL=<Supabase Transaction Pooler URL>
+   SECRET_KEY=<your current secret>
+   DEFAULT_PROVIDER_BASE_URL=https://racode-llm.partschool.ir/v1
+   DEFAULT_PROVIDER_API_KEY=<your current provider key>
+   ADMIN_USERNAME=admin
+   ADMIN_PASSWORD=<your current admin password>
+   ADMIN_ORG_NAME=ADMIN
+   AI_REQUEST_TIMEOUT_SECONDS=45
+   AI_MAX_RETRIES=2
+4) Deploy preview first: vercel.cmd
+5) Check /api/health. Then log in and use Settings -> Test Connection.
+6) If AI still reports a connection error on Vercel while local works, open Vercel Runtime Logs and search for:
+   AI provider connection failed
+   The log records the provider URL and error type, never the API key.
+7) If the error is DNS/connect/timeout, the remaining issue is Vercel outbound access to the provider endpoint, not the RAG code.
+8) Only after Preview works: vercel.cmd --prod
+
+Git:
+- main is the final branch.
+- Feature branches are intentionally kept locally so git log --graph --all shows the work topology.
+- .env and .env.local are included in this delivery for local convenience but are ignored by Git.
