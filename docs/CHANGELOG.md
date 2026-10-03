@@ -1,3 +1,14 @@
+# Changelog
+
+## v2.2.2 — Provider diagnostics & hosted AI error clarity
+
+- Added detailed provider diagnostics for DNS, TCP/TLS, HTTP, authentication, rate-limit, model and timeout failures.
+- Chat/embedding failures now expose the real upstream cause without exposing API keys.
+- Added `GET /api/settings/provider-diagnostics` for in-dashboard troubleshooting.
+- Increased default upstream connection/read windows for slow hosted providers while keeping retries disabled.
+- Preserved `/models` → chat probe fallback for OpenAI-compatible gateways that do not expose `/models`.
+- Added request IDs to surfaced API errors.
+
 
 ## 2.2.1 - Hosted Chat Performance
 
