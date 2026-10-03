@@ -96,6 +96,18 @@ class TestConnectionResult(BaseModel):
     message: str
 
 
+class ProviderDiagnosticsResponse(BaseModel):
+    ok: bool
+    base_url: str
+    model: str
+    dns: List[str]
+    stage: str
+    status_code: Optional[int] = None
+    error_type: Optional[str] = None
+    message: str
+    elapsed_ms: int
+
+
 class DashboardSummaryOut(BaseModel):
     document_count: int
     chunk_count: int

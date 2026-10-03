@@ -138,3 +138,43 @@ class AIProviderTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class ProviderDiagnosticsTests(unittest.TestCase):
+    def test_connection_error_exposes_stage_without_api_key(self):
+        from openai import APIConnectionError
+        exc = APIConnectionError("connect failed")
+        exc.__cause__ = OSError("[Errno -2] Name or service not known")
+        provider = llm_client.ProviderConfig(
+            base_url="https://racode.example/v1",
+            api_key="VERY-SECRET-KEY",
+            chat_model="chat-model",
+            embedding_model="embed-model",
+            is_default=True,
+        )
+        message = llm_client.format_provider_error(exc, provider, operation="chat")
+        self.assertIn("مرحله: dns", message)
+        self.assertIn("racode.example", message)
+        self.assertNotIn("VERY-SECRET-KEY", message)
+
+    def test_provider_diagnostics_falls_back_to_chat_when_models_missing(self):
+        fake_client = SimpleNamespace(
+            models=SimpleNamespace(
+                list=lambda: (_ for _ in ()).throw(type("E", (Exception,), {"status_code": 404})())
+            ),
+            chat=SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=lambda **kwargs: SimpleNamespace()
+                )
+            ),
+        )
+        provider = llm_client.ProviderConfig(
+            base_url="https://example.com/v1",
+            api_key="secret",
+            chat_model="selected-model",
+            embedding_model="embed-model",
+            is_default=True,
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client):
+            result = llm_client.provider_diagnostics(provider)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["stage"], "chat_probe")
