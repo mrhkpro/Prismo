@@ -169,11 +169,11 @@ DEFAULT_PROVIDER_API_KEY = os.getenv(
 # در محیط Serverless، timeout کوتاه‌تر و بدون retry تودرتو از طولانی‌شدن
 # درخواست‌های زنجیره‌ای (embedding + chat) جلوگیری می‌کند.
 AI_REQUEST_TIMEOUT_SECONDS = float(
-    os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "30")
+    os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "120")
 )
 
 AI_CONNECT_TIMEOUT_SECONDS = float(
-    os.getenv("AI_CONNECT_TIMEOUT_SECONDS", "6")
+    os.getenv("AI_CONNECT_TIMEOUT_SECONDS", "20")
 )
 
 AI_MAX_RETRIES = int(
