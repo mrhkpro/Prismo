@@ -8,22 +8,22 @@
 
 :root {
   /* رنگ پایه */
-  --bg: #0a0e1a;
-  --bg-elevated: #121729;
-  --bg-elevated-2: #1a2138;
-  --bg-input: #0f1424;
-  --border: #262f4d;
-  --border-soft: #1c2340;
+  --bg: #050507;
+  --bg-elevated: #0d0d12;
+  --bg-elevated-2: #14141b;
+  --bg-input: #0a0a0f;
+  --border: #25252f;
+  --border-soft: #1a1a22;
 
-  --text: #edeffa;
-  --text-muted: #8d96b8;
-  --text-faint: #5c6488;
+  --text: #f2f2f7;
+  --text-muted: #9a9aab;
+  --text-faint: #62626f;
 
-  --accent: #7c5cff;       /* کوازار - بنفش اصلی */
-  --accent-hover: #9077ff;
-  --accent-soft: rgba(124, 92, 255, 0.14);
-  --gold: #f5b83d;         /* دنباله‌دار - طلایی ثانویه */
-  --gold-soft: rgba(245, 184, 61, 0.14);
+  --accent: #8b5cf6;
+  --accent-hover: #a78bfa;
+  --accent-soft: rgba(139, 92, 246, 0.14);
+  --gold: #a78bfa;
+  --gold-soft: rgba(167, 139, 250, 0.14);
 
   --success: #34d399;
   --success-soft: rgba(52, 211, 153, 0.14);
@@ -41,20 +41,20 @@
 }
 
 :root[data-theme="light"] {
-  --bg: #f5f7fb;
+  --bg: #fafafc;
   --bg-elevated: #ffffff;
-  --bg-elevated-2: #eef2f8;
+  --bg-elevated-2: #f3f2f8;
   --bg-input: #ffffff;
-  --border: #d7deea;
-  --border-soft: #e7ebf2;
-  --text: #182033;
-  --text-muted: #667085;
-  --text-faint: #98a2b3;
-  --accent: #6f52ed;
-  --accent-hover: #5f43df;
-  --accent-soft: rgba(111, 82, 237, 0.10);
-  --gold: #b77908;
-  --gold-soft: rgba(183, 121, 8, 0.10);
+  --border: #deddea;
+  --border-soft: #ebeaf2;
+  --text: #15131f;
+  --text-muted: #6b6980;
+  --text-faint: #9c9aae;
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-soft: rgba(124, 58, 237, 0.09);
+  --gold: #6d28d9;
+  --gold-soft: rgba(109, 40, 217, 0.09);
   --success: #159466;
   --success-soft: rgba(21, 148, 102, 0.10);
   --danger: #d64545;
@@ -534,3 +534,28 @@ tbody tr:hover { background: var(--bg-elevated-2); }
 .overview-health-panel .panel-desc {
   flex: 1 1 300px;
 }
+
+
+/* =========================================================================
+   v2.3 — مینیمال سیاه/بنفش: تخت، بدون گرادیان و سایه‌ی سنگین
+   ========================================================================= */
+body { font-size: 15px; background: var(--bg); }
+.starfield, .orbit-node, .main-area::before, .panel::before { display: none !important; }
+.app-shell, .landing-showcase, .widget-preview-wrap { background: var(--bg) !important; }
+.sidebar { background: var(--bg) !important; box-shadow: none !important; border-left: 1px solid var(--border-soft); }
+.panel, .stat-card, .auth-box, .demo-chat-card, .modal-box, .provider-mode-card, .doc-row, .flag-row {
+  background: var(--bg-elevated) !important; box-shadow: none !important; border: 1px solid var(--border-soft) !important; border-radius: 14px !important;
+}
+.btn-primary { background: var(--accent) !important; box-shadow: none !important; }
+.btn-primary:hover { background: var(--accent-hover) !important; transform: none !important; }
+.nav-item { border-radius: 10px; }
+.nav-item.active { background: var(--accent-soft) !important; box-shadow: none !important; color: var(--accent-hover) !important; }
+.brand-mark, .sidebar-user .avatar, .provider-mode-icon, .fake-send { background: var(--accent) !important; box-shadow: none !important; }
+.demo-chat-head { background: var(--accent) !important; }
+.provider-mode-card.active { border-color: var(--accent) !important; background: var(--accent-soft) !important; transform: none !important; }
+.page-head h1::after { display: none; }
+.stat-card .value { font-weight: 700; letter-spacing: -.01em; }
+input, textarea, select { border-radius: 10px !important; background: var(--bg-input) !important; }
+input:focus, textarea:focus, select:focus { border-color: var(--accent) !important; outline: none !important; box-shadow: 0 0 0 3px var(--accent-soft) !important; }
+:focus-visible { outline: 2px solid var(--accent) !important; }
+.toast { background: var(--bg-elevated-2); border: 1px solid var(--border); box-shadow: none; }
