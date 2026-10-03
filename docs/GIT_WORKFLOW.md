@@ -1,51 +1,35 @@
 # Git Workflow
 
-The repository uses a lightweight feature-branch workflow designed for a small team while keeping the history readable.
-
-## Branch lifecycle
+The repository uses focused feature branches and explicit merge commits.
 
 ```text
 main
-  └─ feature/<focused-change>
-       ├─ implementation commit(s)
-       ├─ test/documentation commit(s)
-       └─ merge --no-ff → main
+  ├─ feature/repository-foundation ──┐
+  ├─ feature/vercel-ai-resilience ───┤
+  ├─ feature/deployment-docs ────────┤ → merge --no-ff → main
+  └─ feature/release-cleanup ────────┘
 ```
 
-Typical commands:
+## Branch lifecycle
 
 ```bash
-git checkout main
+git switch main
 git pull
-git checkout -b feature/<name>
+git switch -c feature/<focused-change>
 
-# work + test
+# implement + test
 git add <files>
 git commit -m "feat(scope): describe the real change"
 
-git checkout main
-git merge --no-ff feature/<name> -m "merge: describe the completed feature"
-git branch -d feature/<name>
+git switch main
+git merge --no-ff feature/<focused-change> -m "merge: describe the completed feature"
+git branch -d feature/<focused-change>
 ```
 
 ## Commit convention
 
-Use Conventional Commits and keep each commit meaningful:
+Use Conventional Commits: `feat`, `fix`, `refactor`, `test`, `security`, `perf`, `docs`, `style`, `chore`. Avoid placeholder messages such as `a`, `changes`, `final`, or `temp`.
 
-- `feat` — new behavior
-- `fix` — defect correction
-- `refactor` — structure without changing intended behavior
-- `test` — real test coverage
-- `security` — security-focused change
-- `perf` — measured or targeted performance improvement
-- `docs` — documentation of implemented behavior
-- `style` — UI/code style change with no domain behavior change
-- `chore` — project/tooling maintenance
+## Release rule
 
-Avoid placeholders such as `update`, `changes`, `final`, `temp`, or `aaa`.
-
-## Merge policy
-
-A feature is merged only after its relevant tests pass. `--no-ff` is intentional: the merge commit keeps the feature boundary visible in the repository graph.
-
-The authoritative record of the completed feature branches and real commit hashes is `docs/GIT_HISTORY.md`.
+Before deployment, run the relevant tests, inspect `git status`, and verify that `.env`, `.env.local`, `.venv`, `.vercel`, database files and generated caches are not tracked.
