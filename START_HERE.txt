@@ -11,15 +11,16 @@ RAG Widget — Final Vercel-ready package
    ADMIN_USERNAME=admin
    ADMIN_PASSWORD=<your current admin password>
    ADMIN_ORG_NAME=ADMIN
-   AI_REQUEST_TIMEOUT_SECONDS=45
-   AI_MAX_RETRIES=2
+   AI_REQUEST_TIMEOUT_SECONDS=120
+   AI_CONNECT_TIMEOUT_SECONDS=20
+   AI_MAX_RETRIES=0
+   AI_MAX_OUTPUT_TOKENS=900
 4) Deploy preview first: vercel.cmd
 5) Check /api/health. Then log in and use Settings -> Test Connection.
-6) If AI still reports a connection error on Vercel while local works, open Vercel Runtime Logs and search for:
-   AI provider connection failed
-   The log records the provider URL and error type, never the API key.
-7) If the error is DNS/connect/timeout, the remaining issue is Vercel outbound access to the provider endpoint, not the RAG code.
-8) Only after Preview works: vercel.cmd --prod
+6) In Settings -> Test Connection, the site now runs provider diagnostics. It shows DNS, stage, HTTP status, model, exception type and elapsed time without showing the API key.
+7) If chat itself fails, the same technical details are shown inside the chat message and the response request ID is displayed.
+8) If the error is DNS/connect/timeout, the remaining issue is Vercel outbound access to the provider endpoint, not the RAG code.
+9) Only after Preview works: vercel.cmd --prod
 
 Git:
 - main is the final branch.
