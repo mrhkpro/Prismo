@@ -155,10 +155,11 @@ async function changeRole(userId, newRole) {
 
 async function inspectUser(userId) {
   try {
+    const safe = (path, fallback) => apiCall(path).catch((e) => { toastError(e); return fallback; });
     const [detail, docs, sessions] = await Promise.all([
       apiCall(`/api/admin/users/${userId}`),
-      apiCall(`/api/admin/users/${userId}/documents`),
-      apiCall(`/api/admin/users/${userId}/sessions`),
+      safe(`/api/admin/users/${userId}/documents`, []),
+      safe(`/api/admin/users/${userId}/sessions`, []),
     ]);
 
     document.getElementById("userModalTitle").textContent = `بازرسی: ${detail.org_name || detail.username}`;
@@ -185,7 +186,7 @@ async function inspectUser(userId) {
       <div class="doc-list" style="margin-bottom:22px;">
         ${sessions.length === 0
           ? `<div class="cell-muted">نشستی ثبت نشده.</div>`
-          : sessions.slice(0, 8).map((s) => `
+          : sessions.slice(0, 30).map((s) => `
             <div class="doc-row">
               <div class="info">
                 <div class="title">${s.source === "widget" ? "ویجت عمومی" : "آزمایشگاه تست"} ${s.has_flag ? "🚩" : ""}</div>

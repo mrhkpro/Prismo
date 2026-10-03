@@ -85,3 +85,7 @@
 ### Testing
 
 The final suite covers API isolation, authentication, RAG, retrieval, knowledge reindexing, widget security, prompt monitoring, RBAC, admin pagination, logging, performance contracts and frontend asset contracts.
+
+## 2.3.0
+- Admin: fixed user inspection and chat viewing errors (chunk counting no longer loads embedding vectors, NULL-safe settings/messages, no N+1 on sessions).
+- UI: flat minimal black/violet theme (tokens + override block in style.css).

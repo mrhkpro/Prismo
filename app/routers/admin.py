@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from .. import models, schemas
+from .. import config, models, schemas
 from ..database import get_db
 from ..security import create_impersonation_token, require_admin
 
@@ -131,17 +131,19 @@ def get_user_detail(user_id: int, db: Session = Depends(get_db), _admin: models.
     user = _get_user_or_404(db, user_id)
     base = _user_to_admin_out(db, user)
     s = user.settings
+    g = lambda name, default: (getattr(s, name, None) if s is not None and getattr(s, name, None) is not None else default)
     return schemas.AdminUserDetailOut(
         **base.model_dump(),
-        use_default_provider=s.use_default_provider,
-        api_key_set=bool(s.api_key),
-        base_url=s.base_url,
-        chat_model=s.chat_model,
-        embedding_model=s.embedding_model,
-        system_prompt=s.system_prompt,
-        temperature=s.temperature,
-        top_k=s.top_k,
-        widget_id=s.widget_id,
+        use_default_provider=bool(g("use_default_provider", True)),
+        api_key_set=bool(g("api_key", "")),
+        base_url=g("base_url", None),
+        chat_model=g("chat_model", config.DEFAULT_CHAT_MODEL),
+        embedding_model=g("embedding_model", config.DEFAULT_EMBEDDING_MODEL),
+        system_prompt=g("system_prompt", config.DEFAULT_SYSTEM_PROMPT),
+        temperature=g("temperature", config.DEFAULT_TEMPERATURE),
+        top_k=g("top_k", config.DEFAULT_TOP_K),
+        similarity_threshold=g("similarity_threshold", config.DEFAULT_SIMILARITY_THRESHOLD),
+        widget_id=g("widget_id", ""),
     )
 
 
@@ -188,13 +190,17 @@ def change_role(
 @router.get("/users/{user_id}/documents", response_model=list[schemas.DocumentOut])
 def inspect_user_documents(user_id: int, db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
     user = _get_user_or_404(db, user_id)
-    docs = (
-        db.query(models.Document).filter(models.Document.user_id == user.id)
-        .order_by(models.Document.created_at.desc()).all()
+    rows = (
+        db.query(models.Document, func.count(models.Chunk.id))
+        .outerjoin(models.Chunk, models.Chunk.document_id == models.Document.id)
+        .filter(models.Document.user_id == user.id)
+        .group_by(models.Document.id)
+        .order_by(models.Document.created_at.desc())
+        .all()
     )
     return [
-        schemas.DocumentOut(id=d.id, title=d.title, chunk_count=len(d.chunks), created_at=d.created_at, updated_at=d.updated_at)
-        for d in docs
+        schemas.DocumentOut(id=d.id, title=d.title, chunk_count=int(n), created_at=d.created_at, updated_at=d.updated_at)
+        for d, n in rows
     ]
 
 
@@ -203,9 +209,9 @@ def inspect_user_sessions(user_id: int, db: Session = Depends(get_db), _admin: m
     user = _get_user_or_404(db, user_id)
     sessions = (
         db.query(models.ChatSession).filter(models.ChatSession.user_id == user.id)
-        .order_by(models.ChatSession.created_at.desc()).all()
+        .order_by(models.ChatSession.created_at.desc()).limit(200).all()
     )
-    return [_session_out(s) for s in sessions]
+    return _sessions_out(db, sessions)
 
 
 @router.get("/sessions/{session_id}/messages", response_model=list[schemas.MessageOut])
@@ -213,7 +219,17 @@ def session_messages(session_id: str, db: Session = Depends(get_db), _admin: mod
     session = db.query(models.ChatSession).filter(models.ChatSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="نشست یافت نشد.")
-    return list(session.messages)
+    rows = (
+        db.query(models.ChatMessage).filter(models.ChatMessage.session_id == session_id)
+        .order_by(models.ChatMessage.created_at, models.ChatMessage.id).all()
+    )
+    return [
+        schemas.MessageOut(
+            id=m.id, role=m.role, content=m.content or "", is_flagged=bool(m.is_flagged),
+            flag_reason=m.flag_reason, resolved=bool(m.resolved), created_at=m.created_at,
+        )
+        for m in rows
+    ]
 
 
 @router.post("/users/{user_id}/impersonate", response_model=schemas.ImpersonateResponse)
@@ -229,12 +245,25 @@ def impersonate_user(user_id: int, db: Session = Depends(get_db), admin: models.
 # ---------------------------------------------------------------------------
 # ۲.۵ گزارش جامع مکالمات و مانیتورینگ امنیتی
 # ---------------------------------------------------------------------------
-def _session_out(session: models.ChatSession) -> schemas.SessionOut:
-    return schemas.SessionOut(
-        id=session.id, source=session.source.value, visitor_label=session.visitor_label,
-        created_at=session.created_at, message_count=len(session.messages),
-        has_flag=any(m.is_flagged for m in session.messages),
-    )
+def _sessions_out(db: Session, sessions: list) -> list:
+    ids = [x.id for x in sessions]
+    counts, flags = {}, set()
+    if ids:
+        counts = dict(
+            db.query(models.ChatMessage.session_id, func.count(models.ChatMessage.id))
+            .filter(models.ChatMessage.session_id.in_(ids)).group_by(models.ChatMessage.session_id).all()
+        )
+        flags = {
+            r[0] for r in db.query(models.ChatMessage.session_id)
+            .filter(models.ChatMessage.session_id.in_(ids), models.ChatMessage.is_flagged.is_(True)).distinct().all()
+        }
+    return [
+        schemas.SessionOut(
+            id=x.id, source=x.source.value, visitor_label=x.visitor_label,
+            created_at=x.created_at, message_count=int(counts.get(x.id, 0)), has_flag=x.id in flags,
+        )
+        for x in sessions
+    ]
 
 
 @router.get("/conversations", response_model=list[schemas.SessionOut])
@@ -257,7 +286,7 @@ def all_conversations(
             .exists()
         )
     sessions = query.order_by(models.ChatSession.created_at.desc()).offset(offset).limit(limit).all()
-    return [_session_out(s) for s in sessions]
+    return _sessions_out(db, sessions)
 
 
 @router.get("/security/flags", response_model=list[schemas.FlaggedMessageOut])
@@ -281,7 +310,7 @@ def security_flags(
     return [
         schemas.FlaggedMessageOut(
             id=msg.id, session_id=session.id, owner_username=user.username, role=msg.role,
-            content=msg.content, flag_reason=msg.flag_reason, resolved=msg.resolved, created_at=msg.created_at,
+            content=msg.content, flag_reason=msg.flag_reason, resolved=bool(msg.resolved), created_at=msg.created_at,
         )
         for msg, session, user in rows
     ]
