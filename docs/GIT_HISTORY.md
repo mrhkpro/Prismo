@@ -28,3 +28,13 @@ main
 - `chore:` برای نگه‌داری repository
 
 برای حفظ graph، ادغام branchهای feature در `main` با `git merge --no-ff` انجام می‌شود.
+## v2.2.2 release chain
+
+- `feature/provider-diagnostics` → actionable upstream error classification
+- `feature/error-surface` → dashboard/chat error details
+- `feature/vercel-connection-tuning` → longer hosted provider windows
+- `docs/provider-diagnostics` → deployment troubleshooting guide
+- `docs/release-v2.2.2` → release notes
+
+All branches were merged into `main` with `--no-ff` to preserve the graph.
+
