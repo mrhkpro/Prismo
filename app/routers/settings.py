@@ -95,3 +95,10 @@ def test_connection(current_user: models.User = Depends(get_current_user)):
     provider = llm_client.resolve_provider(current_user.settings)
     ok, message = llm_client.test_connection(provider)
     return schemas.TestConnectionResult(ok=ok, message=message)
+
+
+@router.get("/provider-diagnostics", response_model=schemas.ProviderDiagnosticsResponse)
+def provider_diagnostics(current_user: models.User = Depends(get_current_user)):
+    """جزئیات اتصال provider را بدون افشای API Key برای پنل برمی‌گرداند."""
+    provider = llm_client.resolve_provider(current_user.settings)
+    return llm_client.provider_diagnostics(provider)
