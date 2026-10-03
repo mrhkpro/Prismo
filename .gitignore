@@ -19,6 +19,8 @@ env/
 
 data/*.db
 data/*.db-journal
+data/*.sqlite
+data/*.sqlite3
 
 
 # ============================================================
@@ -66,5 +68,10 @@ Thumbs.db
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 .vercel
-.env*
+.env
+.env.local
+.env.*
+!.env.example
