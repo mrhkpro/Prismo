@@ -63,7 +63,10 @@ def chat_test(
 ):
     session = _get_or_create_session(db, current_user, payload.session_id)
     try:
-        reply, matches = rag_pipeline.run_rag_chat(db, current_user, session, payload.message)
+        selected_model = payload.model or current_user.settings.chat_model
+        reply, matches = rag_pipeline.run_rag_chat(
+            db, current_user, session, payload.message, model=selected_model
+        )
     except llm_client.LLMError:
         db.commit()  # نشست را حتی در صورت خطا نگه می‌داریم
         raise
@@ -74,7 +77,12 @@ def chat_test(
         schemas.SourceChunk(document_title=chunk.document.title, text=chunk.text, score=round(score, 4))
         for chunk, score in matches
     ]
-    return schemas.ChatTestResponse(session_id=session.id, reply=reply, sources=sources)
+    return schemas.ChatTestResponse(
+        session_id=session.id,
+        reply=reply,
+        sources=sources,
+        model=selected_model,
+    )
 
 
 @router.post("/search", response_model=list[schemas.SemanticSearchResult])
