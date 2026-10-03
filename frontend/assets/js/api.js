@@ -66,7 +66,10 @@ async function apiCall(path, { method = "GET", body = null, auth = true, timeout
 
   if (!res.ok) {
     const message = (data && data.detail) ? data.detail : `خطا (${res.status})`;
-    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+    const error = new Error(typeof message === "string" ? message : JSON.stringify(message));
+    error.status = res.status;
+    error.requestId = res.headers.get("X-Request-ID") || (data && data.request_id) || null;
+    throw error;
   }
   return data;
 }
