@@ -1,0 +1,68 @@
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from .. import models, schemas, security, config
+from ..database import get_db
+
+router = APIRouter(prefix="/api/auth", tags=["احراز هویت"])
+
+
+@router.post("/register", response_model=schemas.TokenResponse)
+def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
+    username = payload.username.strip()
+    # SQLite/PostgreSQL هر دو ممکن است در برابر حساسیت حروف متفاوت رفتار کنند؛
+    # مقایسه‌ی case-insensitive را صریحاً در Query انجام می‌دهیم.
+    from sqlalchemy import func
+    existing = db.query(models.User).filter(func.lower(models.User.username) == username.lower()).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="این نام کاربری قبلاً ثبت شده است.")
+
+    user = models.User(
+        username=username,
+        org_name=payload.org_name,
+        password_hash=security.hash_password(payload.password),
+        role=models.UserRole.user,
+        is_active=True,
+    )
+    db.add(user)
+    db.flush()  # برای گرفتن user.id قبل از commit
+
+    user_settings = models.UserSettings(
+        user_id=user.id,
+        widget_title=payload.org_name or "دستیار هوشمند",
+    )
+    db.add(user_settings)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="این نام کاربری قبلاً ثبت شده است.") from exc
+    db.refresh(user)
+
+    token = security.create_access_token(user.id)
+    return schemas.TokenResponse(access_token=token)
+
+
+@router.post("/login", response_model=schemas.TokenResponse)
+def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
+    username = payload.username.strip()
+    from sqlalchemy import func
+    user = db.query(models.User).filter(func.lower(models.User.username) == username.lower()).first()
+    if not user or not security.verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است.", headers={"WWW-Authenticate": "Bearer"})
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="حساب کاربری شما مسدود شده است.")
+
+    user.last_login_at = datetime.utcnow()
+    db.commit()
+
+    token = security.create_access_token(user.id)
+    return schemas.TokenResponse(access_token=token)
+
+
+@router.get("/me", response_model=schemas.UserOut)
+def me(current_user: models.User = Depends(security.get_current_user)):
+    return current_user

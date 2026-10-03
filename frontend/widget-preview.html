@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Widget Preview</title>
+  <style>
+    html, body { margin:0; width:100%; height:100%; overflow:hidden; background:transparent; }
+  </style>
+</head>
+<body>
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var widgetId = params.get("widget_id");
+  if (!widgetId) return;
+  var script = document.createElement("script");
+  script.src = "/widget.js?v=2.2.0";
+  script.async = false;
+  script.setAttribute("data-widget-id", widgetId);
+  script.setAttribute("data-api-base", location.origin);
+  script.setAttribute("data-theme", "auto");
+  document.body.appendChild(script);
+}());
+</script>
+</body>
+</html>

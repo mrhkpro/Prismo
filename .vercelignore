@@ -1,0 +1,14 @@
+.venv/
+.git/
+.vercel/
+__pycache__/
+.pytest_cache/
+tests/
+data/
+.env
+.env.*
+*.db
+*.sqlite
+*.sqlite3
+
+docs/

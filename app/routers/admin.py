@@ -1,0 +1,297 @@
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Session
+
+from .. import models, schemas
+from ..database import get_db
+from ..security import create_impersonation_token, require_admin
+
+router = APIRouter(prefix="/api/admin", tags=["پنل مدیریت (ادمین)"])
+
+
+def _active_admin_count(db: Session) -> int:
+    return (
+        db.query(func.count(models.User.id))
+        .filter(models.User.role == models.UserRole.admin, models.User.is_active.is_(True))
+        .scalar()
+        or 0
+    )
+
+
+def _ensure_admin_pool_survives(db: Session, user: models.User, making_admin: bool = False) -> None:
+    if making_admin:
+        return
+    if user.role == models.UserRole.admin and user.is_active and _active_admin_count(db) <= 1:
+        raise HTTPException(status_code=400, detail="حداقل یک مدیر فعال باید در سیستم باقی بماند.")
+
+
+
+# ---------------------------------------------------------------------------
+# ۲.۲ داشبورد آمار کلان و تله‌متری
+# ---------------------------------------------------------------------------
+@router.get("/stats", response_model=schemas.AdminStatsOut)
+def stats(db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
+    total_users = db.query(func.count(models.User.id)).scalar() or 0
+    active_users = db.query(func.count(models.User.id)).filter(models.User.is_active.is_(True)).scalar() or 0
+    admin_users = db.query(func.count(models.User.id)).filter(models.User.role == models.UserRole.admin).scalar() or 0
+    total_documents = db.query(func.count(models.Document.id)).scalar() or 0
+    total_chunks = db.query(func.count(models.Chunk.id)).scalar() or 0
+    total_sessions = db.query(func.count(models.ChatSession.id)).scalar() or 0
+    total_messages = db.query(func.count(models.ChatMessage.id)).scalar() or 0
+    widget_sessions = (
+        db.query(func.count(models.ChatSession.id))
+        .filter(models.ChatSession.source == models.ChatSource.widget).scalar() or 0
+    )
+    playground_sessions = total_sessions - widget_sessions
+    flagged_messages = db.query(func.count(models.ChatMessage.id)).filter(models.ChatMessage.is_flagged.is_(True)).scalar() or 0
+    unresolved_flags = (
+        db.query(func.count(models.ChatMessage.id))
+        .filter(models.ChatMessage.is_flagged.is_(True), models.ChatMessage.resolved.is_(False))
+        .scalar() or 0
+    )
+
+    return schemas.AdminStatsOut(
+        total_users=total_users,
+        active_users=active_users,
+        blocked_users=total_users - active_users,
+        admin_users=admin_users,
+        total_documents=total_documents,
+        total_chunks=total_chunks,
+        total_sessions=total_sessions,
+        total_messages=total_messages,
+        widget_sessions=widget_sessions,
+        playground_sessions=playground_sessions,
+        flagged_messages=flagged_messages,
+        unresolved_flags=unresolved_flags,
+    )
+
+
+# ---------------------------------------------------------------------------
+# ۲.۳ مدیریت و پایش کاربران
+# ---------------------------------------------------------------------------
+def _user_to_admin_out(db: Session, user: models.User) -> schemas.AdminUserOut:
+    doc_count = db.query(func.count(models.Document.id)).filter(models.Document.user_id == user.id).scalar() or 0
+    session_count = db.query(func.count(models.ChatSession.id)).filter(models.ChatSession.user_id == user.id).scalar() or 0
+    return schemas.AdminUserOut(
+        id=user.id, username=user.username, org_name=user.org_name, role=user.role.value,
+        is_active=user.is_active, created_at=user.created_at, last_login_at=user.last_login_at,
+        document_count=doc_count, session_count=session_count,
+    )
+
+
+@router.get("/users", response_model=list[schemas.AdminUserOut])
+def list_users(
+    search: Optional[str] = Query(default=None, max_length=64),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    _admin: models.User = Depends(require_admin),
+):
+    query = db.query(models.User)
+    if search:
+        like = f"%{search.strip()}%"
+        query = query.filter(or_(models.User.username.ilike(like), models.User.org_name.ilike(like)))
+    users = query.order_by(models.User.created_at.desc()).offset(offset).limit(limit).all()
+    user_ids = [u.id for u in users]
+    if not user_ids:
+        return []
+    doc_counts = dict(
+        db.query(models.Document.user_id, func.count(models.Document.id))
+        .filter(models.Document.user_id.in_(user_ids))
+        .group_by(models.Document.user_id)
+        .all()
+    )
+    session_counts = dict(
+        db.query(models.ChatSession.user_id, func.count(models.ChatSession.id))
+        .filter(models.ChatSession.user_id.in_(user_ids))
+        .group_by(models.ChatSession.user_id)
+        .all()
+    )
+    return [
+        schemas.AdminUserOut(
+            id=u.id, username=u.username, org_name=u.org_name, role=u.role.value,
+            is_active=u.is_active, created_at=u.created_at, last_login_at=u.last_login_at,
+            document_count=int(doc_counts.get(u.id, 0)), session_count=int(session_counts.get(u.id, 0)),
+        )
+        for u in users
+    ]
+
+
+def _get_user_or_404(db: Session, user_id: int) -> models.User:
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="کاربر یافت نشد.")
+    return user
+
+
+@router.get("/users/{user_id}", response_model=schemas.AdminUserDetailOut)
+def get_user_detail(user_id: int, db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
+    user = _get_user_or_404(db, user_id)
+    base = _user_to_admin_out(db, user)
+    s = user.settings
+    return schemas.AdminUserDetailOut(
+        **base.model_dump(),
+        use_default_provider=s.use_default_provider,
+        api_key_set=bool(s.api_key),
+        base_url=s.base_url,
+        chat_model=s.chat_model,
+        embedding_model=s.embedding_model,
+        system_prompt=s.system_prompt,
+        temperature=s.temperature,
+        top_k=s.top_k,
+        widget_id=s.widget_id,
+    )
+
+
+@router.post("/users/{user_id}/block")
+def block_user(user_id: int, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    user = _get_user_or_404(db, user_id)
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="نمی‌توانید حساب خودتان را مسدود کنید.")
+    _ensure_admin_pool_survives(db, user)
+    user.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/users/{user_id}/unblock")
+def unblock_user(user_id: int, db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
+    user = _get_user_or_404(db, user_id)
+    user.is_active = True
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/users/{user_id}/role")
+def change_role(
+    user_id: int,
+    payload: schemas.RoleUpdateRequest,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_admin),
+):
+    if payload.role not in ("user", "admin"):
+        raise HTTPException(status_code=400, detail="نقش نامعتبر است.")
+    user = _get_user_or_404(db, user_id)
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="نمی‌توانید نقش خودتان را تغییر دهید.")
+    _ensure_admin_pool_survives(db, user, making_admin=payload.role == "admin")
+    user.role = models.UserRole(payload.role)
+    db.commit()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# ۲.۴ قابلیت بازرسی و پشتیبانی
+# ---------------------------------------------------------------------------
+@router.get("/users/{user_id}/documents", response_model=list[schemas.DocumentOut])
+def inspect_user_documents(user_id: int, db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
+    user = _get_user_or_404(db, user_id)
+    docs = (
+        db.query(models.Document).filter(models.Document.user_id == user.id)
+        .order_by(models.Document.created_at.desc()).all()
+    )
+    return [
+        schemas.DocumentOut(id=d.id, title=d.title, chunk_count=len(d.chunks), created_at=d.created_at, updated_at=d.updated_at)
+        for d in docs
+    ]
+
+
+@router.get("/users/{user_id}/sessions", response_model=list[schemas.SessionOut])
+def inspect_user_sessions(user_id: int, db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
+    user = _get_user_or_404(db, user_id)
+    sessions = (
+        db.query(models.ChatSession).filter(models.ChatSession.user_id == user.id)
+        .order_by(models.ChatSession.created_at.desc()).all()
+    )
+    return [_session_out(s) for s in sessions]
+
+
+@router.get("/sessions/{session_id}/messages", response_model=list[schemas.MessageOut])
+def session_messages(session_id: str, db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
+    session = db.query(models.ChatSession).filter(models.ChatSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="نشست یافت نشد.")
+    return list(session.messages)
+
+
+@router.post("/users/{user_id}/impersonate", response_model=schemas.ImpersonateResponse)
+def impersonate_user(user_id: int, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
+    """ورود موقت به‌جای کاربر (User as Login) برای عیب‌یابی/پشتیبانی."""
+    user = _get_user_or_404(db, user_id)
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="کاربر مسدود است و نمی‌توان به‌جای او وارد شد.")
+    token = create_impersonation_token(target_user_id=user.id, admin_id=admin.id)
+    return schemas.ImpersonateResponse(access_token=token, target_username=user.username)
+
+
+# ---------------------------------------------------------------------------
+# ۲.۵ گزارش جامع مکالمات و مانیتورینگ امنیتی
+# ---------------------------------------------------------------------------
+def _session_out(session: models.ChatSession) -> schemas.SessionOut:
+    return schemas.SessionOut(
+        id=session.id, source=session.source.value, visitor_label=session.visitor_label,
+        created_at=session.created_at, message_count=len(session.messages),
+        has_flag=any(m.is_flagged for m in session.messages),
+    )
+
+
+@router.get("/conversations", response_model=list[schemas.SessionOut])
+def all_conversations(
+    source: Optional[str] = Query(default=None),
+    flagged_only: bool = Query(default=False),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    _admin: models.User = Depends(require_admin),
+):
+    query = db.query(models.ChatSession)
+    if source in ("playground", "widget"):
+        query = query.filter(models.ChatSession.source == models.ChatSource(source))
+    if flagged_only:
+        query = query.filter(
+            db.query(models.ChatMessage.id)
+            .filter(models.ChatMessage.session_id == models.ChatSession.id)
+            .filter(models.ChatMessage.is_flagged.is_(True))
+            .exists()
+        )
+    sessions = query.order_by(models.ChatSession.created_at.desc()).offset(offset).limit(limit).all()
+    return [_session_out(s) for s in sessions]
+
+
+@router.get("/security/flags", response_model=list[schemas.FlaggedMessageOut])
+def security_flags(
+    resolved: Optional[bool] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    _admin: models.User = Depends(require_admin),
+):
+    query = (
+        db.query(models.ChatMessage, models.ChatSession, models.User)
+        .join(models.ChatSession, models.ChatMessage.session_id == models.ChatSession.id)
+        .join(models.User, models.ChatSession.user_id == models.User.id)
+        .filter(models.ChatMessage.is_flagged.is_(True))
+    )
+    if resolved is not None:
+        query = query.filter(models.ChatMessage.resolved.is_(resolved))
+    rows = query.order_by(models.ChatMessage.created_at.desc()).offset(offset).limit(limit).all()
+
+    return [
+        schemas.FlaggedMessageOut(
+            id=msg.id, session_id=session.id, owner_username=user.username, role=msg.role,
+            content=msg.content, flag_reason=msg.flag_reason, resolved=msg.resolved, created_at=msg.created_at,
+        )
+        for msg, session, user in rows
+    ]
+
+
+@router.post("/security/flags/{message_id}/resolve")
+def resolve_flag(message_id: int, db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
+    msg = db.query(models.ChatMessage).filter(models.ChatMessage.id == message_id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="پیام یافت نشد.")
+    msg.resolved = True
+    db.commit()
+    return {"ok": True}

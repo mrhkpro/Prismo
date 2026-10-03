@@ -1,0 +1,198 @@
+# Deployment Guide
+
+Quasar is a FastAPI application with a static frontend, SQLite for local development, Supabase PostgreSQL with pgvector for cloud deployment, and an OpenAI-compatible model provider.
+
+## Local Windows
+
+Run `setup.bat`. The script creates `.venv`, verifies Python 3.10+, checks/restores pip when necessary, prepares `.env` from `.env.example`, starts Uvicorn on `127.0.0.1:8000`, and opens the browser.
+
+Dependency installation is resilient to common package-index/DNS problems. The installer tries the official PyPI index first and then HTTPS mirrors. You can override the order with `QUASAR_PIP_INDEX_URL` before running the setup script.
+
+The setup script does not ask for an API key. Provider credentials belong in the local `.env` file or can be configured through the application's provider settings.
+
+## Local Linux / macOS
+
+Run:
+
+```bash
+chmod +x run.sh
+./run.sh
+```
+
+The launcher accepts:
+
+```bash
+HOST=127.0.0.1 PORT=8000 OPEN_BROWSER=true ./run.sh
+```
+
+For a hosted process, bind explicitly to the desired interface, for example `HOST=0.0.0.0`, and keep `OPEN_BROWSER=false`.
+
+## Environment
+
+Copy `.env.example` to `.env` and set production values before exposing the service publicly. At minimum, configure a strong `SECRET_KEY` (32+ characters) and provider credentials required by your selected model configuration.
+
+Never commit `.env`, API keys, database files, or other runtime secrets.
+
+## Health check
+
+The service exposes `GET /api/health` for a lightweight availability check.
+
+## Production notes
+
+Run behind a reverse proxy or managed process service, terminate TLS at the edge, and restrict CORS to the origins that actually need access when the deployment is not serving the embeddable public widget.
+
+The public widget rate limiter is in-memory and therefore scoped to one application process. A multi-instance deployment should use a shared rate-limit store before relying on the limit as a cross-instance control.
+
+Cloud production requires a PostgreSQL `DATABASE_URL`. It must not fall back to a local SQLite file. PostgreSQL mode does not create a local data directory.
+
+## مسیر فعلی: از مرحله ۱۴ تا Vercel
+
+این راهنما برای همان پوشه `G:\desktop\پارت\راکد 2\Final Project\Supa Base` است. همه دستورها را در PowerShell همین پوشه اجرا کن. اجرای برنامه از طریق Python موجود در `.venv` است.
+
+### ۱. پایان مرحله ۱۴
+
+```powershell
+Set-Location -LiteralPath 'G:\desktop\پارت\راکد 2\Final Project\Supa Base'
+Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+Test-Path Env:DATABASE_URL
+```
+
+خروجی دستور آخر باید `False` باشد.
+
+### ۲. اعمال اصلاحات آماده
+
+بسته `vercel-fixes.zip` را بیرون از پوشه پروژه باز کن. محتوای آن را داخل پوشه اصلی `Supa Base` کپی کن و جایگزینی فایل‌های هم‌نام را تأیید کن. بعد از کپی، `.vercelignore` باید کنار `requirements.txt` باشد.
+
+بسته فقط شامل فایل‌های اصلاح‌شده، تست‌های مربوط و این راهنماست. `.env`، دیتابیس محلی، `.venv` و `.git` در آن نیستند.
+
+اصلاحات: جلوگیری از نوشتن فایل دیتابیس در Vercel، الزام PostgreSQL در production، جلوگیری از آپلود فایل‌های خصوصی، جداسازی تست‌ها از Supabase، نمایش کنترل‌شده خطای embedding و جلوگیری از پاسخ‌سازی وقتی هیچ منبعی پیدا نمی‌شود.
+
+تست‌های مرتبط را اجرا کن:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q tests/test_cloud_runtime.py tests/test_cloud_rag.py tests/test_rag_store.py tests/test_rag_pipeline.py tests/test_knowledge_reindex.py tests/test_api_integration.py
+```
+
+نتیجه بررسی این نسخه: `23 passed`. در کل مجموعه `61 passed, 1 failed` مشاهده شد. همان تست صفحه‌بندی کاربران ادمین (`test_user_listing_honors_limit_and_offset`) قبل از اصلاحات هم شکست می‌خورد؛ این تغییرات آن بخش را دست نمی‌زنند.
+
+### ۳. تست واقعی با Supabase، پیش از استقرار
+
+در Supabase، بخش Table Editor باید این شش جدول را داشته باشد:
+
+`users`، `user_settings`، `documents`، `chunks`، `chat_sessions`، `chat_messages`.
+
+در PowerShell، به‌جای متن جایگزین، دقیقاً همان Connection String را قرار بده که قبلاً با آن خروجی `1` گرفته‌ای. در Supabase این آدرس از `Connect → Transaction pooler` گرفته می‌شود. اگر گذرواژه کاراکتر ویژه دارد، بخش گذرواژه در URL باید URL-encoded باشد؛ آدرسی که قبلاً تست موفق داشته را بدون تغییر استفاده کن.
+
+```powershell
+$env:DATABASE_URL='YOUR_TESTED_SUPABASE_CONNECTION_STRING'
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+این اجرای برنامه واقعاً در Supabase داده ذخیره می‌کند. مرورگر را روی `http://127.0.0.1:8000` باز کن. با نام کاربری `admin` و رمز `ADMIN_PASSWORD` فایل محلی `.env` وارد شو؛ در نخستین اجرای برنامه روی این دیتابیس حساب ادمین ساخته می‌شود.
+
+در «دانشنامه → افزودن سند جدید» این سند را ثبت کن:
+
+عنوان: `ساعات کاری`
+
+متن: `شرکت از شنبه تا چهارشنبه، ساعت ۸ تا ۱۴ فعال است. پنجشنبه و جمعه تعطیل است.`
+
+ثبت سند باید موفق باشد و تعداد تکه‌ها صفر نباشد. این مرحله علاوه بر چت، API واقعی embedding را هم امتحان می‌کند.
+
+در SQL Editor سوپابیس اجرا کن:
+
+```sql
+select id, user_id, document_id,
+       extensions.vector_dims(embedding) as dimensions
+from public.chunks
+order by id;
+```
+
+باید برای سند ثبت‌شده ردیف ببینی و `dimensions` برابر `2560` باشد.
+
+در «آزمایشگاه تست» بپرس: `ساعات کاری شرکت چیست؟` پاسخ باید ۸ تا ۱۴ باشد و بخش «منابع بازیابی‌شده» سند ساعات کاری را نشان بدهد. سپس در یک گفت‌وگوی جدید بپرس: `دفتر شرکت در کدام خیابان است؟` پاسخ باید نبود اطلاعات را اعلام کند، نه آدرس ساختگی.
+
+با یک حساب دیگر که سندی ندارد وارد شو و سؤال ساعات کاری را بپرس. سند حساب ادمین و پاسخ مستند آن نباید برای این حساب نمایش داده شود.
+
+اگر ثبت سند، ابعاد بردار، منابع یا پاسخ‌ها درست نبود، همان‌جا متوقف شو و خطا را بفرست. اجرای مراحل بعدی مشکل RAG را حل نمی‌کند.
+
+پس از موفقیت این مرحله، در Terminal برنامه `Ctrl+C` بزن و سپس:
+
+```powershell
+Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+```
+
+### ۴. اتصال به Vercel
+
+Vercel CLI روی سیستم موجود است؛ نسخه بررسی‌شده `54.17.3` بود.
+
+```powershell
+vercel.cmd login
+vercel.cmd link
+```
+
+ورود را در مرورگر خودت تأیید کن. در `link` حساب خودت را انتخاب کن، برای ساخت پروژه جدید به `Link to existing project?` پاسخ `N` بده، نام پروژه را `rag-widget` و مسیر کد را `./` قرار بده.
+
+### ۵. متغیرهای Vercel
+
+در داشبورد Vercel، پروژه را باز کن و به `Settings → Environment Variables` برو. برای هر پنج مقدار زیر، هر دو محیط `Preview` و `Production` را انتخاب کن. برای Preview مقدارها را به همه شاخه‌ها اعمال کن.
+
+| نام | مقدار |
+| --- | --- |
+| `APP_ENV` | `production` |
+| `DATABASE_URL` | همان Transaction Pooler URL تست‌شده |
+| `SECRET_KEY` | مقدار فعلی `SECRET_KEY` از `.env` محلی؛ مقدار بررسی‌شده ۴۳ کاراکتر داشت |
+| `DEFAULT_PROVIDER_API_KEY` | مقدار فعلی همین متغیر از `.env` محلی |
+| `ADMIN_PASSWORD` | همان رمز ادمین استفاده‌شده در تست Supabase |
+
+مقدارها را بدون نام متغیر، بدون علامت `=` و بدون کوتیشن وارد کن. فقط مقدار Secretها را در حساب Vercel خودت قرار بده؛ در پیام خطا یا اسکرین‌شات ارسالی منتشرشان نکن.
+
+### ۶. Preview
+
+```powershell
+vercel.cmd
+```
+
+اگر درباره تغییر تنظیمات Build/Output سؤال شد، پاسخ `N` بده. Framework باید FastAPI تشخیص داده شود. پس از رسیدن deployment به `Ready`، URL خروجی را باز کن و این مسیرها را بررسی کن:
+
+`/api/health` → `{"status":"ok"}`
+
+`/docs` → مستندات API
+
+`/` → صفحه پروژه
+
+Health فقط اجرای برنامه را بررسی می‌کند؛ به‌تنهایی اثبات سالم بودن دیتابیس و RAG نیست.
+
+با همان حساب ادمین وارد شو. سند ساعات کاری که در تست محلی با Supabase ساخته‌ای باید وجود داشته باشد. یک سند کوتاه جدید از خود سایت Vercel بساز تا ذخیره‌سازی از Vercel هم تأیید شود. سؤال ساعات کاری و سؤال آدرس را دوباره امتحان کن؛ منابع بازیابی‌شده را کنترل کن.
+
+در «ویجت و کد امبد»، پیش‌نمایش ویجت را باز کن و سؤال ساعات کاری را بپرس. پاسخ باید از همان دانشنامه باشد.
+
+### ۷. انتشار نهایی و ماندگاری داده
+
+فقط بعد از موفق بودن تست‌های Preview:
+
+```powershell
+vercel.cmd --prod
+```
+
+در URL نهایی، ورود، سند ذخیره‌شده، سؤال ساعات کاری و ویجت را دوباره بررسی کن. سند جدیدی که روی Preview ساخته‌ای باید بعد از این استقرار هم باقی مانده باشد؛ داده‌ها در Supabase هستند، نه روی فایل‌سیستم Vercel.
+
+اگر deployment شکست خورد، متن خطای قرمز Build Logs یا Runtime Logs را بفرست. کلیدها و Connection String را از متن حذف کن.
+
+## محدوده بررسی این نسخه
+
+- کد اصلی روی درایو G تغییر داده نشد؛ اصلاحات روی کپی پروژه آماده شدند.
+- مدل PostgreSQL به‌صورت `VECTOR(2560)` و اتصال به‌صورت `NullPool` بدون اتصال شبکه‌ای import شدند.
+- ۲۳ تست مرتبط با cloud، RAG، ثبت سند و جداسازی کاربران موفق شدند.
+- آزمون واقعی endpoint مدل، جداول زنده Supabase و deployment انجام نشده است؛ اتصال دیتابیس در فایل `.env` ارسالی نبود و Vercel CLI هنوز به حساب وارد نشده بود.
+- وجود migration در کد به معنی اجرای موفق آن روی دیتابیس زنده نیست. معیارهای مرحله ۳ برای تأیید واقعی لازم‌اند.
+
+## مستندات رسمی بررسی‌شده در ۲ اکتبر ۲۰۲۶
+
+- FastAPI، lifespan، frontend و entrypointهای Vercel: <https://vercel.com/docs/frameworks/backend/fastapi>
+- Connection string و Transaction Pooler: <https://supabase.com/docs/guides/database/connecting-to-postgres>
+- SQLAlchemy و NullPool: <https://supabase.com/docs/guides/troubleshooting/using-sqlalchemy-with-supabase-FUqebT>
+- Psycopg و `prepare_threshold=None`: <https://supabase.com/docs/guides/troubleshooting/disabling-prepared-statements-qL8lEL>
+- فایل‌های مجاز برای upload: <https://vercel.com/docs/deployments/vercel-ignore>
+- متغیرهای Preview و Production: <https://vercel.com/docs/environment-variables>
+- فایل‌سیستم read-only: <https://vercel.com/docs/functions/runtimes>
+- مسیر CLI تا Production: <https://vercel.com/docs/projects/deploy-from-cli>

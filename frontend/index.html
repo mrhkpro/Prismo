@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>کوازار — ویجت هوشمند دانش‌محور</title>
+<link rel="stylesheet" href="/assets/css/style.css?v=2.2.0">
+</head>
+<body>
+<div class="starfield"></div>
+
+<div class="landing">
+
+  <!-- ستون نمایشی (سمت راست) -->
+  <div class="landing-showcase">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"></path></svg>
+      </div>
+      کوازار
+    </div>
+
+    <div class="showcase-copy">
+      <h1>دانشنامه‌ی خودت را بده، یک ویجت چت هوشمند تحویل بگیر</h1>
+      <p>هر داده و مستندی که وارد می‌کنی، به یک دستیار گفت‌وگوی هوشمند تبدیل می‌شود که می‌تونی با یک خط کد داخل هر وب‌سایتی جاسازی‌اش کنی؛ کاملاً شخصی‌سازی‌شده و مخصوص خودت.</p>
+
+      <div class="showcase-steps">
+        <div class="showcase-step"><span class="num">۱</span> ثبت‌نام کن و مدل هوش مصنوعی موردنظرت را وصل کن (یا از مدل‌های رایگان آماده استفاده کن)</div>
+        <div class="showcase-step"><span class="num">۲</span> اسناد و اطلاعاتت را به دانشنامه اضافه کن و رفتار دستیار را شخصی‌سازی کن</div>
+        <div class="showcase-step"><span class="num">۳</span> کد ویجت را کپی و داخل وب‌سایتت جاسازی کن</div>
+      </div>
+    </div>
+
+    <div class="showcase-widget-demo">
+      <div class="orbit-node" style="top: -10px; right: 40px; animation-delay: 0s;"></div>
+      <div class="orbit-node" style="bottom: 60px; left: -6px; animation-delay: 1.4s; background: var(--accent);"></div>
+      <div class="demo-chat-card">
+        <div class="demo-chat-head">
+          <span class="dot"></span> دستیار هوشمند شما
+        </div>
+        <div class="demo-chat-body">
+          <div class="demo-bubble bot">سلام! هر سوالی درباره‌ی دانشنامه‌ات داری بپرس 🙂</div>
+          <div class="demo-bubble user">ساعت کاری پشتیبانی چیه؟</div>
+          <div class="demo-bubble bot">طبق سندی که آپلود کردی، پشتیبانی هر روز ۹ تا ۱۸ فعاله.</div>
+        </div>
+        <div class="demo-chat-foot">
+          <div class="fake-input">پیامت رو بنویس…</div>
+          <div class="fake-send"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ستون فرم (سمت چپ) -->
+  <div class="landing-form-side">
+    <div class="auth-box">
+      <h2 id="authTitle">ورود به حساب</h2>
+      <p class="sub" id="authSub">برای ساخت و مدیریت ویجت‌هایت وارد شو</p>
+
+      <div class="auth-tabs">
+        <div class="auth-tab active" data-tab="login">ورود</div>
+        <div class="auth-tab" data-tab="register">ثبت‌نام</div>
+      </div>
+
+      <div class="auth-error" id="authError"></div>
+
+      <!-- فرم ورود -->
+      <form id="loginForm">
+        <div class="field">
+          <label for="loginUsername">نام کاربری</label>
+          <input type="text" id="loginUsername" required autocomplete="username">
+        </div>
+        <div class="field">
+          <label for="loginPassword">رمز عبور</label>
+          <input type="password" id="loginPassword" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">ورود</button>
+      </form>
+
+      <!-- فرم ثبت‌نام -->
+      <form id="registerForm" style="display:none;">
+        <div class="field">
+          <label for="regOrgName">نام سازمان / برند شما (اختیاری)</label>
+          <input type="text" id="regOrgName" placeholder="مثلاً: فروشگاه آنلاین رویا">
+        </div>
+        <div class="field">
+          <label for="regUsername">نام کاربری</label>
+          <input type="text" id="regUsername" required autocomplete="username">
+        </div>
+        <div class="field">
+          <label for="regPassword">رمز عبور</label>
+          <input type="password" id="regPassword" required minlength="6" autocomplete="new-password">
+          <span class="field-hint">حداقل ۶ کاراکتر</span>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">ساخت حساب و شروع</button>
+      </form>
+
+      <p class="auth-note">هر کاربر، دانشنامه و ویجتِ کاملاً مجزا و اختصاصیِ خودش را دارد.</p>
+    </div>
+  </div>
+
+</div>
+
+<script src="/assets/js/api.js?v=2.2.0"></script>
+<script src="/assets/js/theme.js?v=2.2.0"></script>
+<script src="/assets/js/auth.js?v=2.2.0"></script>
+</body>
+</html>

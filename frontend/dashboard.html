@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>داشبورد — کوازار</title>
+<link rel="stylesheet" href="/assets/css/style.css?v=2.2.0">
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- =================== نوار کناری =================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"></path></svg>
+      </div>
+      کوازار
+    </div>
+
+    <nav class="nav-group">
+      <div class="nav-item" data-view="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        خانه
+      </div>
+    </nav>
+
+    <div class="nav-group">
+      <div class="nav-group-label">فاز اول</div>
+      <div class="nav-item" data-view="ai-settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        اتصال مدل هوش مصنوعی
+      </div>
+      <div class="nav-item" data-view="knowledge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+        دانشنامه
+      </div>
+      <div class="nav-item" data-view="rag-prompt">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+        شخصی‌سازی رفتار
+      </div>
+      <div class="nav-item" data-view="test-lab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        آزمایشگاه تست
+      </div>
+      <div class="nav-item" data-view="widget">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+        ویجت و کد امبد
+      </div>
+    </div>
+
+    <div class="nav-group" id="adminNavGroup" style="display:none;">
+      <div class="nav-group-label">مدیریت</div>
+      <div class="nav-item" id="goToAdminBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        پنل ادمین
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="nav-item" data-view="account">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        حساب من
+      </div>
+      <div class="sidebar-user">
+        <div class="avatar" id="avatarInitial">?</div>
+        <div class="who">
+          <div class="name" id="sidebarUserName">—</div>
+          <div class="role" id="sidebarUserRole">—</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- =================== محتوای اصلی =================== -->
+  <main class="main-area">
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="تغییر حالت نمایش"></button>
+    <div id="impersonationBanner" class="impersonation-banner" style="display:none;">
+      <span id="impersonationText"></span>
+      <button class="btn btn-sm btn-soft" id="exitImpersonationBtn">بازگشت به پنل ادمین</button>
+    </div>
+
+    <!-- ---------- خانه ---------- -->
+    <section class="view active" id="view-overview">
+      <div class="page-head">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span class="badge badge-accent">QUASAR 2.2</span><span class="badge badge-success"><span class="badge-dot"></span> سیستم آماده</span></div>
+        <h1>سلام 👋</h1>
+        <p>یک نگاه سریع به وضعیت دستیار هوشمند و دانشنامه‌ات</p>
+      </div>
+      <div class="grid-3" id="overviewStats">
+        <div class="stat-card"><div class="label">اسناد دانشنامه</div><div class="value accent" id="ovDocCount">—</div></div>
+        <div class="stat-card"><div class="label">تکه‌های ایندکس‌شده</div><div class="value" id="ovChunkCount">—</div></div>
+        <div class="stat-card"><div class="label">پیام‌های ثبت‌شده</div><div class="value" id="ovMessageCount">—</div></div>
+        <div class="stat-card"><div class="label">نشست‌های آزمایشگاه</div><div class="value" id="ovPlaygroundSessions">—</div></div>
+        <div class="stat-card"><div class="label">نشست‌های ویجت</div><div class="value" id="ovWidgetSessions">—</div></div>
+        <div class="stat-card"><div class="label">ارائه‌دهنده‌ی مدل</div><div class="value" style="font-size:16px;" id="ovProvider">—</div></div>
+      </div>
+      <div class="panel overview-health-panel">
+        <div class="panel-title">وضعیت سرویس</div>
+        <div class="panel-desc">وضعیت فعلی ویجت و حساب کاربری را از API داشبورد می‌خوانیم.</div>
+        <span class="badge badge-success" id="ovWidgetStatus"><span class="badge-dot"></span> فعال</span>
+      </div>
+      <div class="divider"></div>
+      <div class="panel">
+        <div class="panel-title">قدم بعدی چیه؟</div>
+        <div class="panel-desc">این پروژه سه بخش اصلی داره — همه رو از منوی کناری در دسترس داری.</div>
+        <div class="grid-3">
+          <button class="btn btn-soft" onclick="Nav.go('knowledge')">افزودن سند به دانشنامه</button>
+          <button class="btn btn-soft" onclick="Nav.go('test-lab')">تست گفت‌وگو با RAG</button>
+          <button class="btn btn-soft" onclick="Nav.go('widget')">گرفتن کد ویجت</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- اتصال مدل هوش مصنوعی ---------- -->
+    <section class="view" id="view-ai-settings">
+      <div class="page-head page-head-row">
+        <div>
+          <h1>اتصال و تنظیم مدل‌های هوش مصنوعی</h1>
+          <p>از مدل‌های رایگان آماده استفاده کن یا یک API سازگار با OpenAI را وصل کن و مدل‌های واقعی همان سرویس را دریافت کن.</p>
+        </div>
+        <div class="page-head-actions">
+          <span class="badge badge-muted" id="providerStatusBadge">مدل‌های آماده</span>
+        </div>
+      </div>
+
+      <div class="provider-mode-grid">
+        <button type="button" class="provider-mode-card" id="defaultProviderModeBtn">
+          <span class="provider-mode-icon">✦</span>
+          <span>
+            <strong>مدل‌های رایگان آماده</strong>
+            <small>بدون نیاز به API Key و با همان اتصال آماده‌ی پروژه</small>
+          </span>
+        </button>
+        <button type="button" class="provider-mode-card" id="customProviderModeBtn">
+          <span class="provider-mode-icon">⌘</span>
+          <span>
+            <strong>API اختصاصی من</strong>
+            <small>Base URL و کلید خودت را وارد کن و لیست مدل‌ها را بگیر</small>
+          </span>
+        </button>
+      </div>
+
+      <input type="checkbox" id="useDefaultProviderChk" hidden>
+
+      <div class="panel provider-panel" id="defaultProviderInfo">
+        <div class="provider-panel-head">
+          <div>
+            <div class="panel-title">اتصال آماده</div>
+            <div class="panel-desc">اتصال پیش‌فرض پروژه دست‌نخورده باقی می‌ماند. فقط مدل چت و Embedding را انتخاب کن.</div>
+          </div>
+          <span class="badge badge-success"><span class="badge-dot"></span> آماده استفاده</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label>مدل چت</label>
+            <select id="chatModelSelect"></select>
+          </div>
+          <div class="field">
+            <label>مدل Embedding</label>
+            <select id="embeddingModelSelect"></select>
+          </div>
+        </div>
+
+        <div class="provider-actions">
+          <button class="btn btn-primary" id="saveProviderBtn">ذخیره‌ی تنظیمات</button>
+          <button class="btn btn-ghost" id="testConnectionBtn">تست اتصال</button>
+        </div>
+      </div>
+
+      <div class="panel provider-panel" id="customProviderPanel" style="display:none;">
+        <div class="provider-panel-head">
+          <div>
+            <div class="panel-title">اتصال مستقیم به API خودت</div>
+            <div class="panel-desc">اتصال آماده‌ی پروژه دست‌نخورده باقی مانده؛ این بخش فقط برای API اختصاصی توست.</div>
+          </div>
+          <span class="badge badge-accent">OpenAI-Compatible</span>
+        </div>
+        <div class="provider-steps">
+          <span><b>۱</b> آدرس سرویس</span><span><b>۲</b> API Key</span><span><b>۳</b> دریافت مدل‌ها</span><span><b>۴</b> انتخاب مدل و ذخیره</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label>Base URL</label>
+            <input type="url" id="baseUrlInput" placeholder="https://api.example.com/v1" dir="ltr" autocomplete="url">
+          </div>
+          <div class="field">
+            <label>API Key</label>
+            <input type="password" id="apiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
+            <span class="field-hint" id="apiKeyStatusHint"></span>
+          </div>
+        </div>
+
+        <div class="model-discovery-box">
+          <div>
+            <strong>دریافت خودکار مدل‌های API</strong>
+            <p>بعد از وارد کردن Base URL و API Key، لیست مدل‌های واقعی سرویس را دریافت کن.</p>
+          </div>
+          <button class="btn btn-soft" id="discoverModelsBtn">دریافت مدل‌ها</button>
+        </div>
+        <div class="field-hint discovery-status" id="modelDiscoveryStatus"></div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label>مدل چت</label>
+            <select id="customChatModelSelect" disabled></select>
+          </div>
+          <div class="field">
+            <label>مدل Embedding</label>
+            <select id="customEmbeddingModelSelect" disabled></select>
+          </div>
+        </div>
+
+        <div class="provider-actions">
+          <button class="btn btn-primary" id="saveCustomProviderBtn">ذخیره‌ی اتصال اختصاصی</button>
+          <button class="btn btn-ghost" id="testCustomConnectionBtn">تست اتصال</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">⚔️ حالت Battle — مقایسه‌ی مدل‌های آماده</div>
+        <div class="panel-desc">این بخش فقط از مدل‌های رایگان آماده‌ی خود پروژه استفاده می‌کند و به اتصال API اختصاصی دست نمی‌زند.</div>
+        <div class="grid-2">
+          <div class="field">
+            <label>مدل اول</label>
+            <select id="battleModelA"></select>
+          </div>
+          <div class="field">
+            <label>مدل دوم</label>
+            <select id="battleModelB"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label>پرامپت آزمایشی</label>
+          <textarea id="battlePrompt" placeholder="مثلاً: یک پاراگراف کوتاه درباره‌ی اهمیت RAG بنویس."></textarea>
+        </div>
+        <button class="btn btn-primary" id="runBattleBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          شروع Battle
+        </button>
+        <div class="battle-grid" id="battleResults" style="display:none;"></div>
+      </div>
+    </section>
+
+    <!-- ---------- دانشنامه ---------- -->
+    <section class="view" id="view-knowledge">
+      <div class="page-head">
+        <h1>دانشنامه (Knowledge Base)</h1>
+        <p>اسناد و اطلاعاتی که دستیار هوشمند تو، پاسخ‌ها را از روی آن‌ها می‌سازد.</p>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:10px; flex-wrap:wrap;">
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-primary" id="addDocBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            افزودن سند جدید
+          </button>
+          <label class="btn btn-soft" style="cursor:pointer;">
+            آپلود فایل TXT
+            <input type="file" id="uploadTxtInput" accept=".txt" style="display:none;">
+          </label>
+        </div>
+        <button class="btn btn-danger btn-sm" id="clearKbBtn">حذف کامل دانشنامه</button>
+      </div>
+
+      <div class="doc-list" id="docList"></div>
+      <div class="empty-state" id="docEmptyState" style="display:none;">
+        <div class="icon">📄</div>
+        <div class="title">هنوز سندی اضافه نکرده‌ای</div>
+        <div>روی «افزودن سند جدید» بزن تا اولین سندت را وارد کنی.</div>
+      </div>
+    </section>
+
+    <!-- ---------- شخصی‌سازی رفتار RAG و پرامپت ---------- -->
+    <section class="view" id="view-rag-prompt">
+      <div class="page-head">
+        <h1>شخصی‌سازی رفتار دستیار</h1>
+        <p>نقش، لحن و پارامترهای بازیابی از دانشنامه را تنظیم کن.</p>
+      </div>
+      <div class="panel">
+        <div class="field">
+          <label>پرامپت سیستمی (نقش و لحن دستیار)</label>
+          <textarea id="systemPromptInput" style="min-height: 160px;"></textarea>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label>Temperature (میزان خلاقیت پاسخ)</label>
+            <div class="slider-row">
+              <input type="range" id="temperatureRange" min="0" max="2" step="0.1">
+              <span class="slider-value" id="temperatureValue">0.7</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Top-K (تعداد تکه‌ی بازیابی‌شده از دانشنامه)</label>
+            <div class="slider-row">
+              <input type="range" id="topKRange" min="1" max="15" step="1">
+              <span class="slider-value" id="topKValue">4</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Similarity Threshold (حداقل شباهت)</label>
+            <div class="slider-row">
+              <input type="range" id="similarityThresholdRange" min="0" max="1" step="0.05">
+              <span class="slider-value" id="similarityThresholdValue">0.25</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="saveRagPromptBtn">ذخیره‌ی تنظیمات</button>
+      </div>
+    </section>
+
+    <!-- ---------- آزمایشگاه تست ---------- -->
+    <section class="view" id="view-test-lab">
+      <div class="page-head">
+        <h1>آزمایشگاه تست داخلی</h1>
+        <p>قبل از انتشار ویجت، رفتار دستیار را همین‌جا امتحان کن.</p>
+      </div>
+
+      <div class="tab-strip">
+        <div class="tab-btn active" data-tab="chat-test">تست گفت‌وگوی RAG</div>
+        <div class="tab-btn" data-tab="search-test">جست‌وجوی معنایی (Playground)</div>
+      </div>
+
+      <div class="tab-pane active" id="tab-chat-test">
+        <div class="chat-lab">
+          <div class="chat-window">
+            <div class="chat-stream" id="chatStream">
+              <div class="chat-msg bot">سلام! برای تست، یک سؤال درباره‌ی دانشنامه‌ات بپرس.</div>
+            </div>
+            <div class="chat-input-row">
+              <textarea id="chatInput" placeholder="پیامت را بنویس…"></textarea>
+              <button class="btn btn-primary" id="sendChatBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+            </div>
+          </div>
+          <div class="sources-panel">
+            <div class="panel-title" style="font-size:14.5px; margin-bottom:14px;">منابع بازیابی‌شده</div>
+            <div id="sourcesList" class="cell-muted">هنوز سؤالی پرسیده نشده.</div>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:14px;" id="newSessionBtn">شروع گفت‌وگوی جدید</button>
+      </div>
+
+      <div class="tab-pane" id="tab-search-test">
+        <div class="panel">
+          <div class="field">
+            <label>عبارت جست‌وجو</label>
+            <div style="display:flex; gap:10px;">
+              <input type="text" id="searchQueryInput" placeholder="مثلاً: هزینه ارسال چقدره؟">
+              <button class="btn btn-primary" id="runSearchBtn" style="flex-shrink:0;">جست‌وجو</button>
+            </div>
+          </div>
+          <div id="searchResults"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- ویجت‌ساز ---------- -->
+    <section class="view" id="view-widget">
+      <div class="page-head">
+        <h1>ویجت‌ساز و کد جاسازی</h1>
+        <p>ظاهر ویجت را شخصی‌سازی کن و کد آن را داخل وب‌سایتت جاسازی کن.</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-title">ظاهر ویجت</div>
+          <div class="field">
+            <label>عنوان ویجت</label>
+            <input type="text" id="widgetTitleInput">
+          </div>
+          <div class="field">
+            <label>پیام خوش‌آمدگویی</label>
+            <textarea id="widgetWelcomeInput"></textarea>
+          </div>
+          <div class="field">
+            <label>رنگ اصلی ویجت</label>
+            <input type="color" id="widgetColorInput">
+          </div>
+          <button class="btn btn-primary" id="saveWidgetBtn">ذخیره‌ی ظاهر</button>
+        </div>
+
+        <div class="panel">
+          <div class="widget-preview-head">
+          <div>
+            <div class="panel-title">پیش‌نمایش واقعی ویجت</div>
+            <div class="panel-desc">همین ویجت عمومی را با تنظیمات فعلی داخل پنل تست کن.</div>
+          </div>
+          <button class="btn btn-soft btn-sm" id="refreshWidgetPreviewBtn">بازنشانی</button>
+        </div>
+        <div class="widget-preview-wrap" id="widgetPreviewWrap">
+          <iframe id="widgetPreviewFrame" class="widget-preview-frame" title="پیش‌نمایش ویجت"></iframe>
+        </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:20px;">
+        <div class="panel-title">کد جاسازی (Embed Code)</div>
+        <div class="panel-desc">این کد را کپی کن و پیش از تگ <span class="mono">&lt;/body&gt;</span> در هر وب‌سایتی جای‌گذاری کن.</div>
+        <div class="embed-code-box" id="embedCodeBox">در حال بارگذاری…</div>
+        <button class="btn btn-soft" id="copyEmbedBtn" style="margin-top:14px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          کپی کد
+        </button>
+      </div>
+    </section>
+
+    <!-- ---------- حساب من ---------- -->
+    <section class="view" id="view-account">
+      <div class="page-head">
+        <h1>حساب من</h1>
+      </div>
+      <div class="panel" style="max-width:420px;">
+        <div class="field"><label>نام کاربری</label><input type="text" id="accUsername" disabled></div>
+        <div class="field"><label>نام سازمان</label><input type="text" id="accOrgName" disabled></div>
+        <div class="field"><label>نقش</label><input type="text" id="accRole" disabled></div>
+        <button class="btn btn-danger btn-block" id="logoutBtn">خروج از حساب</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- مدال افزودن/ویرایش سند -->
+<div class="modal-overlay" id="docModal">
+  <div class="modal-box wide">
+    <div class="modal-head">
+      <h3 id="docModalTitle">افزودن سند جدید</h3>
+      <button class="icon-btn" id="closeDocModalBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    </div>
+    <div class="field">
+      <label>عنوان سند</label>
+      <input type="text" id="docTitleInput">
+    </div>
+    <div class="field">
+      <label>محتوا</label>
+      <textarea id="docContentInput" style="min-height:260px;"></textarea>
+    </div>
+    <button class="btn btn-primary btn-block" id="saveDocBtn">ذخیره و ایندکس‌کردن</button>
+  </div>
+</div>
+
+<script src="/assets/js/api.js?v=2.2.0"></script>
+<script src="/assets/js/theme.js?v=2.2.0"></script>
+<script src="/assets/js/dashboard.js?v=2.2.0"></script>
+</body>
+</html>
