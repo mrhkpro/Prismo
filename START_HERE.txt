@@ -8,6 +8,9 @@ RAG Widget — Final Vercel-ready package
    SECRET_KEY=<your current secret>
    DEFAULT_PROVIDER_BASE_URL=https://racode-llm.partschool.ir/v1
    DEFAULT_PROVIDER_API_KEY=<your current provider key>
+   # When direct Vercel -> provider traffic times out, use the relay instead:
+   # AI_PROXY_BASE_URL=https://YOUR-RELAY-DOMAIN/v1
+   # AI_PROXY_API_KEY=<relay key>
    ADMIN_USERNAME=admin
    ADMIN_PASSWORD=<your current admin password>
    ADMIN_ORG_NAME=ADMIN
@@ -19,7 +22,10 @@ RAG Widget — Final Vercel-ready package
 5) Check /api/health. Then log in and use Settings -> Test Connection.
 6) In Settings -> Test Connection, the site now runs provider diagnostics. It shows DNS, stage, HTTP status, model, exception type and elapsed time without showing the API key.
 7) If chat itself fails, the same technical details are shown inside the chat message and the response request ID is displayed.
-8) If the error is DNS/connect/timeout, the remaining issue is Vercel outbound access to the provider endpoint, not the RAG code.
+8) If the error is DNS/connect/timeout, do NOT keep increasing timeouts. Configure the hosted relay:
+   AI_PROXY_BASE_URL=https://YOUR-RELAY-DOMAIN/v1
+   AI_PROXY_API_KEY=<relay key>
+   See docs/RELAY_QUICKSTART.md.
 9) Only after Preview works: vercel.cmd --prod
 
 Git:
