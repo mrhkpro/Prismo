@@ -548,23 +548,40 @@ function appendChatMsg(role, text) {
   return el;
 }
 
+let CHAT_REQUEST_ACTIVE = false;
+
 async function sendChatMessage() {
+  if (CHAT_REQUEST_ACTIVE) return;
   const input = document.getElementById("chatInput");
+  const sendBtn = document.getElementById("sendChatBtn");
   const message = input.value.trim();
   if (!message) return;
+
+  CHAT_REQUEST_ACTIVE = true;
+  sendBtn.disabled = true;
   input.value = "";
   appendChatMsg("user", message);
-  const pending = appendChatMsg("bot", "در حال فکر کردن…");
+  const pending = appendChatMsg("bot", "در حال آماده‌سازی پاسخ…");
   pending.classList.add("pending");
 
   try {
+    // همیشه مدل فعلی تنظیمات را صریحاً به backend می‌فرستیم تا تغییر مدل
+    // فقط در UI نماند و همان درخواست با مدل انتخاب‌شده اجرا شود.
+    const selectedModel = CURRENT_SETTINGS && CURRENT_SETTINGS.chat_model
+      ? CURRENT_SETTINGS.chat_model
+      : undefined;
+
     const res = await apiCall("/api/playground/chat", {
       method: "POST",
-      body: { message, session_id: CHAT_SESSION_ID },
+      timeoutMs: 90000,
+      body: { message, session_id: CHAT_SESSION_ID, ...(selectedModel ? { model: selectedModel } : {}) },
     });
     CHAT_SESSION_ID = res.session_id;
     pending.textContent = res.reply;
     pending.classList.remove("pending");
+
+    const modelBadge = document.getElementById("activeChatModelBadge");
+    modelBadge.textContent = res.model || selectedModel || "—";
 
     const sourcesList = document.getElementById("sourcesList");
     if (res.sources.length === 0) {
@@ -584,6 +601,9 @@ async function sendChatMessage() {
     pending.textContent = err.message;
     pending.classList.remove("pending");
     pending.style.color = "var(--danger)";
+  } finally {
+    CHAT_REQUEST_ACTIVE = false;
+    sendBtn.disabled = false;
   }
 }
 document.getElementById("sendChatBtn").addEventListener("click", sendChatMessage);

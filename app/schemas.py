@@ -175,6 +175,12 @@ class DocumentDetailOut(DocumentOut):
 class ChatTestRequest(BaseModel):
     message: str = Field(min_length=1, max_length=config.MAX_CHAT_MESSAGE_CHARS)
     session_id: Optional[str] = Field(default=None, max_length=64)
+    model: Optional[str] = Field(default=None, min_length=1, max_length=200)
+
+    @field_validator("model")
+    @classmethod
+    def normalize_model(cls, value: Optional[str]) -> Optional[str]:
+        return value.strip() if value else value
 
 
 class SourceChunk(BaseModel):
@@ -187,6 +193,7 @@ class ChatTestResponse(BaseModel):
     session_id: str
     reply: str
     sources: List[SourceChunk]
+    model: str
 
 
 class SemanticSearchRequest(BaseModel):

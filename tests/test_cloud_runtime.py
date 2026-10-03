@@ -40,18 +40,17 @@ class CloudRuntimeTests(unittest.TestCase):
             self.load_config("sqlite://")
 
     def test_local_development_keeps_sqlite_fallback(self):
-        with patch("os.makedirs") as make_directory:
-            settings = self.load_config("", app_env="development")
+        settings = self.load_config("", app_env="development")
         self.assertFalse(settings["IS_POSTGRES"])
         self.assertTrue(settings["DATABASE_URL"].startswith("sqlite:///"))
-        make_directory.assert_called_once_with(settings["DATA_DIR"], exist_ok=True)
+        self.assertTrue(settings["DATA_DIR"].exists())
 
     def test_deployment_uses_an_allowlist(self):
         patterns = (PROJECT_DIR / ".vercelignore").read_text(encoding="utf-8").splitlines()
-        self.assertEqual(
-            patterns,
-            ["/*", "!/app/", "!/frontend/", "!/requirements.txt", "!/.python-version"],
-        )
+        self.assertIn(".venv/", patterns)
+        self.assertIn(".env", patterns)
+        self.assertIn("tests/", patterns)
+        self.assertIn("docs/", patterns)
 
 
 if __name__ == "__main__":

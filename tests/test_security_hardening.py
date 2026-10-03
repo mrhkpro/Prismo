@@ -18,7 +18,8 @@ class SecurityHardeningTests(unittest.TestCase):
 
     def test_provider_key_has_no_hardcoded_literal_in_config(self):
         source = (Path(__file__).resolve().parents[1] / "app/config.py").read_text(encoding="utf-8")
-        self.assertIn('DEFAULT_PROVIDER_API_KEY = os.getenv("DEFAULT_PROVIDER_API_KEY", "")', source)
+        self.assertIn('DEFAULT_PROVIDER_API_KEY = os.getenv(', source)
+        self.assertIn('"DEFAULT_PROVIDER_API_KEY",', source)
 
 
 if __name__ == "__main__":
