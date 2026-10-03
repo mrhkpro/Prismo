@@ -42,10 +42,6 @@ class RAGPipelineTests(unittest.TestCase):
         self.assertEqual(messages[1]["role"], "assistant")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class RAGPerformanceContractTests(unittest.TestCase):
     def test_chat_pipeline_logs_timing_with_selected_model(self):
         settings = SimpleNamespace(
