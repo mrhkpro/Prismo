@@ -1,9 +1,13 @@
+import logging
+import time
 from typing import List, Tuple
 
 from sqlalchemy.orm import Session
 
 from .. import models
 from . import injection_scanner, llm_client, rag_store
+
+logger = logging.getLogger("quasar.rag")
 
 MAX_HISTORY_MESSAGES = 12  # آخرین N پیام برای حفظ تاریخچه در پرامپت به مدل داده می‌شود
 MAX_HISTORY_CHARS = 6000
@@ -41,9 +45,16 @@ def run_rag_chat(
     settings = owner.settings
     provider = llm_client.resolve_provider(settings)
 
+    started = time.perf_counter()
+
     # ۱) بازیابی معنایی از دانشنامه صاحبِ ویجت/حساب
+    embedding_started = time.perf_counter()
     query_embedding = llm_client.embed_text(user_message, provider)
+    embedding_ms = int((time.perf_counter() - embedding_started) * 1000)
+
+    search_started = time.perf_counter()
     matches = rag_store.search(db, owner.id, query_embedding, top_k=settings.top_k or 4, similarity_threshold=settings.similarity_threshold or 0.0)
+    search_ms = int((time.perf_counter() - search_started) * 1000)
 
     if not matches:
         return "در دانشنامه اطلاعاتی برای پاسخ به این سؤال ندارم.", []
@@ -62,7 +73,27 @@ def run_rag_chat(
     history = [{"role": m.role, "content": m.content} for m in session.messages[-MAX_HISTORY_MESSAGES:]]
     messages = build_messages(settings.system_prompt, context_block, history, user_message)
 
-    reply = llm_client.chat_completion(messages, provider, temperature=settings.temperature or 0.7, model=model or settings.chat_model)
+    llm_started = time.perf_counter()
+    selected_model = model or settings.chat_model
+    reply = llm_client.chat_completion(
+        messages,
+        provider,
+        temperature=settings.temperature or 0.7,
+        model=selected_model,
+    )
+    llm_ms = int((time.perf_counter() - llm_started) * 1000)
+    total_ms = int((time.perf_counter() - started) * 1000)
+
+    logger.info(
+        "rag_chat owner_id=%s model=%s embedding_ms=%s search_ms=%s llm_ms=%s total_ms=%s matches=%s",
+        owner.id,
+        selected_model,
+        embedding_ms,
+        search_ms,
+        llm_ms,
+        total_ms,
+        len(matches),
+    )
     return reply, matches
 
 
