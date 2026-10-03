@@ -25,7 +25,7 @@ const Auth = {
   },
 };
 
-async function apiCall(path, { method = "GET", body = null, auth = true, timeoutMs = 25000 } = {}) {
+async function apiCall(path, { method = "GET", body = null, auth = true, timeoutMs = 30000 } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth) {
     const token = Auth.getToken();

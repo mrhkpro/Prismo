@@ -78,8 +78,58 @@ class AIProviderTests(unittest.TestCase):
         kwargs = openai_cls.call_args.kwargs
         self.assertEqual(kwargs["base_url"], "https://example.com/v1")
         self.assertEqual(kwargs["api_key"], "secret")
-        self.assertEqual(kwargs["timeout"], llm_client.config.AI_REQUEST_TIMEOUT_SECONDS)
+        self.assertEqual(kwargs["timeout"].read, llm_client.config.AI_REQUEST_TIMEOUT_SECONDS)
+        self.assertEqual(kwargs["timeout"].connect, llm_client.config.AI_CONNECT_TIMEOUT_SECONDS)
         self.assertEqual(kwargs["max_retries"], llm_client.config.AI_MAX_RETRIES)
+
+    def test_chat_completion_honors_explicit_model_and_output_cap(self):
+        fake_client = SimpleNamespace(
+            chat=SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=lambda **kwargs: SimpleNamespace(
+                        choices=[SimpleNamespace(message=SimpleNamespace(content="ok"))]
+                    )
+                )
+            )
+        )
+        provider = llm_client.ProviderConfig(
+            base_url="https://example.com/v1",
+            api_key="secret",
+            chat_model="saved-model",
+            embedding_model="embed-model",
+            is_default=True,
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client):
+            with patch.object(fake_client.chat.completions, "create", wraps=fake_client.chat.completions.create) as create:
+                reply = llm_client.chat_completion(
+                    [{"role": "user", "content": "hello"}],
+                    provider,
+                    model="explicit-model",
+                )
+        self.assertEqual(reply, "ok")
+        kwargs = create.call_args.kwargs
+        self.assertEqual(kwargs["model"], "explicit-model")
+        self.assertEqual(kwargs["max_tokens"], llm_client.config.AI_MAX_OUTPUT_TOKENS)
+
+    def test_connection_uses_models_endpoint_before_inference(self):
+        fake_client = SimpleNamespace(
+            models=SimpleNamespace(
+                list=lambda: SimpleNamespace(
+                    data=[SimpleNamespace(id="selected-model")]
+                )
+            )
+        )
+        provider = llm_client.ProviderConfig(
+            base_url="https://example.com/v1",
+            api_key="secret",
+            chat_model="selected-model",
+            embedding_model="embed-model",
+            is_default=True,
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client):
+            ok, message = llm_client.test_connection(provider)
+        self.assertTrue(ok)
+        self.assertIn("موفقیت", message)
 
     def test_list_models_requires_key(self):
         with self.assertRaises(llm_client.LLMError):

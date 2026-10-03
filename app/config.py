@@ -165,14 +165,23 @@ DEFAULT_PROVIDER_API_KEY = os.getenv(
     "",
 ).strip()
 
-# شبکه‌ی سرویس مدل ممکن است روی Vercel کمی کندتر از اجرای محلی باشد.
-# این دو مقدار قابل تنظیم‌اند و روی منطق مدل/RAG اثری ندارند.
+# شبکه‌ی سرویس مدل ممکن است روی Vercel کندتر از اجرای محلی باشد.
+# در محیط Serverless، timeout کوتاه‌تر و بدون retry تودرتو از طولانی‌شدن
+# درخواست‌های زنجیره‌ای (embedding + chat) جلوگیری می‌کند.
 AI_REQUEST_TIMEOUT_SECONDS = float(
-    os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "45")
+    os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "30")
+)
+
+AI_CONNECT_TIMEOUT_SECONDS = float(
+    os.getenv("AI_CONNECT_TIMEOUT_SECONDS", "6")
 )
 
 AI_MAX_RETRIES = int(
-    os.getenv("AI_MAX_RETRIES", "2")
+    os.getenv("AI_MAX_RETRIES", "0")
+)
+
+AI_MAX_OUTPUT_TOKENS = int(
+    os.getenv("AI_MAX_OUTPUT_TOKENS", "900")
 )
 
 DEFAULT_CHAT_MODELS = [
