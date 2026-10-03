@@ -1,24 +1,30 @@
 # Git History
 
-This repository history was rebuilt from the supplied working tree on 2026-10-03. The goal is a readable, intentional graph rather than a sequence of ad-hoc repair commits.
+تاریخچه پروژه به‌صورت feature-branch و mergeهای `--no-ff` نگه‌داری می‌شود تا هر دسته تغییر در graph قابل تشخیص باشد.
 
-## Branches rebuilt
+## Release line
 
-1. `feature/repository-foundation` — repository hygiene and deterministic ignore rules.
-2. `feature/vercel-ai-resilience` — hosted AI connection timeout/retry behavior and safe diagnostics.
-3. `feature/deployment-docs` — Vercel environment and AI connectivity troubleshooting documentation.
-4. `feature/release-cleanup` — final documentation/changelog cleanup.
-5. `feature/release-notes` — final deployment checklist.
+```text
+main
+├─ feature/repository-foundation
+├─ feature/vercel-ai-resilience
+├─ feature/deployment-docs
+├─ feature/release-cleanup
+├─ feature/release-notes
+├─ feature/release-notes-doc
+├─ feature/chat-performance
+├─ feature/model-switching
+├─ feature/chat-observability
+└─ docs/vercel-chat-runbook
+```
 
-Each branch is merged with `--no-ff` so the graph visibly records the feature boundary.
+## Convention
 
-## Verification
+- `feat:` برای قابلیت جدید
+- `fix:` برای اصلاح رفتار
+- `perf:` برای بهبود سرعت/مصرف
+- `test:` برای قراردادهای تست
+- `docs:` برای مستندات
+- `chore:` برای نگه‌داری repository
 
-- Python syntax compilation: passed.
-- AI provider unit tests with local SQLite override: passed.
-- Full suite requires the project's `.venv` because the supplied runtime archive does not include installed dependencies.
-- No `.venv` is included in the release archive.
-
-## Secret handling
-
-The supplied `.env` remains a local working file and is intentionally not committed to Git. The project archive may contain it for local execution, but Git history does not.
+برای حفظ graph، ادغام branchهای feature در `main` با `git merge --no-ff` انجام می‌شود.

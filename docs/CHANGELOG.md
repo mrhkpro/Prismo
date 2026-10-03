@@ -1,3 +1,13 @@
+
+## 2.2.1 - Hosted Chat Performance
+
+- بهبود timeout و حذف retryهای تودرتو برای تماس‌های AI در Serverless.
+- cache شدن کلاینت OpenAI-compatible در runtimeهای گرم.
+- کاهش اندازه تاریخچه و context ارسالی به مدل.
+- تست اتصال سبک‌تر با اولویت `/models`.
+- ارسال صریح مدل انتخاب‌شده در هر درخواست چت و نمایش مدل واقعاً استفاده‌شده.
+- ثبت زمان Embedding، Search و LLM برای عیب‌یابی Vercel.
+
 # Changelog
 
 ## Unreleased — 2026-10-03
