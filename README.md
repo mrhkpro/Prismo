@@ -68,7 +68,7 @@ Run `setup.bat`. It creates `.venv`, installs dependencies, creates a local `.en
 
 Default URL: `http://127.0.0.1:8000/`
 
-Local demo admin account: `admin` / `Admin@12345`.
+Local demo admin account: `admin` / value of `ADMIN_PASSWORD` in the local `.env`.
 
 ### Linux / macOS
 
