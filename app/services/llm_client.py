@@ -8,7 +8,10 @@
 import logging
 import time
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import List, Optional, Tuple
+
+import httpx
 
 from ..exceptions import LLMError
 
@@ -53,20 +56,29 @@ def normalize_base_url(base_url: str) -> str:
     return (base_url or "").strip().rstrip("/")
 
 
+@lru_cache(maxsize=16)
+def _cached_client(base_url: str, api_key: str) -> OpenAI:
+    """Reuse warm OpenAI-compatible clients across requests in the same runtime."""
+    timeout = httpx.Timeout(
+        config.AI_REQUEST_TIMEOUT_SECONDS,
+        connect=config.AI_CONNECT_TIMEOUT_SECONDS,
+    )
+    return OpenAI(
+        base_url=base_url,
+        api_key=api_key,
+        timeout=timeout,
+        max_retries=config.AI_MAX_RETRIES,
+    )
+
+
 def _client(base_url: str, api_key: str) -> OpenAI:
-    """Create an OpenAI-compatible client with Vercel-friendly network settings."""
+    """Create/reuse an OpenAI-compatible client with serverless-friendly timeouts."""
     normalized = normalize_base_url(base_url)
     if not normalized:
         raise LLMError("آدرس سرویس (Base URL) را وارد کنید.")
     if not api_key:
         raise LLMError("API Key سرویس را وارد کنید.")
-
-    return OpenAI(
-        base_url=normalized,
-        api_key=api_key,
-        timeout=config.AI_REQUEST_TIMEOUT_SECONDS,
-        max_retries=config.AI_MAX_RETRIES,
-    )
+    return _cached_client(normalized, api_key)
 
 
 def list_models(base_url: str, api_key: str) -> List[str]:
@@ -195,10 +207,12 @@ def chat_completion(
 ) -> str:
     client = _client(provider.base_url, provider.api_key)
     try:
+        selected_model = model or provider.chat_model
         response = client.chat.completions.create(
-            model=model or provider.chat_model,
+            model=selected_model,
             messages=messages,
             temperature=temperature,
+            max_tokens=config.AI_MAX_OUTPUT_TOKENS,
         )
     except Exception as exc:  # noqa: BLE001
         if isinstance(exc, APIConnectionError):
@@ -222,16 +236,34 @@ def timed_chat_completion(
 
 
 def test_connection(provider: ProviderConfig) -> Tuple[bool, str]:
-    """یک تماس سبک برای بررسی صحت تنظیمات اتصال (Settings > Test Connection)."""
+    """اتصال را با /models بررسی می‌کند تا تست تنظیمات، inference سنگین اجرا نکند."""
     client = _client(provider.base_url, provider.api_key)
     try:
-        client.chat.completions.create(
-            model=provider.chat_model,
-            messages=[{"role": "user", "content": "ping"}],
-            max_tokens=4,
-        )
+        response = client.models.list()
+        model_ids = {
+            str(item.id).strip()
+            for item in response.data
+            if getattr(item, "id", None) and str(item.id).strip()
+        }
+        if model_ids and provider.chat_model not in model_ids:
+            return False, f"اتصال برقرار است، اما مدل «{provider.chat_model}» در سرویس پیدا نشد."
         return True, "اتصال با موفقیت برقرار شد."
     except Exception as exc:  # noqa: BLE001
         if isinstance(exc, APIConnectionError):
             _log_connection_error(provider.base_url, exc)
+        # بعضی OpenAI-compatibleها /models را ارائه نمی‌کنند؛ در این حالت یک
+        # ping بسیار کوتاه به endpoint چت انجام می‌دهیم.
+        status_code = getattr(exc, "status_code", None)
+        if status_code in (404, 405, 501):
+            try:
+                client.chat.completions.create(
+                    model=provider.chat_model,
+                    messages=[{"role": "user", "content": "ping"}],
+                    max_tokens=1,
+                )
+                return True, "اتصال با موفقیت برقرار شد."
+            except Exception as fallback_exc:  # noqa: BLE001
+                if isinstance(fallback_exc, APIConnectionError):
+                    _log_connection_error(provider.base_url, fallback_exc)
+                return False, _friendly_error(fallback_exc)
         return False, _friendly_error(exc)

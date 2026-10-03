@@ -32,8 +32,8 @@ class RAGPipelineTests(unittest.TestCase):
 
     def test_history_is_limited_by_character_budget(self):
         history = [
-            {"role": "user", "content": "a" * 8000},
-            {"role": "assistant", "content": "b" * 8000},
+            {"role": "user", "content": "a" * 4000},
+            {"role": "assistant", "content": "b" * 4000},
         ]
         messages = rag_pipeline.build_messages("System", "Context", history, "Q")
         self.assertEqual(len(messages), 3)

@@ -6,7 +6,8 @@ from .. import models
 from . import injection_scanner, llm_client, rag_store
 
 MAX_HISTORY_MESSAGES = 12  # آخرین N پیام برای حفظ تاریخچه در پرامپت به مدل داده می‌شود
-MAX_HISTORY_CHARS = 12000
+MAX_HISTORY_CHARS = 6000
+MAX_CONTEXT_CHARS = 6000
 
 
 def build_messages(system_prompt: str, context_block: str, history: List[dict], user_message: str) -> List[dict]:
@@ -34,6 +35,7 @@ def run_rag_chat(
     owner: models.User,
     session: models.ChatSession,
     user_message: str,
+    model: str | None = None,
 ) -> Tuple[str, List[Tuple[models.Chunk, float]]]:
     """یک چرخه‌ی کامل RAG را روی «دانشنامه‌ی owner» اجرا می‌کند و پاسخ + منابع را برمی‌گرداند."""
     settings = owner.settings
@@ -46,15 +48,21 @@ def run_rag_chat(
     if not matches:
         return "در دانشنامه اطلاعاتی برای پاسخ به این سؤال ندارم.", []
 
-    context_block = "\n\n".join(
-        f"[منبع {i+1}] {chunk.text}" for i, (chunk, _score) in enumerate(matches)
-    )
+    context_parts: List[str] = []
+    context_chars = 0
+    for i, (chunk, _score) in enumerate(matches, start=1):
+        part = f"[منبع {i}] {chunk.text}"
+        if context_chars + len(part) > MAX_CONTEXT_CHARS:
+            break
+        context_parts.append(part)
+        context_chars += len(part)
+    context_block = "\n\n".join(context_parts)
 
     # ۲) ساخت تاریخچه‌ی مکالمه از پیام‌های قبلیِ همین نشست
     history = [{"role": m.role, "content": m.content} for m in session.messages[-MAX_HISTORY_MESSAGES:]]
     messages = build_messages(settings.system_prompt, context_block, history, user_message)
 
-    reply = llm_client.chat_completion(messages, provider, temperature=settings.temperature or 0.7)
+    reply = llm_client.chat_completion(messages, provider, temperature=settings.temperature or 0.7, model=model or settings.chat_model)
     return reply, matches
 
 
