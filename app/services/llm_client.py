@@ -45,8 +45,8 @@ def resolve_provider(settings: models.UserSettings) -> ProviderConfig:
             is_default=False,
         )
     return ProviderConfig(
-        base_url=config.DEFAULT_PROVIDER_BASE_URL,
-        api_key=config.DEFAULT_PROVIDER_API_KEY,
+        base_url=config.AI_PROXY_BASE_URL or config.DEFAULT_PROVIDER_BASE_URL,
+        api_key=config.AI_PROXY_API_KEY or config.DEFAULT_PROVIDER_API_KEY,
         chat_model=settings.chat_model or config.DEFAULT_CHAT_MODEL,
         embedding_model=settings.embedding_model or config.DEFAULT_EMBEDDING_MODEL,
         is_default=True,
@@ -221,6 +221,12 @@ def format_provider_error(
     nested = _exception_text(exc)
     if nested and nested not in body:
         details.append(f"جزئیات فنی: {nested[:1200]}")
+
+    if stage in {"connect_timeout", "network", "dns"} and provider.is_default and config.AI_PROXY_BASE_URL == "":
+        details.append(
+            "راه‌حل پیشنهادی: این سرویس از شبکه Vercel قابل دسترسی نیست؛ "
+            "AI_PROXY_BASE_URL را روی یک Relay قابل‌دسترسی تنظیم کنید یا IP خروجی Vercel را در فایروال مقصد مجاز کنید."
+        )
 
     return reason + "\n" + "\n".join(details)
 

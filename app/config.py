@@ -165,6 +165,11 @@ DEFAULT_PROVIDER_API_KEY = os.getenv(
     "",
 ).strip()
 
+# در صورت فعال‌سازی Relay، درخواست‌های provider پیش‌فرض به Relay فرستاده می‌شوند
+# تا Vercel لازم نباشد مستقیماً به شبکه/فایروال سرویس AI متصل شود.
+AI_PROXY_BASE_URL = os.getenv("AI_PROXY_BASE_URL", "").strip().rstrip("/")
+AI_PROXY_API_KEY = os.getenv("AI_PROXY_API_KEY", "").strip()
+
 # شبکه‌ی سرویس مدل ممکن است روی Vercel کندتر از اجرای محلی باشد.
 # در محیط Serverless، timeout کوتاه‌تر و بدون retry تودرتو از طولانی‌شدن
 # درخواست‌های زنجیره‌ای (embedding + chat) جلوگیری می‌کند.
