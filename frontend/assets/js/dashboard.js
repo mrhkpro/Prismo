@@ -267,8 +267,17 @@ async function testSelectedProvider(btn, useDefault) {
   const oldText = btn.textContent;
   btn.textContent = "در حال بررسی…";
   try {
-    const result = await apiCall("/api/settings/test-connection", { method: "POST" });
-    toast(result.message, result.ok ? "success" : "error");
+    const result = await apiCall("/api/settings/provider-diagnostics", { method: "GET" });
+    const status = [
+      result.message || "",
+      result.base_url ? `Base URL: ${result.base_url}` : "",
+      result.model ? `مدل: ${result.model}` : "",
+      result.dns && result.dns.length ? `DNS: ${result.dns.join(", ")}` : "DNS: resolve نشد",
+      result.status_code ? `HTTP: ${result.status_code}` : "",
+      result.error_type ? `نوع خطا: ${result.error_type}` : "",
+      `زمان: ${result.elapsed_ms}ms`,
+    ].filter(Boolean).join("\n");
+    toast(status, result.ok ? "success" : "error");
   } catch (err) {
     toastError(err);
   } finally {
@@ -598,7 +607,8 @@ async function sendChatMessage() {
         .join("");
     }
   } catch (err) {
-    pending.textContent = err.message;
+    const requestId = err && err.requestId ? `\nشناسه درخواست: ${err.requestId}` : "";
+    pending.textContent = `${err && err.message ? err.message : String(err)}${requestId}`;
     pending.classList.remove("pending");
     pending.style.color = "var(--danger)";
   } finally {
