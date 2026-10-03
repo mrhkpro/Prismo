@@ -8,6 +8,7 @@ This repository history was rebuilt from the supplied working tree on 2026-10-03
 2. `feature/vercel-ai-resilience` — hosted AI connection timeout/retry behavior and safe diagnostics.
 3. `feature/deployment-docs` — Vercel environment and AI connectivity troubleshooting documentation.
 4. `feature/release-cleanup` — final documentation/changelog cleanup.
+5. `feature/release-notes` — final deployment checklist.
 
 Each branch is merged with `--no-ff` so the graph visibly records the feature boundary.
 
