@@ -5,6 +5,7 @@
 صراحتاً «استفاده از مدل رایگان آماده» را فعال گذاشته باشد، از ارائه‌دهنده‌ی
 پیش‌فرض تعریف‌شده در config استفاده می‌شود.
 """
+import logging
 import time
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
@@ -14,6 +15,8 @@ from ..exceptions import LLMError
 from openai import OpenAI, APIError, APIConnectionError, AuthenticationError
 
 from .. import config, models
+
+logger = logging.getLogger("quasar.llm")
 
 
 @dataclass
@@ -51,7 +54,19 @@ def normalize_base_url(base_url: str) -> str:
 
 
 def _client(base_url: str, api_key: str) -> OpenAI:
-    return OpenAI(base_url=normalize_base_url(base_url), api_key=api_key)
+    """Create an OpenAI-compatible client with Vercel-friendly network settings."""
+    normalized = normalize_base_url(base_url)
+    if not normalized:
+        raise LLMError("آدرس سرویس (Base URL) را وارد کنید.")
+    if not api_key:
+        raise LLMError("API Key سرویس را وارد کنید.")
+
+    return OpenAI(
+        base_url=normalized,
+        api_key=api_key,
+        timeout=config.AI_REQUEST_TIMEOUT_SECONDS,
+        max_retries=config.AI_MAX_RETRIES,
+    )
 
 
 def list_models(base_url: str, api_key: str) -> List[str]:
@@ -65,6 +80,8 @@ def list_models(base_url: str, api_key: str) -> List[str]:
     try:
         response = client.models.list()
     except Exception as exc:  # noqa: BLE001
+        if isinstance(exc, APIConnectionError):
+            _log_connection_error(base_url, exc)
         raise LLMError(_friendly_error(exc)) from exc
 
     model_ids = sorted(
@@ -74,6 +91,16 @@ def list_models(base_url: str, api_key: str) -> List[str]:
     if not model_ids:
         raise LLMError("سرویس متصل شد، اما هیچ مدلی در /models برنگرداند.")
     return model_ids
+
+
+def _log_connection_error(base_url: str, exc: Exception) -> None:
+    """Log enough detail to diagnose hosted egress/DNS issues without logging secrets."""
+    logger.warning(
+        "AI provider connection failed: base_url=%s error_type=%s error=%s",
+        normalize_base_url(base_url),
+        type(exc).__name__,
+        str(exc),
+    )
 
 
 def _friendly_error(exc: Exception) -> str:
@@ -107,10 +134,9 @@ def embed_texts(
         )
 
     except Exception as exc:  # noqa: BLE001
-
-        raise LLMError(
-            _friendly_error(exc)
-        ) from exc
+        if isinstance(exc, APIConnectionError):
+            _log_connection_error(provider.base_url, exc)
+        raise LLMError(_friendly_error(exc)) from exc
 
     # --------------------------------------------------------
     # Preserve input ordering
@@ -175,6 +201,8 @@ def chat_completion(
             temperature=temperature,
         )
     except Exception as exc:  # noqa: BLE001
+        if isinstance(exc, APIConnectionError):
+            _log_connection_error(provider.base_url, exc)
         raise LLMError(_friendly_error(exc)) from exc
     return response.choices[0].message.content or ""
 
@@ -204,4 +232,6 @@ def test_connection(provider: ProviderConfig) -> Tuple[bool, str]:
         )
         return True, "اتصال با موفقیت برقرار شد."
     except Exception as exc:  # noqa: BLE001
+        if isinstance(exc, APIConnectionError):
+            _log_connection_error(provider.base_url, exc)
         return False, _friendly_error(exc)

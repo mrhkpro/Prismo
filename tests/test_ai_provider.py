@@ -4,7 +4,8 @@ import types
 if "openai" not in sys.modules:
     fake_openai = types.ModuleType("openai")
     class OpenAI:  # noqa: N801
-        pass
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
     class APIError(Exception):
         pass
     class APIConnectionError(APIError):
@@ -67,6 +68,18 @@ class AIProviderTests(unittest.TestCase):
             response = settings_router.discover_models(payload, FakeUser())
         self.assertEqual(response.models, ["chat-1", "embed-1"])
         self.assertEqual(FakeUser.settings.api_key, "saved-key")
+
+
+    def test_client_uses_hosted_timeout_and_retry_settings(self):
+        fake = SimpleNamespace()
+        with patch("app.services.llm_client.OpenAI", return_value=fake) as openai_cls:
+            result = llm_client._client(" https://example.com/v1/// ", "secret")
+        self.assertIs(result, fake)
+        kwargs = openai_cls.call_args.kwargs
+        self.assertEqual(kwargs["base_url"], "https://example.com/v1")
+        self.assertEqual(kwargs["api_key"], "secret")
+        self.assertEqual(kwargs["timeout"], llm_client.config.AI_REQUEST_TIMEOUT_SECONDS)
+        self.assertEqual(kwargs["max_retries"], llm_client.config.AI_MAX_RETRIES)
 
     def test_list_models_requires_key(self):
         with self.assertRaises(llm_client.LLMError):

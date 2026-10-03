@@ -163,6 +163,16 @@ DEFAULT_PROVIDER_BASE_URL = os.getenv(
 DEFAULT_PROVIDER_API_KEY = os.getenv(
     "DEFAULT_PROVIDER_API_KEY",
     "",
+).strip()
+
+# شبکه‌ی سرویس مدل ممکن است روی Vercel کمی کندتر از اجرای محلی باشد.
+# این دو مقدار قابل تنظیم‌اند و روی منطق مدل/RAG اثری ندارند.
+AI_REQUEST_TIMEOUT_SECONDS = float(
+    os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "45")
+)
+
+AI_MAX_RETRIES = int(
+    os.getenv("AI_MAX_RETRIES", "2")
 )
 
 DEFAULT_CHAT_MODELS = [
