@@ -99,11 +99,13 @@
     var root = host.attachShadow({ mode: "open" });
 
     var sideRule = POSITION === "bottom-right" ? "right:22px;left:auto;" : "left:22px;right:auto;";
+    var LIGHT_VARS = "--qz-panel:#ffffff;--qz-stream:#fffaf0;--qz-border:#efdca0;--qz-text:#2b2108;--qz-muted:#8a7638;--qz-bubble:#fff3c9;";
+    var DARK_VARS = "--qz-panel:#130c26;--qz-stream:#0a0614;--qz-border:#34265f;--qz-text:#f5f1ff;--qz-muted:#9a8fc4;--qz-bubble:#1f1540;";
     var themeRule = THEME === "light"
-      ? ".qz-panel{--qz-panel:#fff;--qz-stream:#f5f7fb;--qz-border:#e2e7f0;--qz-text:#1a2235;--qz-muted:#687386;--qz-bubble:#eef1f7;}"
+      ? ".qz-panel{" + LIGHT_VARS + "}"
       : THEME === "dark"
-        ? ".qz-panel{--qz-panel:#0f1424;--qz-stream:#0a0e1a;--qz-border:#262f4d;--qz-text:#edeffa;--qz-muted:#8892b0;--qz-bubble:#1a2138;}"
-        : "@media (prefers-color-scheme: light){.qz-panel{--qz-panel:#fff;--qz-stream:#f5f7fb;--qz-border:#e2e7f0;--qz-text:#1a2235;--qz-muted:#687386;--qz-bubble:#eef1f7;}}";
+        ? ".qz-panel{" + DARK_VARS + "}"
+        : "@media (prefers-color-scheme: light){.qz-panel{" + LIGHT_VARS + "}}";
 
     var style = document.createElement("style");
     style.textContent =
@@ -111,29 +113,29 @@
       ".qz-bubble{position:fixed;bottom:22px;" + sideRule + "width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;" +
       "box-shadow:0 12px 35px rgba(0,0,0,.24);z-index:2147483000;border:none;transition:transform .18s ease,box-shadow .18s ease;}" +
       ".qz-bubble:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 16px 38px rgba(0,0,0,.28);}" +
-      ".qz-bubble svg{width:26px;height:26px;}" +
+      ".qz-bubble{color:var(--qz-on-accent,#fff);}.qz-bubble svg{width:26px;height:26px;}" +
       ".qz-panel{position:fixed;bottom:96px;" + sideRule + "width:370px;max-width:calc(100vw - 24px);height:540px;max-height:78vh;" +
-      "background:var(--qz-panel,#0f1424);border:1px solid var(--qz-border,#262f4d);border-radius:20px;box-shadow:0 28px 80px rgba(0,0,0,.30);" +
-      "display:none;flex-direction:column;overflow:hidden;z-index:2147483000;direction:rtl;color:var(--qz-text,#edeffa);" +
+      "background:var(--qz-panel,#130c26);border:1px solid var(--qz-border,#34265f);border-radius:22px;box-shadow:0 28px 80px rgba(20,8,48,.38);" +
+      "display:none;flex-direction:column;overflow:hidden;z-index:2147483000;direction:rtl;color:var(--qz-text,#f5f1ff);" +
       "}.qz-panel.open{display:flex;}" +
-      ".qz-head{padding:15px 17px;display:flex;align-items:center;justify-content:space-between;color:#fff;flex-shrink:0;}" +
+      ".qz-head{padding:15px 17px;display:flex;align-items:center;justify-content:space-between;color:var(--qz-on-accent,#fff);flex-shrink:0;}" +
       ".qz-head-title{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14.5px;}" +
-      ".qz-head-dot{width:8px;height:8px;border-radius:50%;background:#baffc9;box-shadow:0 0 0 3px rgba(186,255,201,.25);}" +
-      ".qz-close{background:rgba(255,255,255,.14);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:15px;line-height:1;}" +
-      ".qz-stream{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--qz-stream,#0a0e1a);}" +
+      ".qz-head-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.3);}" +
+      ".qz-close{background:rgba(127,127,127,.22);border:none;color:var(--qz-on-accent,#fff);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:15px;line-height:1;}" +
+      ".qz-stream{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--qz-stream,#0a0614);}" +
       ".qz-msg{max-width:84%;padding:10px 14px;border-radius:15px;font-size:13.5px;line-height:1.8;white-space:pre-wrap;word-break:break-word;}" +
-      ".qz-msg.bot{align-self:flex-start;background:var(--qz-bubble,#1a2138);border-bottom-right-radius:5px;}" +
-      ".qz-msg.user{align-self:flex-end;color:#fff;border-bottom-left-radius:5px;}" +
+      ".qz-msg.bot{align-self:flex-start;background:var(--qz-bubble,#1f1540);border:1px solid var(--qz-border,#34265f);border-bottom-right-radius:5px;}" +
+      ".qz-msg.user{align-self:flex-end;color:var(--qz-on-accent,#fff);border-bottom-left-radius:5px;}" +
       ".qz-msg.error{align-self:center;background:rgba(214,69,69,.12);color:#d64545;font-size:12.5px;text-align:center;}" +
       ".qz-msg.pending{opacity:.55;}" +
-      ".qz-foot{display:flex;gap:8px;padding:12px;border-top:1px solid var(--qz-border,#1c2340);background:var(--qz-panel,#0f1424);flex-shrink:0;align-items:flex-end;}" +
-      ".qz-input{flex:1;resize:none;border:1px solid var(--qz-border,#262f4d);background:transparent;color:var(--qz-text,#edeffa);border-radius:18px;" +
+      ".qz-foot{display:flex;gap:8px;padding:12px;border-top:1px solid var(--qz-border,#34265f);background:var(--qz-panel,#130c26);flex-shrink:0;align-items:flex-end;}" +
+      ".qz-input{flex:1;resize:none;border:1px solid var(--qz-border,#34265f);background:transparent;color:var(--qz-text,#f5f1ff);border-radius:18px;" +
       "padding:10px 14px;font-size:13.5px;outline:none;max-height:90px;min-height:42px;line-height:1.5;font-family:inherit;}" +
-      ".qz-input:focus{border-color:var(--qz-accent,#7c5cff);}" +
-      ".qz-send{width:40px;height:40px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;}" +
+      ".qz-input:focus{border-color:var(--qz-accent,#8b5cf6);}" +
+      ".qz-send{width:40px;height:40px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--qz-on-accent,#fff);}" +
       ".qz-send:disabled{opacity:.55;cursor:not-allowed;}" +
       ".qz-send svg{width:16px;height:16px;}" +
-      ".qz-footer-tag{text-align:center;font-size:10.5px;color:var(--qz-muted,#5c6488);padding:6px 0 10px;background:var(--qz-panel,#0f1424);}" +
+      ".qz-footer-tag{text-align:center;font-size:10.5px;color:var(--qz-muted,#9a8fc4);padding:6px 0 10px;background:var(--qz-panel,#130c26);}" +
       "@media (max-width:480px){.qz-panel{width:calc(100vw - 12px);max-width:none;right:6px;left:6px;bottom:84px;height:min(540px,78vh);}.qz-bubble{bottom:16px;right:16px;left:auto;}}" +
       themeRule;
     root.appendChild(style);
@@ -142,7 +144,7 @@
     bubble.className = "qz-bubble";
     bubble.type = "button";
     bubble.setAttribute("aria-label", "باز کردن گفتگو");
-    bubble.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
+    bubble.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
     root.appendChild(bubble);
 
     var panel = document.createElement("div");
@@ -160,15 +162,28 @@
     var sendBtn = panel.querySelector(".qz-send");
     var closeBtn = panel.querySelector(".qz-close");
     var titleEl = panel.querySelector(".qz-title-text");
-    var widgetColor = "#7C5CFF";
+    var widgetColor = "#8B5CF6";
     var isSending = false;
 
+    // متن روی رنگ اصلی ویجت (طلایی/زرد روشن → متن تیره، بنفش/تیره → متن سفید)
+    function readableOn(hex) {
+      var n = parseInt(hex.slice(1), 16);
+      var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      var lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return lum > 0.62 ? "#2b1d00" : "#ffffff";
+    }
+
     function applyColor(color) {
-      widgetColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#7C5CFF";
+      widgetColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#8B5CF6";
+      var onColor = readableOn(widgetColor);
       root.host.style.setProperty("--qz-accent", widgetColor);
+      root.host.style.setProperty("--qz-on-accent", onColor);
       bubble.style.background = widgetColor;
-      panel.querySelector(".qz-head").style.background = "linear-gradient(90deg," + widgetColor + ",#6a49f2)";
+      panel.querySelector(".qz-head").style.background =
+        "linear-gradient(90deg," + widgetColor + ",color-mix(in srgb," + widgetColor + " 78%,#000))";
       sendBtn.style.background = widgetColor;
+      var userMsgs = stream.querySelectorAll(".qz-msg.user");
+      for (var i = 0; i < userMsgs.length; i++) userMsgs[i].style.background = widgetColor;
     }
 
     function addMessage(role, text) {
