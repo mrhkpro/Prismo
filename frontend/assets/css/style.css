@@ -1,65 +1,119 @@
 /* =========================================================================
-   پلتفرم ویجت هوشمند RAG — استایل مشترک
-   پالت: فضای تیره (near-black navy) + بنفشِ «کوازار» + طلاییِ «دنباله‌دار»
-   تایپوگرافی: وزیرمتن برای تمام رابط کاربری، مونو برای کد/مدل‌ها
+   کوازار v2.4 — سیستم طراحی
+   تم تیره : شبِ بنفش (violet / indigo / fuchsia) روی زمینه‌ی تقریباً سیاه
+   تم روشن : سفیدِ گرم + طلایی + زرد
+   همه‌ی رنگ‌ها فقط از طریق توکن‌های زیر مصرف می‌شوند تا تعویض تم یک‌جا انجام شود.
    ========================================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  /* رنگ پایه */
-  --bg: #050507;
-  --bg-elevated: #0d0d12;
-  --bg-elevated-2: #14141b;
-  --bg-input: #0a0a0f;
-  --border: #25252f;
-  --border-soft: #1a1a22;
+  color-scheme: dark;
 
-  --text: #f2f2f7;
-  --text-muted: #9a9aab;
-  --text-faint: #62626f;
+  /* سطوح */
+  --bg: #0a0614;
+  --bg-elevated: #130c26;
+  --bg-elevated-2: #1b1236;
+  --bg-input: #0e0920;
+  --bg-glass: rgba(22, 14, 44, 0.66);
+  --overlay: rgba(6, 3, 16, 0.72);
 
+  /* خطوط */
+  --border: #34265f;
+  --border-soft: #261b47;
+
+  /* متن */
+  --text: #f5f1ff;
+  --text-muted: #b3a9d6;
+  --text-faint: #8176ab;
+
+  /* رنگ برند */
   --accent: #8b5cf6;
+  --accent-2: #c026d3;
+  --accent-3: #6366f1;
   --accent-hover: #a78bfa;
-  --accent-soft: rgba(139, 92, 246, 0.14);
-  --gold: #a78bfa;
-  --gold-soft: rgba(167, 139, 250, 0.14);
+  --accent-text: #cbbcff;
+  --accent-soft: rgba(139, 92, 246, 0.17);
+  --accent-line: rgba(167, 139, 250, 0.35);
+  --gold: #e4cffd;
+  --gold-soft: rgba(216, 180, 254, 0.13);
+  --on-accent: #ffffff;
 
-  --success: #34d399;
-  --success-soft: rgba(52, 211, 153, 0.14);
-  --danger: #fb6b6b;
-  --danger-soft: rgba(251, 107, 107, 0.14);
+  --grad-brand: linear-gradient(135deg, #7c3aed 0%, #a855f7 52%, #d946ef 100%);
+  --grad-text: linear-gradient(120deg, #ffffff 10%, #c9b6ff 55%, #f0abfc 100%);
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
+  /* وضعیت */
+  --success: #4ade80;
+  --success-soft: rgba(74, 222, 128, 0.14);
+  --danger: #fb7185;
+  --danger-soft: rgba(251, 113, 133, 0.15);
+  --danger-soft-hover: rgba(251, 113, 133, 0.26);
+  --success-soft-hover: rgba(74, 222, 128, 0.26);
+  --code-text: #a7f3d0;
+
+  /* سایه و درخشش */
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 48px -30px rgba(0, 0, 0, 0.85);
+  --shadow-pop: 0 34px 90px -24px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(167, 139, 250, 0.16);
+  --shadow-btn: 0 10px 28px -10px rgba(139, 92, 246, 0.75);
+  --glow-a: rgba(124, 58, 237, 0.32);
+  --glow-b: rgba(217, 70, 239, 0.18);
+  --glow-c: rgba(99, 102, 241, 0.2);
+
+  /* شکل و تایپوگرافی */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
 
   --font-body: 'Vazirmatn', Tahoma, sans-serif;
   --font-mono: 'JetBrains Mono', Consolas, monospace;
-
-  --shadow-pop: 0 20px 60px rgba(0, 0, 0, 0.45);
 }
 
 :root[data-theme="light"] {
-  --bg: #fafafc;
+  color-scheme: light;
+
+  --bg: #fffdf4;
   --bg-elevated: #ffffff;
-  --bg-elevated-2: #f3f2f8;
+  --bg-elevated-2: #fff7dc;
   --bg-input: #ffffff;
-  --border: #deddea;
-  --border-soft: #ebeaf2;
-  --text: #15131f;
-  --text-muted: #6b6980;
-  --text-faint: #9c9aae;
-  --accent: #7c3aed;
-  --accent-hover: #6d28d9;
-  --accent-soft: rgba(124, 58, 237, 0.09);
-  --gold: #6d28d9;
-  --gold-soft: rgba(109, 40, 217, 0.09);
-  --success: #159466;
-  --success-soft: rgba(21, 148, 102, 0.10);
-  --danger: #d64545;
-  --danger-soft: rgba(214, 69, 69, 0.10);
-  --shadow-pop: 0 18px 50px rgba(20, 33, 61, 0.13);
+  --bg-glass: rgba(255, 255, 255, 0.78);
+  --overlay: rgba(58, 40, 4, 0.42);
+
+  --border: #ecd48a;
+  --border-soft: #f6e8b6;
+
+  --text: #2b2108;
+  --text-muted: #6b5a26;
+  --text-faint: #86743a;
+
+  --accent: #eab308;
+  --accent-2: #f59e0b;
+  --accent-3: #ca8a04;
+  --accent-hover: #facc15;
+  --accent-text: #855a00;
+  --accent-soft: rgba(234, 179, 8, 0.17);
+  --accent-line: rgba(202, 138, 4, 0.4);
+  --gold: #a16207;
+  --gold-soft: rgba(202, 138, 4, 0.12);
+  --on-accent: #2b1d00;
+
+  --grad-brand: linear-gradient(135deg, #fde047 0%, #facc15 38%, #f59e0b 100%);
+  --grad-text: linear-gradient(120deg, #3a2a05 5%, #a16207 55%, #d97706 100%);
+
+  --success: #15803d;
+  --success-soft: rgba(21, 128, 61, 0.11);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.09);
+  --danger-soft-hover: rgba(220, 38, 38, 0.17);
+  --success-soft-hover: rgba(21, 128, 61, 0.19);
+  --code-text: #166534;
+
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 22px 44px -30px rgba(161, 98, 7, 0.45);
+  --shadow-pop: 0 34px 80px -26px rgba(120, 77, 6, 0.45), 0 0 0 1px rgba(202, 138, 4, 0.22);
+  --shadow-btn: 0 12px 26px -12px rgba(217, 119, 6, 0.8);
+  --glow-a: rgba(250, 204, 21, 0.34);
+  --glow-b: rgba(251, 191, 36, 0.24);
+  --glow-c: rgba(253, 224, 71, 0.3);
 }
 
 * { box-sizing: border-box; }
