@@ -46,6 +46,8 @@ async function init() {
   document.getElementById("sidebarUserName").textContent = CURRENT_USER.org_name || CURRENT_USER.username;
   document.getElementById("sidebarUserRole").textContent = CURRENT_USER.role === "admin" ? "مدیر سیستم" : "کاربر";
   document.getElementById("avatarInitial").textContent = (CURRENT_USER.org_name || CURRENT_USER.username)[0].toUpperCase();
+  const topAvatar = document.getElementById("topbarAvatar");
+  if (topAvatar) topAvatar.textContent = document.getElementById("avatarInitial").textContent;
 
   document.getElementById("accUsername").value = CURRENT_USER.username;
   document.getElementById("accOrgName").value = CURRENT_USER.org_name || "—";
