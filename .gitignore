@@ -63,3 +63,6 @@ Thumbs.db
 .coverage
 htmlcov/
 .vercel
+
+.vercel
+.env*
