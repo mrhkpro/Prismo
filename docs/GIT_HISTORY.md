@@ -38,3 +38,24 @@ main
 
 All branches were merged into `main` with `--no-ff` to preserve the graph.
 
+## v2.4.0 release chain
+
+Baseline first, then the redesign, then tests and the fixes they uncovered. Every branch was merged into `main` with `--no-ff`.
+
+- `chore/v2.3.0-snapshot` → records the uncommitted v2.3.0 working tree as a baseline
+- `test/admin-inspect-baseline` → tracks the existing admin inspection regression test
+- `style/dual-theme-tokens` → violet night + gold day design tokens
+- `style/base-controls` → base, buttons, inputs, badges, toasts
+- `style/app-shell-components` → sidebar, cards, tables, chat, modals (removes the v2.3 override block)
+- `style/landing-auth` → landing showcase and sign-in card
+- `style/widget-dual-theme` → widget palettes, accent-aware text, theme-aware preview
+- `fix/theme-visual-regressions` → preview iframe canvas, Persian mono fallback
+- `fix/asset-cache-bust-2.4.0` → `?v=2.4.0` everywhere including the embed snippet
+- `test/full-platform-flow` → 45-scenario end-to-end API suite
+- `fix/dark-button-contrast` → WCAG AA for the dark primary button
+- `test/theme-contracts` → static theme/contrast/wiring contracts
+- `fix/widget-session-source-scope` → public widget only continues widget sessions
+- `fix/knowledge-clear-order` → chunks deleted before documents on "clear all"
+- `fix/playground-session-source-scope` → playground only continues playground sessions
+- `docs/release-2.4.0` → changelog and this history
+
