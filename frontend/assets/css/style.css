@@ -66,7 +66,7 @@
   --radius-xl: 26px;
 
   --font-body: 'Vazirmatn', Tahoma, sans-serif;
-  --font-mono: 'JetBrains Mono', Consolas, monospace;
+  --font-mono: 'JetBrains Mono', Consolas, 'Vazirmatn', Tahoma, monospace;
 }
 
 :root[data-theme="light"] {
@@ -646,7 +646,7 @@ tbody tr:hover { background: var(--accent-soft); }
     radial-gradient(circle at 90% 95%, var(--gold-soft), transparent 50%),
     var(--bg-elevated-2);
 }
-.widget-preview-frame { width: 100%; height: 100%; border: 0; background: transparent; }
+.widget-preview-frame { width: 100%; height: 100%; border: 0; background: transparent; color-scheme: light; }  /* هم‌رنگ با صفحه‌ی داخل iframe تا Chrome زمینه‌ی سفید نکشد */
 
 /* مدال */
 .modal-overlay {
