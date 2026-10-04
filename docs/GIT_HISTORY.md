@@ -51,7 +51,7 @@ Baseline first, then the redesign, then tests and the fixes they uncovered. Ever
 - `style/widget-dual-theme` → widget palettes, accent-aware text, theme-aware preview
 - `fix/theme-visual-regressions` → preview iframe canvas, Persian mono fallback
 - `fix/asset-cache-bust-2.4.0` → `?v=2.4.0` everywhere including the embed snippet
-- `test/full-platform-flow` → 45-scenario end-to-end API suite
+- `test/full-platform-flow` → 46-scenario end-to-end API suite
 - `fix/dark-button-contrast` → WCAG AA for the dark primary button
 - `test/theme-contracts` → static theme/contrast/wiring contracts
 - `fix/widget-session-source-scope` → public widget only continues widget sessions

@@ -17,7 +17,7 @@
 - Clearing the whole knowledge base deletes chunks before documents, so it is safe on databases that enforce foreign keys without `ON DELETE CASCADE`.
 
 ### Tests
-- `tests/test_full_platform_flow.py`: 45 end-to-end API scenarios (auth, settings and custom provider lifecycle, widget color/title/embed code, knowledge CRUD and reindex, playground chat/search/battle/sessions, public widget limits, dashboard counters, admin stats/user detail/reading one person's messages/flags/block/roles/impersonation). AI calls are mocked; DB is in-memory SQLite.
+- `tests/test_full_platform_flow.py`: 46 end-to-end API scenarios (auth, settings and custom provider lifecycle, widget color/title/embed code, knowledge CRUD and reindex, playground chat/search/battle/sessions, public widget limits, dashboard counters, admin stats/user detail/reading one person's messages/flags/block/roles/impersonation). AI calls are mocked; DB is in-memory SQLite.
 - `tests/test_theme_contracts.py`: dependency-free checks for token parity, hue ranges, WCAG contrast, no hard-coded brand colors, shared asset versions and widget palettes.
 
 ## v2.2.2 — Provider diagnostics & hosted AI error clarity
