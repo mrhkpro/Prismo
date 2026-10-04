@@ -19,7 +19,8 @@
   script.async = false;
   script.setAttribute("data-widget-id", widgetId);
   script.setAttribute("data-api-base", location.origin);
-  script.setAttribute("data-theme", "auto");
+  var theme = params.get("theme");
+  script.setAttribute("data-theme", theme === "light" || theme === "dark" ? theme : "auto");
   document.body.appendChild(script);
 }());
 </script>

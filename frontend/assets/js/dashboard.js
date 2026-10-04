@@ -676,8 +676,16 @@ function renderWidgetPreview(title, welcome, color, widgetId) {
   // کارت توضیحی کوچک را با iframe واقعی عوض می‌کنیم تا خود widget.js هم تست شود.
   const frame = document.getElementById("widgetPreviewFrame");
   if (!frame) return;
-  frame.src = `/widget-preview.html?widget_id=${encodeURIComponent(widgetId)}&v=${Date.now()}`;
+  LAST_WIDGET_ID = widgetId;
+  const theme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+  frame.src = `/widget-preview.html?widget_id=${encodeURIComponent(widgetId)}&theme=${theme}&v=${Date.now()}`;
 }
+
+let LAST_WIDGET_ID = null;
+// اگر کاربر تم سایت را عوض کرد، پیش‌نمایش ویجت هم با همان تم دوباره ساخته می‌شود
+document.addEventListener("qz-theme-change", () => {
+  if (LAST_WIDGET_ID) renderWidgetPreview(null, null, null, LAST_WIDGET_ID);
+});
 
 async function loadWidgetSection() {
   try {

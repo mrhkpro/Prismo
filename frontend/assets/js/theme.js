@@ -16,6 +16,7 @@
   function setTheme(theme, persist) {
     const next = theme === "light" ? "light" : "dark";
     root.dataset.theme = next;
+    document.dispatchEvent(new CustomEvent("qz-theme-change", { detail: { theme: next } }));
     if (persist) {
       try { localStorage.setItem(STORAGE_KEY, next); } catch (_) {}
     }
