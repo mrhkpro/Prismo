@@ -1,3 +1,4 @@
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -6,7 +7,7 @@ from sqlalchemy.orm import Session
 from .. import config, models, schemas
 from ..database import get_db
 from ..security import get_current_user
-from ..services import llm_client, rag_pipeline, rag_store
+from ..services import llm_client, rag_pipeline, rag_store, streaming
 
 router = APIRouter(prefix="/api/playground", tags=["آزمایشگاه تست"])
 
@@ -87,6 +88,54 @@ def chat_test(
         sources=sources,
         model=selected_model,
     )
+
+
+@router.post("/chat/stream")
+def chat_test_stream(
+    payload: schemas.ChatTestRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """نسخه‌ی استریم چت آزمایشگاه (SSE): meta → delta... → done (یا error)."""
+    session = _get_or_create_session(db, current_user, payload.session_id)
+    selected_model = payload.model or current_user.settings.chat_model
+    try:
+        plan = rag_pipeline.prepare_rag_chat(db, current_user, session, payload.message, model=selected_model)
+    except llm_client.LLMError:
+        db.commit()
+        raise
+    # همه‌ی خواندن‌های وابسته به نشست دیتابیس باید پیش از شروع استریم انجام شوند
+    session_id, owner_id, message = session.id, current_user.id, payload.message
+    meta = {"session_id": session_id, "model": selected_model, "sources": streaming.sources_payload(plan.matches)}
+    db.commit()
+
+    def event_stream():
+        collected: list[str] = []
+        yield streaming.sse("meta", meta)
+        try:
+            if plan.no_answer:
+                collected.append(plan.no_answer)
+                yield streaming.sse("delta", {"t": plan.no_answer})
+            else:
+                started = time.perf_counter()
+                pieces = llm_client.stream_chat_completion(
+                    plan.messages, plan.provider, temperature=plan.temperature, model=plan.model
+                )
+                yield from streaming.relay_model_stream(pieces, collected)
+                rag_pipeline.log_rag_timing(owner_id, plan, int((time.perf_counter() - started) * 1000))
+            yield streaming.sse("done", {})
+        except llm_client.LLMError as exc:
+            yield streaming.sse("error", {"message": str(exc), "partial": bool(collected)})
+        finally:
+            # حتی اگر کاربر وسط پاسخ قطع کند، گفت‌وگوی تا آن لحظه ذخیره می‌شود
+            text = "".join(collected)
+            if text:
+                try:
+                    rag_pipeline.save_turn(db, session_id, message, text)
+                except Exception:  # noqa: BLE001
+                    db.rollback()
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers=streaming.SSE_HEADERS)
 
 
 @router.post("/search", response_model=list[schemas.SemanticSearchResult])

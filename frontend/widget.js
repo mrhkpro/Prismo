@@ -92,6 +92,81 @@
       });
     }
 
+    // استریم (SSE) با fetch؛ اگر مرورگر/سرور پشتیبانی نکند، فراخوان به حالت غیراستریم برمی‌گردد
+    var FALLBACK_STATUSES = [404, 405, 415, 501];
+
+    function streamChat(url, payload, handlers, idleMs) {
+      if (!(window.ReadableStream && window.TextDecoder && window.AbortController)) {
+        var unsupported = new Error("stream unsupported");
+        unsupported.status = 501;
+        return Promise.reject(unsupported);
+      }
+      var controller = new AbortController();
+      var timer = null;
+      function arm() {
+        clearTimeout(timer);
+        timer = setTimeout(function () { controller.abort(); }, idleMs || 60000);
+      }
+      arm();
+      return fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      }).then(function (res) {
+        var type = res.headers.get("Content-Type") || "";
+        if (!res.ok || type.indexOf("text/event-stream") === -1 || !res.body) {
+          return res.json().catch(function () { return {}; }).then(function (data) {
+            var err = new Error(data && data.detail ? data.detail : "خطایی در سرویس رخ داد.");
+            err.status = res.ok ? 415 : res.status;
+            throw err;
+          });
+        }
+        var reader = res.body.getReader();
+        var decoder = new TextDecoder("utf-8");
+        var buffer = "";
+
+        function handleFrame(frame) {
+          var event = "message";
+          var lines = frame.split("\n");
+          var dataParts = [];
+          for (var i = 0; i < lines.length; i++) {
+            if (lines[i].indexOf("event:") === 0) event = lines[i].slice(6).trim();
+            else if (lines[i].indexOf("data:") === 0) dataParts.push(lines[i].slice(5).replace(/^ /, ""));
+          }
+          if (!dataParts.length) return;
+          var data = {};
+          try { data = JSON.parse(dataParts.join("\n")); } catch (e) { return; }
+          if (event === "meta" && handlers.meta) handlers.meta(data);
+          else if (event === "delta" && handlers.delta) handlers.delta(data.t || "");
+          else if (event === "error") {
+            var err = new Error(data.message || "خطا در دریافت پاسخ.");
+            err.streamError = true;
+            throw err;
+          }
+        }
+
+        function pump() {
+          return reader.read().then(function (r) {
+            if (r.done) {
+              if (buffer.trim()) handleFrame(buffer);
+              return;
+            }
+            arm();
+            buffer += decoder.decode(r.value, { stream: true });
+            var idx;
+            while ((idx = buffer.indexOf("\n\n")) !== -1) {
+              var frame = buffer.slice(0, idx);
+              buffer = buffer.slice(idx + 2);
+              handleFrame(frame);
+            }
+            return pump();
+          });
+        }
+        return pump();
+      }).finally(function () { clearTimeout(timer); });
+    }
+
     var host = document.createElement("div");
     host.id = "qz-widget-host-" + WIDGET_ID;
     host.style.all = "initial";
@@ -128,6 +203,7 @@
       ".qz-msg.user{align-self:flex-end;color:var(--qz-on-accent,#fff);border-bottom-left-radius:5px;}" +
       ".qz-msg.error{align-self:center;background:rgba(214,69,69,.12);color:#d64545;font-size:12.5px;text-align:center;}" +
       ".qz-msg.pending{opacity:.55;}" +
+      ".qz-msg.streaming::after{content:'';display:inline-block;width:6px;height:1em;margin-right:3px;vertical-align:text-bottom;background:var(--qz-accent,#8b5cf6);border-radius:2px;animation:qzblink .9s steps(2,start) infinite;}@keyframes qzblink{to{visibility:hidden;}}" +
       ".qz-foot{display:flex;gap:8px;padding:12px;border-top:1px solid var(--qz-border,#34265f);background:var(--qz-panel,#130c26);flex-shrink:0;align-items:flex-end;}" +
       ".qz-input{flex:1;resize:none;border:1px solid var(--qz-border,#34265f);background:transparent;color:var(--qz-text,#f5f1ff);border-radius:18px;" +
       "padding:10px 14px;font-size:13.5px;outline:none;max-height:90px;min-height:42px;line-height:1.5;font-family:inherit;}" +
@@ -203,33 +279,73 @@
       if (isOpen) input.focus();
     }
 
-    function sendMessage() {
-      var text = input.value.trim();
+    // نقطه‌های اتصال به قابلیت‌های بعدی (حیوان خانگی و پاسخ‌های سریع)
+    function petReact() {}
+    function hideQuickReplies() {}
+
+    function sendMessage(overrideText) {
+      var text = (typeof overrideText === "string" ? overrideText : input.value).trim();
       if (!text || isSending) return;
 
       input.value = "";
       input.style.height = "42px";
+      hideQuickReplies();
       addMessage("user", text);
       var pending = addMessage("bot", "در حال پاسخ…");
       pending.classList.add("pending");
       isSending = true;
       sendBtn.disabled = true;
+      petReact("think");
 
-      fetchJson(API_BASE + "/public/widget/" + encodeURIComponent(WIDGET_ID) + "/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          session_id: getSessionId(),
-          visitor_label: getVisitorLabel()
-        })
-      }, 30000).then(function (data) {
-        setSessionId(data.session_id);
-        pending.classList.remove("pending");
-        pending.textContent = data.reply || "پاسخی دریافت نشد.";
+      var chatUrl = API_BASE + "/public/widget/" + encodeURIComponent(WIDGET_ID) + "/chat";
+      var payload = { message: text, session_id: getSessionId(), visitor_label: getVisitorLabel() };
+      var fullText = "";
+      var raf = null;
+
+      function paint() {
+        raf = null;
+        pending.textContent = fullText;
+        stream.scrollTop = stream.scrollHeight;
+      }
+
+      streamChat(chatUrl + "/stream", payload, {
+        meta: function (d) { setSessionId(d.session_id); },
+        delta: function (piece) {
+          if (!fullText) { pending.classList.remove("pending"); pending.classList.add("streaming"); }
+          fullText += piece;
+          if (raf === null) raf = requestAnimationFrame(paint);
+        }
+      }, 60000).catch(function (err) {
+        if (!fullText && err && FALLBACK_STATUSES.indexOf(err.status) !== -1) {
+          // سرور/مرورگر استریم ندارد → همان درخواست را یک‌جا بفرست
+          payload.session_id = getSessionId();
+          return fetchJson(chatUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          }, 30000).then(function (data) {
+            setSessionId(data.session_id);
+            fullText = data.reply || "پاسخی دریافت نشد.";
+          });
+        }
+        throw err;
+      }).then(function () {
+        if (raf !== null) cancelAnimationFrame(raf);
+        pending.classList.remove("pending", "streaming");
+        pending.textContent = fullText || "پاسخی دریافت نشد.";
+        petReact("happy");
       }).catch(function (err) {
-        pending.remove();
-        addMessage("error", err && err.message ? err.message : "ارتباط با سرویس برقرار نشد.");
+        if (raf !== null) cancelAnimationFrame(raf);
+        pending.classList.remove("streaming");
+        var message = err && err.message ? err.message : "ارتباط با سرویس برقرار نشد.";
+        if (fullText) {
+          pending.textContent = fullText;
+          addMessage("error", message);
+        } else {
+          pending.remove();
+          addMessage("error", message);
+        }
+        petReact("sad");
       }).finally(function () {
         isSending = false;
         sendBtn.disabled = false;
@@ -238,7 +354,7 @@
 
     bubble.addEventListener("click", function () { togglePanel(); });
     closeBtn.addEventListener("click", function () { togglePanel(false); });
-    sendBtn.addEventListener("click", sendMessage);
+    sendBtn.addEventListener("click", function () { sendMessage(); });
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();

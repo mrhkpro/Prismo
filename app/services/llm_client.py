@@ -450,6 +450,37 @@ def chat_completion(
     return response.choices[0].message.content or ""
 
 
+def stream_chat_completion(
+    messages: List[dict], provider: ProviderConfig, temperature: float = 0.7, model: Optional[str] = None
+):
+    """پاسخ مدل را تکه‌تکه (به‌صورت generator از رشته‌ها) برمی‌گرداند.
+
+    خطاها همان LLMError فارسی و قابل‌نمایش‌اند؛ چه قبل از اولین تکه چه وسط پاسخ.
+    """
+    client = _client(provider.base_url, provider.api_key)
+    selected_model = model or provider.chat_model
+    try:
+        stream = client.chat.completions.create(
+            model=selected_model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=config.AI_MAX_OUTPUT_TOKENS,
+            stream=True,
+        )
+        for chunk in stream:
+            choices = getattr(chunk, "choices", None) or []
+            if not choices:
+                continue
+            delta = getattr(choices[0], "delta", None)
+            piece = getattr(delta, "content", None) if delta is not None else None
+            if piece:
+                yield piece
+    except Exception as exc:  # noqa: BLE001
+        if isinstance(exc, APIConnectionError):
+            _log_connection_error(provider.base_url, exc)
+        raise LLMError(format_provider_error(exc, provider, operation="chat")) from exc
+
+
 def timed_chat_completion(
     messages: List[dict], provider: ProviderConfig, model: str, temperature: float = 0.7
 ) -> Tuple[str, int, Optional[str]]:

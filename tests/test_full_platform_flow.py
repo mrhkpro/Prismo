@@ -27,6 +27,22 @@ def h(token):
     return {"Authorization": f"Bearer {token}"}
 
 
+def parse_sse(text):
+    """متن یک پاسخ text/event-stream را به لیست (event, data) تبدیل می‌کند."""
+    import json
+    events = []
+    for frame in text.strip().split("\n\n"):
+        name, data = "message", None
+        for line in frame.splitlines():
+            if line.startswith("event:"):
+                name = line[6:].strip()
+            elif line.startswith("data:"):
+                data = json.loads(line[5:].strip())
+        if data is not None:
+            events.append((name, data))
+    return events
+
+
 class PlatformTestCase(unittest.TestCase):
     """زیرساخت مشترک: دیتابیس حافظه‌ای + mock سرویس AI + کلاینت HTTP."""
 
@@ -62,6 +78,15 @@ class PlatformTestCase(unittest.TestCase):
             self.chat_calls.append({"messages": messages, "provider": provider, "model": model, "temperature": temperature})
             return f"پاسخ آزمایشی ({model or provider.chat_model})"
 
+        self.stream_fail_after = None  # اگر عدد باشد، پس از این تعداد تکه خطا می‌دهد
+
+        def fake_stream(messages, provider, temperature=0.7, model=None):
+            self.chat_calls.append({"messages": messages, "provider": provider, "model": model, "temperature": temperature, "stream": True})
+            for i, piece in enumerate(["پاسخ ", "تکه‌تکه ", f"({model or provider.chat_model})"]):
+                if self.stream_fail_after is not None and i >= self.stream_fail_after:
+                    raise llm_client.LLMError("خطای ساختگی استریم")
+                yield piece
+
         def fake_timed(messages, provider, model, temperature=0.7):
             if model == "deepseek-v4-flash-reasoning":
                 return "", 7, "خطای ساختگی مدل دوم"
@@ -71,6 +96,7 @@ class PlatformTestCase(unittest.TestCase):
             patch.object(llm_client, "embed_texts", fake_embed_texts),
             patch.object(llm_client, "embed_text", fake_embed_text),
             patch.object(llm_client, "chat_completion", fake_chat),
+            patch.object(llm_client, "stream_chat_completion", fake_stream),
             patch.object(llm_client, "timed_chat_completion", fake_timed),
             patch.object(llm_client, "list_models", lambda base_url, api_key: ["gpt-b", "GPT-a"]),
             patch.object(llm_client, "test_connection", lambda provider: (True, "اتصال برقرار است.")),
@@ -714,6 +740,117 @@ class AdminFlowTests(PlatformTestCase):
         # کاربر مسدود را نمی‌شود جانمایی کرد
         self.client.post(f"/api/admin/users/{uid}/block", headers=h(admin))
         self.assertEqual(self.client.post(f"/api/admin/users/{uid}/impersonate", headers=h(admin)).status_code, 400)
+
+
+# =============================================================================
+# ۹) استریم چت (SSE)
+# =============================================================================
+class StreamingFlowTests(PlatformTestCase):
+    def test_playground_stream_emits_meta_deltas_done_and_saves_history(self):
+        token = self.register("roya")
+        self.add_doc(token)
+        res = self.client.post("/api/playground/chat/stream", headers=h(token),
+                               json={"message": "ارسال چقدر طول می‌کشد؟", "model": "qwen-35b-a3b-reasoning"})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertTrue(res.headers["content-type"].startswith("text/event-stream"))
+        self.assertIn("no-cache", res.headers["cache-control"])
+        events = parse_sse(res.text)
+        names = [n for n, _ in events]
+        self.assertEqual(names[0], "meta")
+        self.assertEqual(names[-1], "done")
+        self.assertEqual(names.count("delta"), 3)
+        meta = events[0][1]
+        self.assertEqual(meta["model"], "qwen-35b-a3b-reasoning")
+        self.assertEqual(meta["sources"][0]["document_title"], "سیاست ارسال")
+        text = "".join(d["t"] for n, d in events if n == "delta")
+        self.assertEqual(text, "پاسخ تکه‌تکه (qwen-35b-a3b-reasoning)")
+        self.assertTrue(self.chat_calls[-1].get("stream"))
+        # گفت‌وگو (پیام کاربر + متن کامل) در دیتابیس ذخیره شده است
+        db = self.Session()
+        msgs = db.query(models.ChatMessage).filter(models.ChatMessage.session_id == meta["session_id"]).order_by(models.ChatMessage.id).all()
+        db.close()
+        self.assertEqual([m.role for m in msgs], ["user", "assistant"])
+        self.assertEqual(msgs[1].content, text)
+
+    def test_stream_without_knowledge_skips_the_model(self):
+        token = self.register("roya")
+        res = self.client.post("/api/playground/chat/stream", headers=h(token), json={"message": "هوا چطوره؟"})
+        events = parse_sse(res.text)
+        self.assertEqual([n for n, _ in events], ["meta", "delta", "done"])
+        self.assertIn("ندارم", events[1][1]["t"])
+        self.assertEqual(self.chat_calls, [])
+
+    def test_stream_keeps_partial_text_when_model_fails_midway(self):
+        token = self.register("roya")
+        self.add_doc(token)
+        self.stream_fail_after = 1
+        res = self.client.post("/api/playground/chat/stream", headers=h(token), json={"message": "ارسال"})
+        events = parse_sse(res.text)
+        self.assertEqual(events[-1][0], "error")
+        self.assertTrue(events[-1][1]["partial"])
+        self.assertIn("خطای ساختگی", events[-1][1]["message"])
+        sid = events[0][1]["session_id"]
+        db = self.Session()
+        saved = db.query(models.ChatMessage).filter(models.ChatMessage.session_id == sid, models.ChatMessage.role == "assistant").one()
+        db.close()
+        self.assertEqual(saved.content, "پاسخ ")
+
+    def test_stream_error_before_first_piece_saves_nothing_but_keeps_session(self):
+        token = self.register("roya")
+        self.add_doc(token)
+        self.stream_fail_after = 0
+        events = parse_sse(self.client.post("/api/playground/chat/stream", headers=h(token), json={"message": "ارسال"}).text)
+        self.assertEqual([n for n, _ in events], ["meta", "error"])
+        self.assertFalse(events[-1][1]["partial"])
+        db = self.Session()
+        self.assertEqual(db.query(models.ChatMessage).count(), 0)
+        db.close()
+
+    def test_stream_validation_and_auth(self):
+        token = self.register("roya")
+        self.assertEqual(self.client.post("/api/playground/chat/stream", json={"message": "سلام"}).status_code, 401)
+        self.assertEqual(self.client.post("/api/playground/chat/stream", headers=h(token), json={"message": ""}).status_code, 422)
+
+    def test_stream_history_continues_in_same_session(self):
+        token = self.register("roya")
+        self.add_doc(token)
+        first = parse_sse(self.client.post("/api/playground/chat/stream", headers=h(token), json={"message": "ارسال؟"}).text)
+        sid = first[0][1]["session_id"]
+        self.client.post("/api/playground/chat/stream", headers=h(token), json={"message": "ارسال به شهرستان؟", "session_id": sid})
+        self.assertEqual([m["role"] for m in self.chat_calls[-1]["messages"]], ["system", "user", "assistant", "user"])
+
+    def test_public_widget_stream_and_flagging(self):
+        token = self.register("roya")
+        self.add_doc(token)
+        wid = self.widget_id(token)
+        res = self.client.post(f"/public/widget/{wid}/chat/stream",
+                               json={"message": INJECTION + " ارسال", "visitor_label": "visitor_s1"})
+        self.assertEqual(res.status_code, 200, res.text)
+        events = parse_sse(res.text)
+        self.assertEqual([n for n, _ in events][0], "meta")
+        self.assertEqual(events[-1][0], "done")
+        sid = events[0][1]["session_id"]
+        again = parse_sse(self.client.post(f"/public/widget/{wid}/chat/stream", json={"message": "ارسال", "session_id": sid}).text)
+        self.assertEqual(again[0][1]["session_id"], sid)
+        db = self.Session()
+        flagged = db.query(models.ChatMessage).filter(models.ChatMessage.is_flagged.is_(True)).count()
+        db.close()
+        self.assertEqual(flagged, 1)
+
+    def test_public_widget_stream_respects_limits_and_blocking(self):
+        token = self.register("roya")
+        wid = self.widget_id(token)
+        rate_limit.public_widget_limiter.limit = 1
+        url = f"/public/widget/{wid}/chat/stream"
+        self.assertEqual(self.client.post(url, json={"message": "سلام"}).status_code, 200)
+        self.assertEqual(self.client.post(url, json={"message": "سلام"}).status_code, 429)
+        self.assertEqual(self.client.post("/public/widget/nope/chat/stream", json={"message": "سلام"}).status_code, 404)
+        rate_limit.public_widget_limiter._events.clear()
+        db = self.Session()
+        db.query(models.User).filter(models.User.username == "roya").one().is_active = False
+        db.commit()
+        db.close()
+        self.assertEqual(self.client.post(url, json={"message": "سلام"}).status_code, 403)
 
 
 if __name__ == "__main__":
