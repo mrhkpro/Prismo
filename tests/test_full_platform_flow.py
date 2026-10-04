@@ -458,6 +458,18 @@ class PlaygroundFlowTests(PlatformTestCase):
         stolen = self.client.post("/api/playground/chat", headers=h(b), json={"message": "ارسال", "session_id": sid}).json()
         self.assertNotEqual(stolen["session_id"], sid)
 
+    def test_playground_cannot_continue_a_visitor_widget_session(self):
+        token = self.register("roya")
+        self.add_doc(token)
+        wid = self.widget_id(token)
+        widget_sid = self.client.post(f"/public/widget/{wid}/chat", json={"message": "ارسال"}).json()["session_id"]
+        res = self.client.post("/api/playground/chat", headers=h(token), json={"message": "ارسال", "session_id": widget_sid})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertNotEqual(res.json()["session_id"], widget_sid, "تست‌های آزمایشگاه نباید وارد گفتگوی بازدیدکننده شوند")
+        db = self.Session()
+        self.assertEqual(db.query(models.ChatMessage).filter(models.ChatMessage.session_id == widget_sid).count(), 2)
+        db.close()
+
     def test_playground_cannot_delete_widget_sessions(self):
         token = self.register("roya")
         self.add_doc(token)

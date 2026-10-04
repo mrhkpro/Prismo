@@ -15,7 +15,11 @@ def _get_or_create_session(db: Session, user: models.User, session_id: str | Non
     if session_id:
         session = (
             db.query(models.ChatSession)
-            .filter(models.ChatSession.id == session_id, models.ChatSession.user_id == user.id)
+            .filter(
+                models.ChatSession.id == session_id,
+                models.ChatSession.user_id == user.id,
+                models.ChatSession.source == models.ChatSource.playground,
+            )
             .first()
         )
         if session:
