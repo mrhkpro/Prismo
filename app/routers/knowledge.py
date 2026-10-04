@@ -162,6 +162,8 @@ def delete_document(
 def clear_knowledge_base(
     current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
-    db.query(models.Document).filter(models.Document.user_id == current_user.id).delete()
+    # اول تکه‌ها (فرزند) و بعد اسناد (والد) حذف می‌شوند تا اگر دیتابیس کلید خارجی را سخت‌گیرانه
+    # بررسی کند یا ON DELETE CASCADE نداشته باشد، پاک‌سازی کل دانشنامه شکست نخورد.
     rag_store.delete_all_user_chunks(db, current_user.id)
+    db.query(models.Document).filter(models.Document.user_id == current_user.id).delete()
     db.commit()
