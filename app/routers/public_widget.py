@@ -44,7 +44,11 @@ def widget_chat(widget_id: str, payload: schemas.WidgetChatRequest, request: Req
     if payload.session_id:
         session = (
             db.query(models.ChatSession)
-            .filter(models.ChatSession.id == payload.session_id, models.ChatSession.user_id == owner.id)
+            .filter(
+                models.ChatSession.id == payload.session_id,
+                models.ChatSession.user_id == owner.id,
+                models.ChatSession.source == models.ChatSource.widget,
+            )
             .first()
         )
     if not session:
