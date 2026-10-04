@@ -504,6 +504,18 @@ class PublicWidgetFlowTests(PlatformTestCase):
         codes = [self.client.post(f"/public/widget/{wid}/chat", json={"message": "سلام"}).status_code for _ in range(3)]
         self.assertEqual(codes, [200, 200, 429])
 
+    def test_visitor_cannot_continue_an_owner_playground_session(self):
+        token = self.register("roya")
+        self.add_doc(token)
+        wid = self.widget_id(token)
+        playground_sid = self.client.post("/api/playground/chat", headers=h(token), json={"message": "ارسال"}).json()["session_id"]
+        res = self.client.post(f"/public/widget/{wid}/chat", json={"message": "ارسال", "session_id": playground_sid})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertNotEqual(res.json()["session_id"], playground_sid, "ویجت باید نشست جدید بسازد، نه ادامه‌ی نشست آزمایشگاه")
+        db = self.Session()
+        self.assertEqual(db.query(models.ChatMessage).filter(models.ChatMessage.session_id == playground_sid).count(), 2)
+        db.close()
+
     def test_widget_stops_working_for_blocked_owner(self):
         token = self.register("roya")
         wid = self.widget_id(token)
