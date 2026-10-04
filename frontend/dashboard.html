@@ -121,133 +121,91 @@
 
     <!-- ---------- اتصال مدل هوش مصنوعی ---------- -->
     <section class="view" id="view-ai-settings">
-      <div class="page-head page-head-row">
-        <div>
-          <h1>اتصال و تنظیم مدل‌های هوش مصنوعی</h1>
-          <p>از مدل‌های رایگان آماده استفاده کن یا یک API سازگار با OpenAI را وصل کن و مدل‌های واقعی همان سرویس را دریافت کن.</p>
-        </div>
-        <div class="page-head-actions">
-          <span class="badge badge-muted" id="providerStatusBadge">مدل‌های آماده</span>
+      <div class="page-head">
+        <h1>مدل هوش مصنوعی</h1>
+        <p>یک اتصال انتخاب کن و مدل‌ها را تنظیم کن.</p>
+      </div>
+
+      <div class="tab-strip">
+        <div class="tab-btn active" data-aitab="connect">اتصال</div>
+        <div class="tab-btn" data-aitab="battle">مقایسه‌ی مدل‌ها</div>
+      </div>
+
+      <div class="tab-pane active" id="aitab-connect">
+        <input type="checkbox" id="useDefaultProviderChk" hidden>
+        <div class="panel flat">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">منبع مدل</div>
+              <div class="panel-desc">مدل‌های رایگان آماده یا API سازگار با OpenAI.</div>
+            </div>
+            <div class="panel-tools">
+              <span class="badge badge-muted" id="providerStatusBadge">مدل‌های آماده</span>
+              <div class="segmented" role="tablist" aria-label="منبع مدل">
+                <button type="button" class="seg-btn active" id="defaultProviderModeBtn">رایگان آماده</button>
+                <button type="button" class="seg-btn" id="customProviderModeBtn">API اختصاصی</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- حالت آماده -->
+          <div id="defaultProviderInfo">
+            <div class="form-grid">
+              <div class="field"><label>مدل چت</label><select id="chatModelSelect"></select></div>
+              <div class="field"><label>مدل Embedding</label><select id="embeddingModelSelect"></select></div>
+            </div>
+            <div class="panel-foot">
+              <button class="btn btn-primary" id="saveProviderBtn">ذخیره</button>
+              <button class="btn btn-ghost" id="testConnectionBtn">تست اتصال</button>
+            </div>
+          </div>
+
+          <!-- حالت اختصاصی -->
+          <div id="customProviderPanel" style="display:none;">
+            <div class="form-grid">
+              <div class="field span-2">
+                <label>Base URL</label>
+                <input type="url" id="baseUrlInput" placeholder="https://api.example.com/v1" dir="ltr" autocomplete="url">
+              </div>
+              <div class="field span-2">
+                <label>API Key</label>
+                <div class="input-action">
+                  <input type="password" id="apiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
+                  <button class="btn btn-soft" id="discoverModelsBtn" type="button">دریافت مدل‌ها</button>
+                </div>
+                <span class="field-hint" id="apiKeyStatusHint"></span>
+                <div class="status-line" id="modelDiscoveryStatus"></div>
+              </div>
+              <div class="field"><label>مدل چت</label><select id="customChatModelSelect" disabled></select></div>
+              <div class="field"><label>مدل Embedding</label><select id="customEmbeddingModelSelect" disabled></select></div>
+            </div>
+            <div class="panel-foot">
+              <button class="btn btn-primary" id="saveCustomProviderBtn">ذخیره</button>
+              <button class="btn btn-ghost" id="testCustomConnectionBtn">تست اتصال</button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="provider-mode-grid">
-        <button type="button" class="provider-mode-card" id="defaultProviderModeBtn">
-          <span class="provider-mode-icon">✦</span>
-          <span>
-            <strong>مدل‌های رایگان آماده</strong>
-            <small>بدون نیاز به API Key و با همان اتصال آماده‌ی پروژه</small>
-          </span>
-        </button>
-        <button type="button" class="provider-mode-card" id="customProviderModeBtn">
-          <span class="provider-mode-icon">⌘</span>
-          <span>
-            <strong>API اختصاصی من</strong>
-            <small>Base URL و کلید خودت را وارد کن و لیست مدل‌ها را بگیر</small>
-          </span>
-        </button>
-      </div>
-
-      <input type="checkbox" id="useDefaultProviderChk" hidden>
-
-      <div class="panel provider-panel" id="defaultProviderInfo">
-        <div class="provider-panel-head">
-          <div>
-            <div class="panel-title">اتصال آماده</div>
-            <div class="panel-desc">اتصال پیش‌فرض پروژه دست‌نخورده باقی می‌ماند. فقط مدل چت و Embedding را انتخاب کن.</div>
+      <div class="tab-pane" id="aitab-battle">
+        <div class="panel flat">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">مقایسه‌ی مدل‌های آماده</div>
+              <div class="panel-desc">یک پرامپت را هم‌زمان به دو مدل رایگان بفرست.</div>
+            </div>
           </div>
-          <span class="badge badge-success"><span class="badge-dot"></span> آماده استفاده</span>
-        </div>
-
-        <div class="grid-2">
-          <div class="field">
-            <label>مدل چت</label>
-            <select id="chatModelSelect"></select>
+          <div class="form-grid">
+            <div class="field"><label>مدل اول</label><select id="battleModelA"></select></div>
+            <div class="field"><label>مدل دوم</label><select id="battleModelB"></select></div>
+            <div class="field span-2">
+              <label>پرامپت آزمایشی</label>
+              <textarea id="battlePrompt" placeholder="مثلاً: یک پاراگراف کوتاه درباره‌ی اهمیت RAG بنویس."></textarea>
+            </div>
           </div>
-          <div class="field">
-            <label>مدل Embedding</label>
-            <select id="embeddingModelSelect"></select>
-          </div>
+          <div class="panel-foot"><button class="btn btn-primary" id="runBattleBtn">شروع مقایسه</button></div>
+          <div class="battle-grid" id="battleResults" style="display:none;"></div>
         </div>
-
-        <div class="provider-actions">
-          <button class="btn btn-primary" id="saveProviderBtn">ذخیره‌ی تنظیمات</button>
-          <button class="btn btn-ghost" id="testConnectionBtn">تست اتصال</button>
-        </div>
-      </div>
-
-      <div class="panel provider-panel" id="customProviderPanel" style="display:none;">
-        <div class="provider-panel-head">
-          <div>
-            <div class="panel-title">اتصال مستقیم به API خودت</div>
-            <div class="panel-desc">اتصال آماده‌ی پروژه دست‌نخورده باقی مانده؛ این بخش فقط برای API اختصاصی توست.</div>
-          </div>
-          <span class="badge badge-accent">OpenAI-Compatible</span>
-        </div>
-        <div class="provider-steps">
-          <span><b>۱</b> آدرس سرویس</span><span><b>۲</b> API Key</span><span><b>۳</b> دریافت مدل‌ها</span><span><b>۴</b> انتخاب مدل و ذخیره</span>
-        </div>
-
-        <div class="grid-2">
-          <div class="field">
-            <label>Base URL</label>
-            <input type="url" id="baseUrlInput" placeholder="https://api.example.com/v1" dir="ltr" autocomplete="url">
-          </div>
-          <div class="field">
-            <label>API Key</label>
-            <input type="password" id="apiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
-            <span class="field-hint" id="apiKeyStatusHint"></span>
-          </div>
-        </div>
-
-        <div class="model-discovery-box">
-          <div>
-            <strong>دریافت خودکار مدل‌های API</strong>
-            <p>بعد از وارد کردن Base URL و API Key، لیست مدل‌های واقعی سرویس را دریافت کن.</p>
-          </div>
-          <button class="btn btn-soft" id="discoverModelsBtn">دریافت مدل‌ها</button>
-        </div>
-        <div class="field-hint discovery-status" id="modelDiscoveryStatus"></div>
-
-        <div class="grid-2">
-          <div class="field">
-            <label>مدل چت</label>
-            <select id="customChatModelSelect" disabled></select>
-          </div>
-          <div class="field">
-            <label>مدل Embedding</label>
-            <select id="customEmbeddingModelSelect" disabled></select>
-          </div>
-        </div>
-
-        <div class="provider-actions">
-          <button class="btn btn-primary" id="saveCustomProviderBtn">ذخیره‌ی اتصال اختصاصی</button>
-          <button class="btn btn-ghost" id="testCustomConnectionBtn">تست اتصال</button>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">⚔️ حالت Battle — مقایسه‌ی مدل‌های آماده</div>
-        <div class="panel-desc">این بخش فقط از مدل‌های رایگان آماده‌ی خود پروژه استفاده می‌کند و به اتصال API اختصاصی دست نمی‌زند.</div>
-        <div class="grid-2">
-          <div class="field">
-            <label>مدل اول</label>
-            <select id="battleModelA"></select>
-          </div>
-          <div class="field">
-            <label>مدل دوم</label>
-            <select id="battleModelB"></select>
-          </div>
-        </div>
-        <div class="field">
-          <label>پرامپت آزمایشی</label>
-          <textarea id="battlePrompt" placeholder="مثلاً: یک پاراگراف کوتاه درباره‌ی اهمیت RAG بنویس."></textarea>
-        </div>
-        <button class="btn btn-primary" id="runBattleBtn">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-          شروع Battle
-        </button>
-        <div class="battle-grid" id="battleResults" style="display:none;"></div>
       </div>
     </section>
 
