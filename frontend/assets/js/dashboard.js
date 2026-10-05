@@ -837,54 +837,224 @@ document.getElementById("searchQueryInput").addEventListener("keydown", (e) => {
 // ---------------------------------------------------------------------------
 // ویجت‌ساز
 // ---------------------------------------------------------------------------
-function renderWidgetPreview(title, welcome, color, widgetId) {
-  // کارت توضیحی کوچک را با iframe واقعی عوض می‌کنیم تا خود widget.js هم تست شود.
-  const frame = document.getElementById("widgetPreviewFrame");
+// ---------------------------------------------------------------------------
+// ویجت‌ساز: ظاهر، حیوان خانگی، گفت‌وگو، پیش‌نمایش زنده و کد جاسازی
+// ---------------------------------------------------------------------------
+const WIDGET_SWATCHES = ["#8B5CF6", "#EAB308", "#F59E0B", "#EC4899", "#14B8A6", "#3B82F6", "#22C55E", "#EF4444"];
+const PET_SWATCHES = {
+  dog: ["#C98A4B", "#8A5A2B", "#E8C9A0", "#3A3A44", "#F2F2F2"],
+  cat: ["#9696A5", "#E0A030", "#3A3A44", "#F2F2F2", "#F4B6C2"],
+  raccoon: ["#808090", "#6B5A4A", "#3A3A44", "#B8B8C4"],
+};
+
+let LAST_WIDGET_ID = null;
+let WIDGET_BASELINE = "";
+let EMBED_TEMPLATE = "";
+let EMBED_THEME = "auto";
+let PREVIEW_TIMER = null;
+
+const widgetEl = (id) => document.getElementById(id);
+
+function readWidgetForm() {
+  const quick = Array.from(document.querySelectorAll("#quickInputs input")).map((i) => i.value.trim()).filter(Boolean);
+  const activePos = document.querySelector("#widgetPositionSeg .seg-btn.active");
+  const activePet = document.querySelector("#petGrid .pet-card.active");
+  return {
+    title: widgetEl("widgetTitleInput").value.trim(),
+    welcome: widgetEl("widgetWelcomeInput").value.trim(),
+    color: widgetEl("widgetColorInput").value,
+    extras: {
+      pet_enabled: widgetEl("petEnabledChk").checked,
+      pet: activePet ? activePet.dataset.pet : "dog",
+      pet_color: widgetEl("petColorInput").value,
+      position: activePos ? activePos.dataset.pos : "bottom-left",
+      teaser_enabled: widgetEl("teaserChk").checked,
+      quick_replies: quick.slice(0, 4),
+    },
+  };
+}
+
+function updateWidgetDirty() {
+  const dirty = JSON.stringify(readWidgetForm()) !== WIDGET_BASELINE;
+  const hint = widgetEl("widgetDirtyHint");
+  hint.textContent = dirty ? "تغییرات ذخیره‌نشده" : "";
+  hint.className = "status-line" + (dirty ? " error-text" : "");
+}
+
+// تغییرات فرم را همان لحظه (حتی بدون ذخیره) به ویجت داخل پیش‌نمایش می‌فرستیم
+function pushWidgetPreview(showTeaser) {
+  clearTimeout(PREVIEW_TIMER);
+  PREVIEW_TIMER = setTimeout(() => {
+    const frame = widgetEl("widgetPreviewFrame");
+    if (!frame || !frame.contentWindow || !LAST_WIDGET_ID) return;
+    const f = readWidgetForm();
+    frame.contentWindow.postMessage(
+      { qzPreview: { title: f.title, welcome: f.welcome, color: f.color, extras: f.extras, showTeaser: Boolean(showTeaser) } },
+      window.location.origin
+    );
+  }, 120);
+}
+
+function onWidgetFormChange(showTeaser) {
+  updateWidgetDirty();
+  pushWidgetPreview(showTeaser);
+}
+
+function renderSwatches(containerId, colors, inputId) {
+  const box = widgetEl(containerId);
+  const input = widgetEl(inputId);
+  box.innerHTML = colors
+    .map((c) => `<button type="button" class="swatch" data-color="${c}" style="background:${c}" title="${c}" aria-label="${c}"></button>`)
+    .join("");
+  box.querySelectorAll(".swatch").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      input.value = btn.dataset.color;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  });
+}
+
+function renderPetGrid(selected, color) {
+  const grid = widgetEl("petGrid");
+  if (!window.QzPets) return;
+  grid.innerHTML = QzPets.names
+    .map(
+      (name) => `
+    <button type="button" class="pet-card${name === selected ? " active" : ""}" data-pet="${name}" role="radio" aria-checked="${name === selected}">
+      <span class="pet-thumb">${QzPets.svg(name, "i", color, 4)}</span>
+      <span class="pet-name">${QzPets.labels[name]}</span>
+    </button>`
+    )
+    .join("");
+  grid.querySelectorAll(".pet-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const previous = grid.querySelector(".pet-card.active");
+      const prevName = previous ? previous.dataset.pet : "dog";
+      const colorInput = widgetEl("petColorInput");
+      // اگر کاربر رنگ دلخواه نگذاشته بود، رنگ پیش‌فرض حیوان تازه را بگذار
+      if (colorInput.value.toLowerCase() === QzPets.defaultColors[prevName].toLowerCase()) {
+        colorInput.value = QzPets.defaultColors[card.dataset.pet];
+      }
+      renderPetGrid(card.dataset.pet, colorInput.value);
+      renderSwatches("petSwatches", PET_SWATCHES[card.dataset.pet], "petColorInput");
+      onWidgetFormChange(false);
+    });
+  });
+}
+
+function setWidgetPosition(pos) {
+  document.querySelectorAll("#widgetPositionSeg .seg-btn").forEach((b) => b.classList.toggle("active", b.dataset.pos === pos));
+}
+
+function renderWidgetPreview(widgetId) {
+  const frame = widgetEl("widgetPreviewFrame");
   if (!frame) return;
   LAST_WIDGET_ID = widgetId;
   const theme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
   frame.src = `/widget-preview.html?widget_id=${encodeURIComponent(widgetId)}&theme=${theme}&v=${Date.now()}`;
 }
 
-let LAST_WIDGET_ID = null;
+// پیش‌نمایش بعد از هر بار لود، آخرین مقدارهای فرم را (حتی ذخیره‌نشده) دوباره می‌گیرد
+widgetEl("widgetPreviewFrame").addEventListener("load", () => pushWidgetPreview(true));
+
 // اگر کاربر تم سایت را عوض کرد، پیش‌نمایش ویجت هم با همان تم دوباره ساخته می‌شود
 document.addEventListener("qz-theme-change", () => {
-  if (LAST_WIDGET_ID) renderWidgetPreview(null, null, null, LAST_WIDGET_ID);
+  if (LAST_WIDGET_ID) renderWidgetPreview(LAST_WIDGET_ID);
 });
+
+function renderEmbedCode() {
+  if (!EMBED_TEMPLATE) return;
+  const code = EMBED_TEMPLATE.replaceAll("__BASE_URL__", window.location.origin).replace(/data-theme="[^"]*"/, `data-theme="${EMBED_THEME}"`);
+  widgetEl("embedCodeBox").textContent = code;
+}
 
 async function loadWidgetSection() {
   try {
-    const cfg = await apiCall("/api/widget/config");
-    document.getElementById("widgetTitleInput").value = cfg.widget_title;
-    document.getElementById("widgetWelcomeInput").value = cfg.widget_welcome_message;
-    document.getElementById("widgetColorInput").value = cfg.widget_color;
-    renderWidgetPreview(cfg.widget_title, cfg.widget_welcome_message, cfg.widget_color, cfg.widget_id);
+    const [cfg, embed] = await Promise.all([apiCall("/api/widget/config"), apiCall("/api/widget/embed-code")]);
+    const ex = cfg.extras || {};
+    const pet = ex.pet || "dog";
+    widgetEl("widgetTitleInput").value = cfg.widget_title;
+    widgetEl("widgetWelcomeInput").value = cfg.widget_welcome_message;
+    widgetEl("widgetColorInput").value = cfg.widget_color;
+    renderSwatches("widgetSwatches", WIDGET_SWATCHES, "widgetColorInput");
+    setWidgetPosition(ex.position || "bottom-left");
+    widgetEl("petEnabledChk").checked = Boolean(ex.pet_enabled);
+    widgetEl("petColorInput").value = ex.pet_color || (window.QzPets ? QzPets.defaultColors[pet] : "#C98A4B");
+    widgetEl("petOptions").classList.toggle("disabled", !ex.pet_enabled);
+    renderSwatches("petSwatches", PET_SWATCHES[pet] || PET_SWATCHES.dog, "petColorInput");
+    renderPetGrid(pet, widgetEl("petColorInput").value);
+    widgetEl("teaserChk").checked = Boolean(ex.teaser_enabled);
+    const quickInputs = document.querySelectorAll("#quickInputs input");
+    quickInputs.forEach((input, i) => (input.value = (ex.quick_replies || [])[i] || ""));
 
-    const embed = await apiCall("/api/widget/embed-code");
-    const code = embed.embed_code_template.replaceAll("__BASE_URL__", window.location.origin);
-    document.getElementById("embedCodeBox").textContent = code;
+    WIDGET_BASELINE = JSON.stringify(readWidgetForm());
+    updateWidgetDirty();
+    if (cfg.extras_available === false) {
+      const hint = widgetEl("widgetDirtyHint");
+      hint.textContent = "ذخیره‌ی حیوان خانگی و پاسخ‌های سریع نیاز به یک‌بار اجرای migration شماره‌ی ۰۰۲ دارد.";
+    }
+
+    EMBED_TEMPLATE = embed.embed_code_template;
+    renderEmbedCode();
+    renderWidgetPreview(cfg.widget_id);
   } catch (err) {
     toastError(err);
   }
 }
 
-document.getElementById("refreshWidgetPreviewBtn").addEventListener("click", () => loadWidgetSection());
+// --- رویدادهای فرم ---
+document.querySelectorAll("#widgetTabs .tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#widgetTabs .tab-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    document.querySelectorAll("#view-widget .widget-controls .tab-pane").forEach((p) => p.classList.toggle("active", p.id === `wtab-${btn.dataset.wtab}`));
+  });
+});
+["widgetTitleInput", "widgetWelcomeInput", "widgetColorInput", "petColorInput"].forEach((id) =>
+  widgetEl(id).addEventListener("input", () => {
+    if (id === "petColorInput") {
+      const active = document.querySelector("#petGrid .pet-card.active");
+      renderPetGrid(active ? active.dataset.pet : "dog", widgetEl("petColorInput").value);
+    }
+    onWidgetFormChange(false);
+  })
+);
+widgetEl("petEnabledChk").addEventListener("change", () => {
+  widgetEl("petOptions").classList.toggle("disabled", !widgetEl("petEnabledChk").checked);
+  onWidgetFormChange(false);
+});
+widgetEl("teaserChk").addEventListener("change", () => onWidgetFormChange(widgetEl("teaserChk").checked));
+document.querySelectorAll("#quickInputs input").forEach((i) => i.addEventListener("input", () => onWidgetFormChange(false)));
+document.querySelectorAll("#widgetPositionSeg .seg-btn").forEach((btn) =>
+  btn.addEventListener("click", () => {
+    setWidgetPosition(btn.dataset.pos);
+    onWidgetFormChange(false);
+  })
+);
+document.querySelectorAll("#embedThemeSeg .seg-btn").forEach((btn) =>
+  btn.addEventListener("click", () => {
+    EMBED_THEME = btn.dataset.embedTheme;
+    document.querySelectorAll("#embedThemeSeg .seg-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    renderEmbedCode();
+  })
+);
 
-document.getElementById("saveWidgetBtn").addEventListener("click", async () => {
-  const title = document.getElementById("widgetTitleInput").value.trim();
-  const welcome = document.getElementById("widgetWelcomeInput").value.trim();
-  const color = document.getElementById("widgetColorInput").value;
-  if (!title || !welcome) return toast("عنوان و پیام خوش‌آمدگویی نمی‌توانند خالی باشند.", "error");
-  const btn = document.getElementById("saveWidgetBtn");
+widgetEl("refreshWidgetPreviewBtn").addEventListener("click", () => {
+  if (LAST_WIDGET_ID) renderWidgetPreview(LAST_WIDGET_ID);
+});
+
+widgetEl("saveWidgetBtn").addEventListener("click", async () => {
+  const form = readWidgetForm();
+  if (!form.title || !form.welcome) return toast("عنوان و پیام خوش‌آمدگویی نمی‌توانند خالی باشند.", "error");
+  const btn = widgetEl("saveWidgetBtn");
   btn.disabled = true;
   try {
-    const saved = await apiCall("/api/widget/config", {
+    await apiCall("/api/widget/config", {
       method: "PUT",
-      body: { widget_title: title, widget_welcome_message: welcome, widget_color: color },
+      body: { widget_title: form.title, widget_welcome_message: form.welcome, widget_color: form.color, extras: form.extras },
     });
-    const cfg = await apiCall("/api/widget/config");
-    toast("ظاهر ویجت ذخیره شد.", "success");
-    renderWidgetPreview(title, welcome, color, cfg.widget_id);
+    WIDGET_BASELINE = JSON.stringify(readWidgetForm());
+    updateWidgetDirty();
+    toast("تنظیمات ویجت ذخیره شد.", "success");
   } catch (err) {
     toastError(err);
   } finally {
@@ -892,8 +1062,8 @@ document.getElementById("saveWidgetBtn").addEventListener("click", async () => {
   }
 });
 
-document.getElementById("copyEmbedBtn").addEventListener("click", async () => {
-  const text = document.getElementById("embedCodeBox").textContent;
+widgetEl("copyEmbedBtn").addEventListener("click", async () => {
+  const text = widgetEl("embedCodeBox").textContent;
   try {
     await navigator.clipboard.writeText(text);
     toast("کد کپی شد.", "success");

@@ -337,50 +337,112 @@
     <!-- ---------- ویجت‌ساز ---------- -->
     <section class="view" id="view-widget">
       <div class="page-head">
-        <h1>ویجت‌ساز و کد جاسازی</h1>
-        <p>ظاهر ویجت را شخصی‌سازی کن و کد آن را داخل وب‌سایتت جاسازی کن.</p>
+        <h1>ویجت و کد جاسازی</h1>
+        <p>ظاهر و رفتار ویجت را تنظیم کن؛ پیش‌نمایش سمت چپ همان لحظه عوض می‌شود.</p>
       </div>
 
-      <div class="grid-2">
-        <div class="panel">
-          <div class="panel-title">ظاهر ویجت</div>
-          <div class="field">
-            <label>عنوان ویجت</label>
-            <input type="text" id="widgetTitleInput">
+      <div class="widget-layout">
+        <div class="panel flat widget-controls">
+          <div class="tab-strip" id="widgetTabs">
+            <div class="tab-btn active" data-wtab="look">ظاهر</div>
+            <div class="tab-btn" data-wtab="pet">حیوان خانگی</div>
+            <div class="tab-btn" data-wtab="chat">گفت‌وگو</div>
           </div>
-          <div class="field">
-            <label>پیام خوش‌آمدگویی</label>
-            <textarea id="widgetWelcomeInput"></textarea>
+
+          <!-- ظاهر -->
+          <div class="tab-pane active" id="wtab-look">
+            <div class="field"><label>عنوان ویجت</label><input type="text" id="widgetTitleInput" maxlength="120"></div>
+            <div class="field"><label>پیام خوش‌آمدگویی</label><textarea id="widgetWelcomeInput" maxlength="1000" style="min-height:84px"></textarea></div>
+            <div class="field">
+              <label>رنگ اصلی</label>
+              <div class="color-row">
+                <input type="color" id="widgetColorInput" aria-label="رنگ اصلی ویجت">
+                <div class="swatches" id="widgetSwatches" role="group" aria-label="رنگ‌های آماده"></div>
+              </div>
+            </div>
+            <div class="field">
+              <label>محل ویجت روی صفحه</label>
+              <div class="segmented" id="widgetPositionSeg">
+                <button type="button" class="seg-btn" data-pos="bottom-left">پایین چپ</button>
+                <button type="button" class="seg-btn" data-pos="bottom-right">پایین راست</button>
+              </div>
+            </div>
           </div>
-          <div class="field">
-            <label>رنگ اصلی ویجت</label>
-            <input type="color" id="widgetColorInput">
+
+          <!-- حیوان خانگی -->
+          <div class="tab-pane" id="wtab-pet">
+            <label class="switch-row">
+              <span class="switch"><input type="checkbox" id="petEnabledChk"><span class="switch-track"></span></span>
+              <span><strong>حیوان خانگی پیکسلی</strong><small>روی لبه‌ی بالای ویجت راه می‌رود، بعد می‌ایستد و با کلیک قلب می‌دهد.</small></span>
+            </label>
+            <div class="pet-options" id="petOptions">
+              <div class="pet-grid" id="petGrid" role="radiogroup" aria-label="انتخاب حیوان"></div>
+              <div class="field">
+                <label>رنگ حیوان</label>
+                <div class="color-row">
+                  <input type="color" id="petColorInput" aria-label="رنگ حیوان">
+                  <div class="swatches" id="petSwatches" role="group" aria-label="رنگ‌های آماده"></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <button class="btn btn-primary" id="saveWidgetBtn">ذخیره‌ی ظاهر</button>
+
+          <!-- گفت‌وگو -->
+          <div class="tab-pane" id="wtab-chat">
+            <label class="switch-row">
+              <span class="switch"><input type="checkbox" id="teaserChk"><span class="switch-track"></span></span>
+              <span><strong>پیام تیزر</strong><small>چند ثانیه بعد از ورود، پیام خوش‌آمدگویی بالای دکمه‌ی ویجت ظاهر می‌شود.</small></span>
+            </label>
+            <div class="field" style="margin-top:18px">
+              <label>پاسخ‌های سریع (حداکثر ۴ مورد)</label>
+              <div class="quick-inputs" id="quickInputs">
+                <input type="text" maxlength="60" placeholder="مثلاً: ساعت کاری؟">
+                <input type="text" maxlength="60" placeholder="مثلاً: هزینه ارسال">
+                <input type="text" maxlength="60" placeholder="اختیاری">
+                <input type="text" maxlength="60" placeholder="اختیاری">
+              </div>
+              <span class="field-hint">این‌ها به‌شکل دکمه زیر پیام خوش‌آمدگویی دیده می‌شوند و بعد از اولین پیام مخفی می‌شوند.</span>
+            </div>
+          </div>
+
+          <div class="panel-foot">
+            <button class="btn btn-primary" id="saveWidgetBtn">ذخیره‌ی تغییرات</button>
+            <span class="status-line" id="widgetDirtyHint"></span>
+          </div>
         </div>
 
-        <div class="panel">
-          <div class="widget-preview-head">
-          <div>
-            <div class="panel-title">پیش‌نمایش واقعی ویجت</div>
-            <div class="panel-desc">همین ویجت عمومی را با تنظیمات فعلی داخل پنل تست کن.</div>
+        <div class="widget-preview-col">
+          <div class="panel flat widget-preview-panel">
+            <div class="panel-head">
+              <div><div class="panel-title">پیش‌نمایش زنده</div><div class="panel-desc">ویجت واقعی؛ حتی قبل از ذخیره.</div></div>
+              <div class="panel-tools"><button class="btn btn-soft btn-sm" id="refreshWidgetPreviewBtn">بازنشانی</button></div>
+            </div>
+            <div class="widget-preview-wrap" id="widgetPreviewWrap">
+              <iframe id="widgetPreviewFrame" class="widget-preview-frame" title="پیش‌نمایش ویجت"></iframe>
+            </div>
           </div>
-          <button class="btn btn-soft btn-sm" id="refreshWidgetPreviewBtn">بازنشانی</button>
-        </div>
-        <div class="widget-preview-wrap" id="widgetPreviewWrap">
-          <iframe id="widgetPreviewFrame" class="widget-preview-frame" title="پیش‌نمایش ویجت"></iframe>
-        </div>
         </div>
       </div>
 
-      <div class="panel" style="margin-top:20px;">
-        <div class="panel-title">کد جاسازی (Embed Code)</div>
-        <div class="panel-desc">این کد را کپی کن و پیش از تگ <span class="mono">&lt;/body&gt;</span> در هر وب‌سایتی جای‌گذاری کن.</div>
+      <div class="panel flat" style="margin-top:20px;">
+        <div class="panel-head">
+          <div><div class="panel-title">کد جاسازی</div><div class="panel-desc">این کد را پیش از <span class="mono">&lt;/body&gt;</span> هر صفحه‌ی وب‌سایتت بگذار.</div></div>
+          <div class="panel-tools">
+            <div class="segmented" id="embedThemeSeg" role="group" aria-label="تم ویجت در سایت شما">
+              <button type="button" class="seg-btn active" data-embed-theme="auto">خودکار</button>
+              <button type="button" class="seg-btn" data-embed-theme="light">روشن</button>
+              <button type="button" class="seg-btn" data-embed-theme="dark">تیره</button>
+            </div>
+          </div>
+        </div>
         <div class="embed-code-box" id="embedCodeBox">در حال بارگذاری…</div>
-        <button class="btn btn-soft" id="copyEmbedBtn" style="margin-top:14px;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          کپی کد
-        </button>
+        <div class="panel-foot">
+          <button class="btn btn-soft" id="copyEmbedBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            کپی کد
+          </button>
+          <span class="status-line">«خودکار» تم ویجت را با تم دستگاه بازدیدکننده هماهنگ می‌کند.</span>
+        </div>
       </div>
     </section>
 
@@ -425,6 +487,7 @@
 <script src="/assets/js/theme.js?v=2.4.0"></script>
 <script src="/assets/js/shell.js?v=2.4.0" defer></script>
 <script src="/assets/js/extract.js?v=2.4.0" defer></script>
+<script src="/assets/js/pets.js?v=2.4.0" defer></script>
 <script src="/assets/js/dashboard.js?v=2.4.0"></script>
 </body>
 </html>
