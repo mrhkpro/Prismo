@@ -1,5 +1,35 @@
 # Changelog
 
+## v2.5.0 — 2026-10-05 — Gentelella-style UI, streaming, file import, widget pet, admin alerts, speed
+
+### UI / UX
+- New application shell inspired by Gentelella: sticky topbar with breadcrumb, collapsible icon-only sidebar on desktop (remembered), off-canvas drawer on mobile, card headers/toolbars/segmented controls. Home keeps its layout.
+- AI connection page decluttered: *Connection* and *Model comparison* tabs, a segmented switch between the free models and a custom API, one panel instead of five boxes. All element ids are unchanged.
+
+### Chat
+- Replies stream chunk by chunk (SSE) in the lab chat and the public widget: `POST /api/playground/chat/stream` and `POST /public/widget/{id}/chat/stream` (events `meta`, `delta`, `done`, `error`). Blinking caret, stop button, partial replies are saved. If streaming is unavailable (404/405/415/501 or an old browser) the UI falls back to the one-shot endpoints automatically.
+
+### Knowledge base
+- Import PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), OpenDocument (.odt/.ods/.odp), EPUB, HTML, RTF, CSV, TSV, JSON, XML, YAML, Markdown, TXT, SRT/VTT and more. Text is extracted **in the browser** (no new Python dependency, no 4.5 MB request-body problem on Vercel); pdf.js is vendored and loaded only when a PDF is chosen. Drag-and-drop zone, multi-file import with per-file progress, automatic splitting of very long texts, Windows-1256 fallback for old Persian text files. Scanned (image-only) PDFs and legacy `.doc/.xls/.ppt` get a clear error.
+
+### Widget
+- Pixel pet (dog, cat or raccoon) in a chosen color walks along the top of the open widget, stops after a while, gives hearts when clicked; toggle on/off. It sits on the launcher while the panel is closed.
+- Quick-reply chips (up to 4), optional teaser bubble, left/right placement, auto/light/dark embed snippet, live preview of unsaved changes, unsaved-changes hint, color swatches.
+- Settings are stored in a new nullable column `user_settings.widget_extras` (JSON text). It is created automatically on first save (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`) and read with raw SQL inside a savepoint, so a missing column can never break login, chat or any other query. `supabase/migrations/002_widget_extras.sql` is provided for manual runs.
+
+### Admin security
+- Scanner v2 with severity and category: system-prompt extraction (English and Persian) is *critical*; instruction override and jailbreak are *high*; knowledge-base dumping is *medium*. Reasons store only rule codes, severity is derived at read time (no schema change).
+- Live monitoring: red banner on every admin page for unresolved critical alerts, pulsing sidebar badge, toast for new critical alerts (summary polled every 30 s while the tab is visible), `GET /api/admin/security/summary`, enriched `GET /api/admin/security/flags` (owner, organization, source, visitor, severity filter), alert cards with view-conversation / block-user / mark-reviewed actions.
+
+### Performance and interaction
+- Skeleton boxes while data loads (overview, sidebar identity, documents, widget preview, admin stats/users/conversations/alerts).
+- extract.js and pets.js are loaded on demand; concurrent identical GET requests share one network call; fonts no longer block rendering; the background glow no longer repaints on scroll.
+- `/assets/*?v=…` responses are sent with `Cache-Control: public, max-age=31536000, immutable`. Every changed asset therefore ships under a new `?v=` number (now `2.5.0`).
+- Double click on edit/delete/inspect/view/block/impersonate runs once and the next click works normally; a second click on the same control within 350 ms is ignored.
+
+### Tests
+- `tests/test_full_platform_flow.py` grew to cover streaming, widget extras, security severity/summary and cache headers. `tests/test_prompt_security.py` and `tests/test_theme_contracts.py` were extended (scanner phrases and false positives, sprite parity, deferred scripts, non-blocking fonts).
+
 ## v2.4.0 — 2026-10-04 — Violet night / gold day redesign
 
 ### Changed
