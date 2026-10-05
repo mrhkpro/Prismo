@@ -18,6 +18,7 @@
   script.src = "/widget.js?v=2.4.0";
   script.async = false;
   script.setAttribute("data-widget-id", widgetId);
+  script.setAttribute("data-preview", "1");
   script.setAttribute("data-api-base", location.origin);
   var theme = params.get("theme");
   script.setAttribute("data-theme", theme === "light" || theme === "dark" ? theme : "auto");
