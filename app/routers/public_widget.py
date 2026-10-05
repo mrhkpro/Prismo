@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
-from ..services import llm_client, rag_pipeline, rate_limit, streaming
+from ..services import llm_client, rag_pipeline, rate_limit, streaming, widget_extras
 
 router = APIRouter(prefix="/public/widget", tags=["ویجت عمومی (بدون نیاز به ورود)"])
 
@@ -27,6 +27,7 @@ def widget_public_config(widget_id: str, db: Session = Depends(get_db)):
         color=s.widget_color,
         org_name=owner.org_name,
         online=owner.is_active,
+        extras=widget_extras.load(db, owner.id)[0],
     )
 
 

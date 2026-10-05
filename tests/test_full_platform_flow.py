@@ -853,5 +853,81 @@ class StreamingFlowTests(PlatformTestCase):
         self.assertEqual(self.client.post(url, json={"message": "سلام"}).status_code, 403)
 
 
+# =============================================================================
+# ۱۰) تنظیمات اضافه‌ی ویجت: حیوان خانگی، موقعیت، پاسخ‌های سریع
+# =============================================================================
+class WidgetExtrasFlowTests(PlatformTestCase):
+    def test_defaults_are_returned_before_anything_is_saved(self):
+        token = self.register("roya")
+        cfg = self.client.get("/api/widget/config", headers=h(token)).json()
+        self.assertTrue(cfg["extras_available"])
+        self.assertEqual(cfg["extras"], {
+            "pet_enabled": False, "pet": "dog", "pet_color": "#C98A4B",
+            "position": "bottom-left", "teaser_enabled": False, "quick_replies": [],
+        })
+
+    def test_save_pet_settings_and_visitors_see_them(self):
+        token = self.register("roya")
+        wid = self.widget_id(token)
+        res = self.client.put("/api/widget/config", headers=h(token), json={
+            "widget_color": "#FACC15",
+            "extras": {"pet_enabled": True, "pet": "raccoon", "pet_color": "#808090", "position": "bottom-right",
+                       "teaser_enabled": True, "quick_replies": ["ساعت کاری؟", "  هزینه ارسال  ", ""]},
+        })
+        self.assertEqual(res.status_code, 200, res.text)
+        saved = res.json()["extras"]
+        self.assertEqual(saved["pet"], "raccoon")
+        self.assertEqual(saved["quick_replies"], ["ساعت کاری؟", "هزینه ارسال"])
+        mine = self.client.get("/api/widget/config", headers=h(token)).json()
+        self.assertEqual(mine["extras"], saved)
+        self.assertEqual(mine["widget_color"], "#FACC15")
+        public = self.client.get(f"/public/widget/{wid}/config").json()
+        self.assertTrue(public["extras"]["pet_enabled"])
+        self.assertEqual(public["extras"]["pet"], "raccoon")
+        self.assertEqual(public["extras"]["position"], "bottom-right")
+
+    def test_partial_extras_update_keeps_other_fields(self):
+        token = self.register("roya")
+        self.client.put("/api/widget/config", headers=h(token), json={"extras": {"pet": "cat", "pet_enabled": True}})
+        self.client.put("/api/widget/config", headers=h(token), json={"extras": {"pet_color": "#FFFFFF"}})
+        extras = self.client.get("/api/widget/config", headers=h(token)).json()["extras"]
+        self.assertEqual((extras["pet"], extras["pet_enabled"], extras["pet_color"]), ("cat", True, "#FFFFFF"))
+
+    def test_invalid_extras_are_rejected_and_nothing_is_saved(self):
+        token = self.register("roya")
+        for bad in ({"pet": "dragon"}, {"pet_color": "red"}, {"position": "top"}, {"quick_replies": "x"}):
+            res = self.client.put("/api/widget/config", headers=h(token), json={"widget_title": "نباید ذخیره شود", "extras": bad})
+            self.assertEqual(res.status_code, 422, bad)
+        cfg = self.client.get("/api/widget/config", headers=h(token)).json()
+        self.assertNotEqual(cfg["widget_title"], "نباید ذخیره شود")
+        self.assertFalse(cfg["extras"]["pet_enabled"])
+
+    def test_quick_replies_are_capped(self):
+        token = self.register("roya")
+        res = self.client.put("/api/widget/config", headers=h(token), json={"extras": {"quick_replies": [f"سؤال {i}" for i in range(9)]}})
+        self.assertEqual(len(res.json()["extras"]["quick_replies"]), 4)
+
+    def test_extras_are_per_user(self):
+        a, b = self.register("alice"), self.register("bob")
+        self.client.put("/api/widget/config", headers=h(a), json={"extras": {"pet_enabled": True, "pet": "cat"}})
+        self.assertFalse(self.client.get("/api/widget/config", headers=h(b)).json()["extras"]["pet_enabled"])
+
+    def test_missing_column_never_breaks_the_rest_of_the_site(self):
+        """اگر ستون widget_extras وجود نداشته باشد و ساخته هم نشود، فقط همین ویژگی پیش‌فرض می‌شود."""
+        from app.services import widget_extras
+        token = self.register("roya")
+        wid = self.widget_id(token)
+        with patch.object(widget_extras, "_ensure_column", return_value=False):
+            with self.engine.begin() as conn:
+                try:
+                    conn.exec_driver_sql("ALTER TABLE user_settings DROP COLUMN widget_extras")
+                except Exception:  # noqa: BLE001  (ستون هنوز ساخته نشده یا SQLite قدیمی)
+                    pass
+            self.assertEqual(self.client.get(f"/public/widget/{wid}/config").status_code, 200)
+            cfg = self.client.get("/api/widget/config", headers=h(token))
+            self.assertEqual(cfg.status_code, 200)
+            self.assertEqual(self.client.get("/api/auth/me", headers=h(token)).status_code, 200)
+
+
 if __name__ == "__main__":
     unittest.main()

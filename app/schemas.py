@@ -247,6 +247,7 @@ class WidgetConfigUpdate(BaseModel):
     widget_title: Optional[str] = Field(default=None, max_length=120)
     widget_welcome_message: Optional[str] = Field(default=None, max_length=1000)
     widget_color: Optional[str] = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+    extras: Optional[dict] = None
 
 
 class WidgetPublicConfig(BaseModel):
@@ -256,6 +257,7 @@ class WidgetPublicConfig(BaseModel):
     color: str
     org_name: Optional[str] = None
     online: bool
+    extras: dict = Field(default_factory=dict)
 
 
 class WidgetChatRequest(BaseModel):
