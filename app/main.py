@@ -148,6 +148,18 @@ async def request_logging_middleware(
             "X-Request-ID"
         ] = request_id
 
+        # فایل‌های استاتیکِ نسخه‌دار (/assets/...?v=...) را مرورگر و CDN می‌توانند بلندمدت کش کنند.
+        # با هر انتشار، شماره‌ی ?v= در صفحه‌ها عوض می‌شود. ‏HTML و widget.js عمداً کش بلندمدت نمی‌گیرند.
+        if (
+            request.method == "GET"
+            and request.url.path.startswith("/assets/")
+            and "v" in request.query_params
+            and response.status_code == 200
+        ):
+            response.headers[
+                "Cache-Control"
+            ] = "public, max-age=31536000, immutable"
+
         logger.info(
             "request_id=%s "
             "method=%s "

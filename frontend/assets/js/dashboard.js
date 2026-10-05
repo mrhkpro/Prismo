@@ -37,11 +37,15 @@ document.querySelectorAll(".nav-item[data-view]").forEach((item) => {
 // راه‌اندازی اولیه
 // ---------------------------------------------------------------------------
 async function init() {
+  const identity = document.querySelectorAll("#sidebarUserName, #sidebarUserRole");
+  Skel.toggle(identity, true);
   try {
     CURRENT_USER = await apiCall("/api/auth/me");
   } catch (err) {
+    Skel.toggle(identity, false);
     return; // apiCall خودش در صورت 401 ریدایرکت می‌کند
   }
+  Skel.toggle(identity, false);
 
   document.getElementById("sidebarUserName").textContent = CURRENT_USER.org_name || CURRENT_USER.username;
   document.getElementById("sidebarUserRole").textContent = CURRENT_USER.role === "admin" ? "مدیر سیستم" : "کاربر";
@@ -82,6 +86,8 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
 // خانه / نمای کلی
 // ---------------------------------------------------------------------------
 async function loadOverview() {
+  const overviewValues = document.querySelectorAll("#view-overview .stat-card .value");
+  Skel.toggle(overviewValues, true);
   try {
     const [summary, settings] = await Promise.all([
       apiCall("/api/dashboard/summary"),
@@ -101,6 +107,8 @@ async function loadOverview() {
     CURRENT_SETTINGS = settings;
   } catch (err) {
     toastError(err);
+  } finally {
+    Skel.toggle(overviewValues, false);
   }
 }
 
@@ -371,10 +379,14 @@ document.getElementById("runBattleBtn").addEventListener("click", async () => {
 let EDITING_DOC_ID = null;
 
 async function loadDocuments() {
+  const list = document.getElementById("docList");
+  const empty = document.getElementById("docEmptyState");
+  if (!list.children.length) {
+    empty.style.display = "none";
+    list.innerHTML = Skel.rows(3, 64);
+  }
   try {
     const docs = await apiCall("/api/knowledge/documents");
-    const list = document.getElementById("docList");
-    const empty = document.getElementById("docEmptyState");
     if (docs.length === 0) {
       list.innerHTML = "";
       empty.style.display = "block";
@@ -424,7 +436,16 @@ document.getElementById("docModal").addEventListener("click", (e) => {
   if (e.target.id === "docModal") closeDocModal();
 });
 
-async function editDocument(id) {
+// دوبار کلیک روی «ویرایش»/«حذف» فقط یک‌بار اجرا می‌شود؛ بعد از بسته‌شدن، کلیک بعدی دوباره کار می‌کند
+function editDocument(id) {
+  return once(`edit-doc:${id}`, () => editDocumentImpl(id));
+}
+function deleteDocument(id) {
+  return once(`delete-doc:${id}`, () => deleteDocumentImpl(id));
+}
+
+async function editDocumentImpl(id) {
+  if (document.getElementById("docModal").classList.contains("show")) return;
   try {
     const doc = await apiCall(`/api/knowledge/documents/${id}`);
     EDITING_DOC_ID = id;
@@ -434,7 +455,7 @@ async function editDocument(id) {
   }
 }
 
-async function deleteDocument(id) {
+async function deleteDocumentImpl(id) {
   if (!confirm("این سند حذف شود؟ این کار قابل بازگشت نیست.")) return;
   try {
     await apiCall(`/api/knowledge/documents/${id}`, { method: "DELETE" });
@@ -508,13 +529,17 @@ async function importFiles(fileList) {
   const files = Array.from(fileList || []);
   if (!files.length) return;
   if (IMPORT_BUSY) return toast("ایمپورت قبلی هنوز تمام نشده است.", "error");
-  if (!window.FileExtract) return toast("ماژول خواندن فایل هنوز بارگذاری نشده؛ چند لحظه بعد دوباره تلاش کن.", "error");
   IMPORT_BUSY = true;
   const dz = document.getElementById("docDropzone");
   dz.classList.add("busy");
 
   let imported = 0;
   try {
+    try {
+      await Lazy.script("/assets/js/extract.js?v=2.4.0");
+    } catch (err) {
+      return toastError(err);
+    }
     for (const file of files) {
       const row = addImportRow(file.name);
       try {
@@ -558,8 +583,6 @@ uploadInput.addEventListener("change", (e) => {
   importFiles(e.target.files);
   e.target.value = "";
 });
-// پسوندهای مجاز بعد از بارگذاری تنبل ماژول روی input گذاشته می‌شود
-window.addEventListener("load", () => { if (window.FileExtract) uploadInput.accept = FileExtract.accept; });
 
 const dropzone = document.getElementById("docDropzone");
 dropzone.addEventListener("click", () => uploadInput.click());
@@ -946,6 +969,11 @@ function setWidgetPosition(pos) {
   document.querySelectorAll("#widgetPositionSeg .seg-btn").forEach((b) => b.classList.toggle("active", b.dataset.pos === pos));
 }
 
+function setWidgetPreviewLoading(on) {
+  const wrap = widgetEl("widgetPreviewWrap");
+  if (wrap) wrap.classList.toggle("skeleton", on);
+}
+
 function renderWidgetPreview(widgetId) {
   const frame = widgetEl("widgetPreviewFrame");
   if (!frame) return;
@@ -955,7 +983,10 @@ function renderWidgetPreview(widgetId) {
 }
 
 // پیش‌نمایش بعد از هر بار لود، آخرین مقدارهای فرم را (حتی ذخیره‌نشده) دوباره می‌گیرد
-widgetEl("widgetPreviewFrame").addEventListener("load", () => pushWidgetPreview(true));
+widgetEl("widgetPreviewFrame").addEventListener("load", () => {
+  setWidgetPreviewLoading(false);
+  pushWidgetPreview(true);
+});
 
 // اگر کاربر تم سایت را عوض کرد، پیش‌نمایش ویجت هم با همان تم دوباره ساخته می‌شود
 document.addEventListener("qz-theme-change", () => {
@@ -970,7 +1001,12 @@ function renderEmbedCode() {
 
 async function loadWidgetSection() {
   try {
-    const [cfg, embed] = await Promise.all([apiCall("/api/widget/config"), apiCall("/api/widget/embed-code")]);
+    setWidgetPreviewLoading(true);
+    const [cfg, embed] = await Promise.all([
+      apiCall("/api/widget/config"),
+      apiCall("/api/widget/embed-code"),
+      Lazy.script("/assets/js/pets.js?v=2.4.0").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+    ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";
     widgetEl("widgetTitleInput").value = cfg.widget_title;
@@ -998,6 +1034,7 @@ async function loadWidgetSection() {
     renderEmbedCode();
     renderWidgetPreview(cfg.widget_id);
   } catch (err) {
+    setWidgetPreviewLoading(false);
     toastError(err);
   }
 }

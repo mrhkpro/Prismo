@@ -5,7 +5,7 @@
    همه‌ی رنگ‌ها فقط از طریق توکن‌های زیر مصرف می‌شوند تا تعویض تم یک‌جا انجام شود.
    ========================================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+/* فونت‌ها به‌صورت غیرمسدودکننده از داخل <head> هر صفحه بارگذاری می‌شوند (preconnect + media=print/onload) */
 
 :root {
   color-scheme: dark;
@@ -131,12 +131,7 @@ html { scroll-behavior: smooth; }
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(900px 520px at 88% -8%, var(--glow-a), transparent 62%),
-    radial-gradient(760px 480px at 6% 4%, var(--glow-c), transparent 60%),
-    radial-gradient(820px 560px at 50% 112%, var(--glow-b), transparent 64%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 15px;
@@ -144,6 +139,19 @@ body {
   direction: rtl;
   -webkit-font-smoothing: antialiased;
   transition: background-color .25s ease, color .25s ease;
+}
+
+/* درخششِ پس‌زمینه روی یک لایه‌ی ثابتِ جدا؛ با اسکرول دوباره‌نقاشی نمی‌شود */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 520px at 88% -8%, var(--glow-a), transparent 62%),
+    radial-gradient(760px 480px at 6% 4%, var(--glow-c), transparent 60%),
+    radial-gradient(820px 560px at 50% 112%, var(--glow-b), transparent 64%);
 }
 
 img, svg { max-width: 100%; display: block; }
@@ -647,7 +655,7 @@ tbody tr:hover { background: var(--accent-soft); }
 
 /* ---------- ساختار کلی ---------- */
 .app-shell { grid-template-columns: 264px minmax(0, 1fr); transition: grid-template-columns .22s ease; }
-.sidebar { background: var(--sidebar-bg); transition: transform .22s ease; z-index: 300; }
+.sidebar { background: var(--sidebar-bg); -webkit-backdrop-filter: none; backdrop-filter: none; transition: transform .22s ease; z-index: 300; }
 .main-area { padding: 0; display: flex; flex-direction: column; min-width: 0; }
 .main-body { padding: 26px 34px 70px; width: 100%; max-width: 1280px; margin-inline: auto; }
 
@@ -745,9 +753,6 @@ tbody tr:hover { background: var(--accent-soft); }
 .skel-tile { height: 98px; border-radius: var(--radius-lg); }
 .is-loading { pointer-events: none; }
 .stat-card.is-loading .value { color: transparent; background: var(--bg-elevated-2); border-radius: 8px; width: 60px; min-height: 30px; }
-
-/* ---------- کارایی: رندر تنبل بخش‌های بیرون از دید ---------- */
-.view:not(.active) { content-visibility: auto; contain-intrinsic-size: 1px 600px; }
 
 /* ---------- ریزتنظیمات ظاهر کارت‌ها ---------- */
 .doc-row { padding: 12px 14px; }
@@ -855,3 +860,11 @@ tbody tr:hover { background: var(--accent-soft); }
 .alert-codes { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .code-chip { font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; border-radius: 6px; background: var(--bg-input); border: 1px solid var(--border-soft); color: var(--text-faint); direction: ltr; }
 .alert-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- اسکلت‌های بارگذاری: جزئیات ---------- */
+.stat-card .value.skeleton { color: transparent; width: 64px; min-height: 32px; border-radius: 8px; }
+.skel-tr td { padding: 14px; }
+.skel-tr .skel-line { height: 14px; }
+.widget-preview-wrap.skeleton { border-color: var(--border-soft); }
+.widget-preview-wrap.skeleton .widget-preview-frame { visibility: hidden; }
+.sidebar-user .who .name.skeleton, .sidebar-user .who .role.skeleton { width: 90px; color: transparent; }
