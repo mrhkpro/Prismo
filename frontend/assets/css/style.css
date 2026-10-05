@@ -758,3 +758,25 @@ tbody tr:hover { background: var(--accent-soft); }
 }
 @keyframes caret-blink { to { visibility: hidden; } }
 .chat-note { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); color: var(--danger); font-size: 12.5px; }
+
+/* ---------- ایمپورت فایل ---------- */
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px;
+  padding: 26px 18px; margin-bottom: 14px; cursor: pointer;
+  border: 1.5px dashed var(--border); border-radius: var(--radius-lg); background: var(--bg-elevated);
+  transition: border-color .16s, background .16s, transform .16s;
+}
+.dropzone:hover, .dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
+.dropzone.over { transform: scale(1.005); }
+.dropzone.busy { opacity: .6; pointer-events: none; }
+.dropzone-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); margin-bottom: 6px; }
+.dropzone-title { font-weight: 700; font-size: 14.5px; }
+.dropzone-hint { color: var(--text-faint); font-size: 12px; direction: ltr; }
+.import-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.import-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 14px; border-radius: var(--radius-sm); background: var(--bg-elevated-2); border: 1px solid var(--border-soft); font-size: 13px; transition: opacity .6s; }
+.import-row.fade { opacity: 0; }
+.import-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: ltr; text-align: right; }
+.import-state { flex-shrink: 0; color: var(--text-muted); }
+.import-row[data-kind="ok"] .import-state { color: var(--success); }
+.import-row[data-kind="error"] { border-color: var(--danger); }
+.import-row[data-kind="error"] .import-state { color: var(--danger); white-space: normal; text-align: left; }

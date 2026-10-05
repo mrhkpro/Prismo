@@ -216,19 +216,28 @@
         <p>اسناد و اطلاعاتی که دستیار هوشمند تو، پاسخ‌ها را از روی آن‌ها می‌سازد.</p>
       </div>
 
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:10px; flex-wrap:wrap;">
-        <div style="display:flex; gap:10px;">
+      <div class="toolbar">
+        <div class="toolbar-group">
           <button class="btn btn-primary" id="addDocBtn">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             افزودن سند جدید
           </button>
           <label class="btn btn-soft" style="cursor:pointer;">
-            آپلود فایل TXT
-            <input type="file" id="uploadTxtInput" accept=".txt" style="display:none;">
+            آپلود فایل
+            <input type="file" id="uploadFileInput" multiple style="display:none;">
           </label>
         </div>
         <button class="btn btn-danger btn-sm" id="clearKbBtn">حذف کامل دانشنامه</button>
       </div>
+
+      <div class="dropzone" id="docDropzone" tabindex="0" role="button" aria-label="انتخاب یا رها کردن فایل">
+        <div class="dropzone-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        </div>
+        <div class="dropzone-title">فایل‌ها را اینجا رها کن یا کلیک کن</div>
+        <div class="dropzone-hint">PDF · Word · Excel · PowerPoint · OpenDocument · EPUB · HTML · RTF · CSV · JSON · TXT · Markdown</div>
+      </div>
+      <div class="import-list" id="importList" aria-live="polite"></div>
 
       <div class="doc-list" id="docList"></div>
       <div class="empty-state" id="docEmptyState" style="display:none;">
@@ -415,6 +424,7 @@
 <script src="/assets/js/api.js?v=2.4.0"></script>
 <script src="/assets/js/theme.js?v=2.4.0"></script>
 <script src="/assets/js/shell.js?v=2.4.0" defer></script>
+<script src="/assets/js/extract.js?v=2.4.0" defer></script>
 <script src="/assets/js/dashboard.js?v=2.4.0"></script>
 </body>
 </html>

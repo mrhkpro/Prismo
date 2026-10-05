@@ -482,17 +482,95 @@ document.getElementById("saveDocBtn").addEventListener("click", async () => {
   }
 });
 
-document.getElementById("uploadTxtInput").addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    EDITING_DOC_ID = null;
-    openDocModal("افزودن سند جدید", file.name.replace(/\.txt$/i, ""), reader.result);
+// ---------------------------------------------------------------------------
+// ایمپورت فایل (PDF، Word، Excel، PowerPoint، ...) → متن → دانشنامه
+// ---------------------------------------------------------------------------
+const importList = document.getElementById("importList");
+let IMPORT_BUSY = false;
+
+function addImportRow(name) {
+  const row = document.createElement("div");
+  row.className = "import-row";
+  row.innerHTML = `<span class="import-name"></span><span class="import-state"></span>`;
+  row.querySelector(".import-name").textContent = name;
+  importList.prepend(row);
+  const state = row.querySelector(".import-state");
+  return {
+    set(text, kind) {
+      state.textContent = text;
+      row.dataset.kind = kind || "";
+    },
+    done() { setTimeout(() => row.classList.add("fade"), 6000); setTimeout(() => row.remove(), 6800); },
   };
-  reader.readAsText(file, "utf-8");
+}
+
+async function importFiles(fileList) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  if (IMPORT_BUSY) return toast("ایمپورت قبلی هنوز تمام نشده است.", "error");
+  if (!window.FileExtract) return toast("ماژول خواندن فایل هنوز بارگذاری نشده؛ چند لحظه بعد دوباره تلاش کن.", "error");
+  IMPORT_BUSY = true;
+  const dz = document.getElementById("docDropzone");
+  dz.classList.add("busy");
+
+  let imported = 0;
+  try {
+    for (const file of files) {
+      const row = addImportRow(file.name);
+      try {
+        row.set("در حال خواندن…", "work");
+        const { title, text } = await FileExtract.extract(file, (page, total) => row.set(`خواندن صفحه ${page} از ${total}…`, "work"));
+
+        // فقط یک فایل کوچک: متن را برای بازبینی در همان ویرایشگر باز کن (رفتار قبلیِ آپلود TXT)
+        if (files.length === 1 && text.length <= 60000) {
+          row.set("آماده‌ی بازبینی", "ok");
+          EDITING_DOC_ID = null;
+          openDocModal("افزودن سند جدید", title, text);
+          row.done();
+          continue;
+        }
+
+        const parts = FileExtract.splitForUpload(text);
+        for (let i = 0; i < parts.length; i++) {
+          row.set(parts.length > 1 ? `ایندکس بخش ${i + 1} از ${parts.length}…` : "در حال ایندکس‌کردن…", "work");
+          const docTitle = parts.length > 1 ? `${title} (بخش ${i + 1} از ${parts.length})` : title;
+          await apiCall("/api/knowledge/documents", { method: "POST", timeoutMs: 90000, body: { title: docTitle.slice(0, 200), content: parts[i] } });
+          imported += 1;
+        }
+        row.set(parts.length > 1 ? `✓ ${parts.length} بخش اضافه شد` : "✓ اضافه شد", "ok");
+        row.done();
+      } catch (err) {
+        row.set(err && err.message ? err.message : "ناموفق", "error");
+      }
+    }
+  } finally {
+    IMPORT_BUSY = false;
+    dz.classList.remove("busy");
+    if (imported) {
+      toast(`${imported} سند به دانشنامه اضافه شد.`, "success");
+      loadDocuments();
+    }
+  }
+}
+
+const uploadInput = document.getElementById("uploadFileInput");
+uploadInput.addEventListener("change", (e) => {
+  importFiles(e.target.files);
   e.target.value = "";
 });
+// پسوندهای مجاز بعد از بارگذاری تنبل ماژول روی input گذاشته می‌شود
+window.addEventListener("load", () => { if (window.FileExtract) uploadInput.accept = FileExtract.accept; });
+
+const dropzone = document.getElementById("docDropzone");
+dropzone.addEventListener("click", () => uploadInput.click());
+dropzone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); uploadInput.click(); } });
+["dragenter", "dragover"].forEach((ev) =>
+  dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.add("over"); })
+);
+["dragleave", "drop"].forEach((ev) =>
+  dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.remove("over"); })
+);
+dropzone.addEventListener("drop", (e) => importFiles(e.dataTransfer && e.dataTransfer.files));
 
 // ---------------------------------------------------------------------------
 // شخصی‌سازی رفتار RAG و پرامپت
