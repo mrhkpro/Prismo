@@ -116,6 +116,7 @@ async function loadOverview() {
 // اتصال مدل هوش مصنوعی
 // ---------------------------------------------------------------------------
 let DISCOVERED_CUSTOM_MODELS = [];
+let DISCOVERED_EMBEDDING_MODELS = [];
 
 function fillModelSelect(selectEl, models, selected) {
   selectEl.innerHTML = "";
@@ -172,16 +173,24 @@ document.getElementById("discoverModelsBtn").addEventListener("click", async () 
       method: "POST",
       body: { base_url: baseUrl, ...(apiKey ? { api_key: apiKey } : {}) },
     });
-    DISCOVERED_CUSTOM_MODELS = result.models || [];
+    DISCOVERED_CUSTOM_MODELS = result.chat_models || result.models || [];
+    DISCOVERED_EMBEDDING_MODELS = result.embedding_models || [];
     const currentChat = document.getElementById("customChatModelSelect").value;
     const currentEmbedding = document.getElementById("customEmbeddingModelSelect").value;
     fillModelSelect(document.getElementById("customChatModelSelect"), DISCOVERED_CUSTOM_MODELS, currentChat);
-    fillModelSelect(document.getElementById("customEmbeddingModelSelect"), DISCOVERED_CUSTOM_MODELS, currentEmbedding);
-    status.textContent = `${DISCOVERED_CUSTOM_MODELS.length} مدل پیدا شد.`;
-    status.className = "status-line success-text";
-    toast("لیست مدل‌ها دریافت شد.", "success");
+    fillModelSelect(document.getElementById("customEmbeddingModelSelect"), DISCOVERED_EMBEDDING_MODELS, currentEmbedding);
+    if (DISCOVERED_EMBEDDING_MODELS.length) {
+      status.textContent = `${DISCOVERED_CUSTOM_MODELS.length} مدل چت • ${DISCOVERED_EMBEDDING_MODELS.length} مدل embedding تأیید شد.`;
+      status.className = "status-line success-text";
+      toast("مدل‌ها دریافت و قابلیت embedding بررسی شد.", "success");
+    } else {
+      status.textContent = `${DISCOVERED_CUSTOM_MODELS.length} مدل چت پیدا شد؛ مدل embedding سازگار با ابعاد پروژه پیدا نشد.`;
+      status.className = "status-line error-text";
+      toast("مدل embedding قابل استفاده پیدا نشد. یک سرویس دارای embedding انتخاب کن.", "error");
+    }
   } catch (err) {
     DISCOVERED_CUSTOM_MODELS = [];
+    DISCOVERED_EMBEDDING_MODELS = [];
     fillModelSelect(document.getElementById("customChatModelSelect"), [], "");
     fillModelSelect(document.getElementById("customEmbeddingModelSelect"), [], "");
     status.textContent = err.message;
@@ -216,6 +225,7 @@ async function loadProviderSettings() {
     setProviderMode(isDefault);
 
     DISCOVERED_CUSTOM_MODELS = [];
+    DISCOVERED_EMBEDDING_MODELS = [];
     fillModelSelect(document.getElementById("customChatModelSelect"), [], s.chat_model);
     fillModelSelect(document.getElementById("customEmbeddingModelSelect"), [], s.embedding_model);
     document.getElementById("modelDiscoveryStatus").textContent = isDefault
@@ -262,6 +272,7 @@ document.getElementById("saveCustomProviderBtn").addEventListener("click", async
   if (!baseUrl) return toast("Base URL را وارد کن.", "error");
   if (!apiKey && !(CURRENT_SETTINGS && CURRENT_SETTINGS.api_key_set)) return toast("API Key را وارد کن.", "error");
   if (!chatModel) return toast("ابتدا لیست مدل‌های سرویس را دریافت کن.", "error");
+  if (!embeddingModel) return toast("این سرویس مدل embedding سازگار با پروژه ارائه نمی‌کند.", "error");
 
   btn.disabled = true;
   try {
@@ -567,7 +578,7 @@ async function importFiles(fileList) {
   let completedFiles = 0;
   try {
     try {
-      await Lazy.script("/assets/js/extract.js?v=2.6.3");
+      await Lazy.script("/assets/js/extract.js?v=2.6.4");
     } catch (err) {
       return toastError(err);
     }
@@ -1059,7 +1070,7 @@ async function loadWidgetSection() {
     const [cfg, embed] = await Promise.all([
       apiCall("/api/widget/config"),
       apiCall("/api/widget/embed-code"),
-      Lazy.script("/assets/js/pets.js?v=2.6.3").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+      Lazy.script("/assets/js/pets.js?v=2.6.4").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
     ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";
