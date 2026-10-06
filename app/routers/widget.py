@@ -51,7 +51,7 @@ def get_embed_code(current_user: models.User = Depends(get_current_user)):
     s = current_user.settings
     snippet = (
         f'<script\n'
-        f'  src="__BASE_URL__/widget.js?v=2.6.1"\n'
+        f'  src="__BASE_URL__/widget.js?v=2.6.2"\n'
         f'  data-widget-id="{s.widget_id}"\n'
         f'  data-api-base="__BASE_URL__"\n'
         f'  data-theme="auto"\n'
