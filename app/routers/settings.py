@@ -68,8 +68,8 @@ def discover_models(
     settings = current_user.settings
     api_key = (payload.api_key or settings.api_key or "").strip()
     base_url = (payload.base_url or settings.base_url or "").strip()
-    models_list = llm_client.list_models(base_url, api_key)
-    return schemas.DiscoverModelsResponse(models=models_list)
+    result = llm_client.discover_model_capabilities(base_url, api_key)
+    return schemas.DiscoverModelsResponse(**result)
 
 
 @router.post("/test-custom-connection", response_model=schemas.TestConnectionResult)
