@@ -5,15 +5,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_auth_page_uses_versioned_assets_and_theme_support():
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert "/assets/css/style.css?v=2.6.5" in html
-    assert "/assets/js/theme.js?v=2.6.5" in html
-    assert "/assets/js/auth.js?v=2.6.5" in html
+    assert "/assets/css/style.css?v=2.6.6" in html
+    assert "/assets/js/theme.js?v=2.6.6" in html
+    assert "/assets/js/auth.js?v=2.6.6" in html
 
 
 def test_admin_page_loads_theme_support():
     html = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
-    assert "/assets/js/theme.js?v=2.6.5" in html
-    assert "/assets/css/style.css?v=2.6.5" in html
+    assert "/assets/js/theme.js?v=2.6.6" in html
+    assert "/assets/css/style.css?v=2.6.6" in html
 
 
 def test_theme_script_is_safe_without_local_storage():
@@ -125,3 +125,11 @@ def test_streaming_ui_has_no_post_completion_typing_cursor():
     assert 'caret-blink' not in css
     assert 'chat-msg.streaming:not(.pending)::after' not in css
     assert 'qz-msg.streaming::after' not in widget
+
+
+def test_document_save_progress_is_inside_save_modal():
+    html = (ROOT / "frontend" / "dashboard.html").read_text(encoding="utf-8")
+    js = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    assert 'id="docSaveProgress"' in html
+    assert 'ensureDocSaveProgress' in js
+    assert 'ensureOperationProgress("در حال ایندکس سند…")' not in js
