@@ -93,13 +93,16 @@ class CloudRAGPipelineTests(unittest.TestCase):
         )
         self.session = SimpleNamespace(messages=[])
 
-    def test_embedding_failure_does_not_turn_into_ungrounded_chat(self):
-        with patch.object(llm_client, "resolve_provider"), patch.object(
+    def test_embedding_failure_degrades_to_direct_chat_instead_of_failing(self):
+        provider = SimpleNamespace(chat_model="test-chat", embedding_model="qwen3-embedding-4b")
+        with patch.object(llm_client, "resolve_provider", return_value=provider), patch.object(
             llm_client, "embed_text", side_effect=llm_client.LLMError("Embedding unavailable")
-        ), patch.object(llm_client, "chat_completion") as chat:
-            with self.assertRaises(llm_client.LLMError):
-                rag_pipeline.run_rag_chat(None, self.owner, self.session, "Question")
-        chat.assert_not_called()
+        ), patch.object(llm_client, "chat_completion", return_value="Direct answer") as chat:
+            reply, sources = rag_pipeline.run_rag_chat(None, self.owner, self.session, "Question")
+        self.assertEqual(reply, "Direct answer")
+        self.assertEqual(sources, [])
+        chat.assert_called_once()
+        self.assertIn("بازیابی دانشنامه", chat.call_args.args[0][0]["content"])
 
     def test_empty_retrieval_returns_a_fixed_no_information_reply(self):
         with patch.object(llm_client, "resolve_provider"), patch.object(

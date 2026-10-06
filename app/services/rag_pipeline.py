@@ -53,6 +53,7 @@ class RagPlan:
     started: float = 0.0
     embedding_ms: int = 0
     search_ms: int = 0
+    degraded_direct: bool = False
 
 
 def prepare_rag_chat(
@@ -79,7 +80,24 @@ def prepare_rag_chat(
     provider = llm_client.resolve_provider(settings)
 
     embedding_started = time.perf_counter()
-    query_embedding = llm_client.embed_text(user_message, provider)
+    try:
+        query_embedding = llm_client.embed_text(user_message, provider)
+    except llm_client.LLMError as exc:
+        # اگر مدل چت سالم باشد ولی سرویس embedding در دسترس نباشد،
+        # گفت‌وگو نباید به «خطا در پاسخ» تبدیل شود. در این حالت مدل چت
+        # مستقیم با زمینهٔ خالی اجرا می‌شود؛ بخش RAG صرفاً degraded است.
+        logger.warning("rag_embedding_unavailable model=%s error=%s", provider.embedding_model, exc)
+        history = [{"role": m.role, "content": m.content} for m in session.messages[-MAX_HISTORY_MESSAGES:]]
+        return RagPlan(
+            matches=[],
+            messages=build_messages(settings.system_prompt, "فعلاً بازیابی دانشنامه در دسترس نیست.", history, user_message),
+            provider=provider,
+            model=selected_model,
+            temperature=settings.temperature or 0.7,
+            started=started,
+            embedding_ms=int((time.perf_counter() - embedding_started) * 1000),
+            degraded_direct=True,
+        )
     embedding_ms = int((time.perf_counter() - embedding_started) * 1000)
     search_started = time.perf_counter()
     matches = rag_store.search(
