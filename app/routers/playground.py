@@ -106,16 +106,20 @@ def chat_test_stream(
         db.commit()
         raise
     session_id, owner_id, message = session.id, current_user.id, payload.message
-    meta = {"session_id": session_id, "model": selected_model, "sources": streaming.sources_payload(plan.matches)}
     db.commit()
 
     def event_stream():
         collected: list[str] = []
-        yield streaming.sse("meta", meta)
+        # اولین بایت را زود بفرست تا کاربر معطل آماده‌سازی embedding نشود.
+        yield ": qz-ready\n\n"
+        plan = None
         try:
-            if plan.no_answer:
-                collected.append(plan.no_answer)
-                yield streaming.sse("delta", {"t": plan.no_answer})
+            plan = rag_pipeline.prepare_rag_chat(db, current_user, session, message, model=selected_model)
+            yield streaming.sse("meta", {"session_id": session_id, "model": selected_model, "sources": streaming.sources_payload(plan.matches)})
+            if plan.instant_reply or plan.no_answer:
+                reply = plan.instant_reply or plan.no_answer
+                collected.append(reply or "")
+                yield streaming.sse("delta", {"t": reply or ""})
             else:
                 started = time.perf_counter()
                 pieces = llm_client.stream_chat_completion(
@@ -126,6 +130,8 @@ def chat_test_stream(
             yield streaming.sse("done", {})
         except llm_client.LLMError as exc:
             yield streaming.sse("error", {"message": str(exc), "partial": bool(collected)})
+        except Exception:  # noqa: BLE001
+            yield streaming.sse("error", {"message": "فعلاً نتونستم پاسخ را آماده کنم. دوباره امتحان کن.", "partial": bool(collected)})
         finally:
             text = "".join(collected)
             if text:

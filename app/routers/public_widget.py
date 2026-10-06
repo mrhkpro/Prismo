@@ -98,22 +98,21 @@ def widget_chat_stream(widget_id: str, payload: schemas.WidgetChatRequest, reque
         )
         db.add(session)
         db.flush()
-    try:
-        plan = rag_pipeline.prepare_rag_chat(db, owner, session, payload.message)
-    except llm_client.LLMError:
-        db.commit()
-        raise
     session_id, message = session.id, payload.message
-    meta = {"session_id": session_id}
     db.commit()
 
     def event_stream():
         collected: list[str] = []
-        yield streaming.sse("meta", meta)
+        # هدر/اولین بایت خیلی زود ارسال می‌شود؛ embedding و مدل بعد از آن اجرا می‌شوند.
+        yield ": qz-ready\n\n"
+        plan = None
         try:
-            if plan.no_answer:
-                collected.append(plan.no_answer)
-                yield streaming.sse("delta", {"t": plan.no_answer})
+            plan = rag_pipeline.prepare_rag_chat(db, owner, session, message)
+            yield streaming.sse("meta", {"session_id": session_id, "sources": streaming.sources_payload(plan.matches)})
+            if plan.instant_reply or plan.no_answer:
+                reply = plan.instant_reply or plan.no_answer
+                collected.append(reply or "")
+                yield streaming.sse("delta", {"t": reply or ""})
             else:
                 pieces = llm_client.stream_chat_completion(
                     plan.messages, plan.provider, temperature=plan.temperature, model=plan.model
@@ -122,6 +121,9 @@ def widget_chat_stream(widget_id: str, payload: schemas.WidgetChatRequest, reque
             yield streaming.sse("done", {})
         except llm_client.LLMError as exc:
             yield streaming.sse("error", {"message": str(exc), "partial": bool(collected)})
+        except Exception:  # noqa: BLE001
+            # خطاهای غیرقابل پیش‌بینی نباید در UI به «500 + شناسه درخواست» تبدیل شوند.
+            yield streaming.sse("error", {"message": "فعلاً نتونستم پاسخ را آماده کنم. دوباره امتحان کن.", "partial": bool(collected)})
         finally:
             text = "".join(collected)
             if text:
