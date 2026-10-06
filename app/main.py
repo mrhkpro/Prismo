@@ -160,6 +160,17 @@ async def request_logging_middleware(
 
         # فایل‌های استاتیکِ نسخه‌دار (/assets/...?v=...) را مرورگر و CDN می‌توانند بلندمدت کش کنند.
         # با هر انتشار، شماره‌ی ?v= در صفحه‌ها عوض می‌شود. ‏HTML و widget.js عمداً کش بلندمدت نمی‌گیرند.
+        # محتوای گفت‌وگو/ویجت عمومی نباید توسط مرورگر، CDN یا موتور جست‌وجو cache/index شود.
+        no_store_path = (
+            request.url.path.startswith("/public/widget/")
+            or request.url.path in {"/widget.js", "/widget-preview.html"}
+        )
+        if no_store_path:
+            response.headers["Cache-Control"] = "no-store, no-cache, no-transform, private"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+            response.headers["X-Robots-Tag"] = "noindex, noarchive, nosnippet"
+
         if (
             request.method == "GET"
             and request.url.path.startswith("/assets/")
@@ -311,10 +322,7 @@ async def unhandled_exception_handler(
     return JSONResponse(
         status_code=500,
         content={
-            "detail": (
-                "خطای غیرمنتظره در سرور. "
-                "دوباره تلاش کنید."
-            ),
+            "detail": "سرویس موقتاً در دسترس نیست.",
             "request_id": request_id,
         },
         headers=(

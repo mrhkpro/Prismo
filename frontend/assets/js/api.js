@@ -44,7 +44,7 @@ async function apiCallRaw(path, { method = "GET", body = null, auth = true, time
     });
   } catch (networkErr) {
     if (networkErr && networkErr.name === "AbortError") {
-      throw new Error("درخواست متوقف شد.");
+      throw new Error("ارتباط با سرویس قطع شد.");
     }
     throw new Error("ارتباط با سرور برقرار نشد. مطمئن شوید بک‌اند در حال اجراست.");
   } finally {
@@ -194,7 +194,7 @@ async function apiStream(path, { body, onMeta, onDelta, signal, auth = true, idl
   } catch (err) {
     clearTimeout(idleTimer);
     if (err && err.name === "AbortError") {
-      const e = new Error(signal && signal.aborted ? "متوقف شد." : "ارتباط با سرویس قطع شد.");
+      const e = new Error("ارتباط با سرویس قطع شد.");
       e.aborted = Boolean(signal && signal.aborted);
       throw e;
     }
@@ -263,7 +263,7 @@ async function apiStream(path, { body, onMeta, onDelta, signal, auth = true, idl
     if (buffer.trim()) handleFrame(buffer);
   } catch (err) {
     if (err && err.name === "AbortError") {
-      const e = new Error(signal && signal.aborted ? "متوقف شد." : "ارتباط با سرویس قطع شد.");
+      const e = new Error("ارتباط با سرویس قطع شد.");
       e.aborted = Boolean(signal && signal.aborted);
       e.partial = gotDelta;
       throw e;

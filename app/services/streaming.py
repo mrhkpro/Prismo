@@ -6,7 +6,10 @@ from .. import models
 
 # هدرهایی که مانع بافر شدن پاسخ در پروکسی/CDN (مثل Vercel و nginx) می‌شوند
 SSE_HEADERS = {
-    "Cache-Control": "no-cache, no-transform",
+    "Cache-Control": "no-store, no-cache, no-transform, private",
+    "Pragma": "no-cache",
+    "Expires": "0",
+    "X-Robots-Tag": "noindex, noarchive, nosnippet",
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no",
 }
