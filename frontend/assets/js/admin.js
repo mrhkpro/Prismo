@@ -39,6 +39,7 @@ async function init() {
   const topAvatar = document.getElementById("topbarAvatar");
   if (topAvatar) topAvatar.textContent = document.getElementById("avatarInitial").textContent;
   await loadStats();
+  startSecurityWatch();
 }
 
 // ---------------------------------------------------------------------------
@@ -61,13 +62,6 @@ async function loadStats() {
       <div class="stat-card"><div class="label">پیام‌های علامت‌گذاری‌شده</div><div class="value danger">${s.flagged_messages}</div></div>
       <div class="stat-card"><div class="label">مواردِ بررسی‌نشده</div><div class="value danger">${s.unresolved_flags}</div></div>
     `;
-    const badge = document.getElementById("unresolvedBadge");
-    if (s.unresolved_flags > 0) {
-      badge.style.display = "inline-flex";
-      badge.textContent = s.unresolved_flags;
-    } else {
-      badge.style.display = "none";
-    }
   } catch (err) {
     toastError(err);
   }
@@ -271,47 +265,192 @@ document.getElementById("closeSessionModalBtn").addEventListener("click", () => 
 document.getElementById("sessionModal").addEventListener("click", (e) => { if (e.target.id === "sessionModal") e.currentTarget.classList.remove("show"); });
 
 // ---------------------------------------------------------------------------
-// نظارت امنیتی (Prompt Injection Watch)
+// نظارت امنیتی: هشدار زنده، خلاصه، فهرست هشدارها
 // ---------------------------------------------------------------------------
+const SEVERITY_LABELS = { critical: "بحرانی", high: "بالا", medium: "متوسط" };
+const SOURCE_LABELS = { widget: "ویجت عمومی", playground: "آزمایشگاه تست" };
+const SEEN_KEY = "qz_sec_seen";
+const DISMISS_KEY = "qz_sec_dismissed";
+let SEC_SUMMARY = null;
+let SEC_TIMER = null;
+
+function seenId() { try { return Number(sessionStorage.getItem(SEEN_KEY) || 0); } catch (_) { return 0; } }
+function setSeenId(id) { try { sessionStorage.setItem(SEEN_KEY, String(id)); } catch (_) { /* noop */ } }
+function dismissedId() { try { return Number(sessionStorage.getItem(DISMISS_KEY) || 0); } catch (_) { return 0; } }
+
+function renderSecurityBadge(summary) {
+  const badge = document.getElementById("unresolvedBadge");
+  if (!badge) return;
+  if (summary.unresolved_total > 0) {
+    badge.style.display = "inline-flex";
+    badge.textContent = summary.unresolved_total;
+    badge.classList.toggle("pulse", summary.critical > 0);
+  } else {
+    badge.style.display = "none";
+  }
+}
+
+function renderSecurityBanner(summary) {
+  const banner = document.getElementById("securityBanner");
+  if (!banner) return;
+  const latest = summary.latest;
+  const onSecurityPage = document.getElementById("view-security").classList.contains("active");
+  // بنر فقط برای موارد بحرانی؛ اگر ادمین همین مورد را بسته یا صفحه‌ی امنیت باز است، نمایش داده نمی‌شود
+  if (summary.critical === 0 || !latest || onSecurityPage || dismissedId() >= latest.id) {
+    banner.hidden = true;
+    return;
+  }
+  const who = `@${escapeHtml(latest.owner_username)}${latest.source ? ` · ${escapeHtml(SOURCE_LABELS[latest.source] || latest.source)}` : ""}`;
+  banner.innerHTML = `
+    <span class="security-banner-icon">⚠</span>
+    <div class="security-banner-text">
+      <strong>${summary.critical} هشدار بحرانی بررسی‌نشده</strong>
+      <span>آخرین: ${escapeHtml(latest.label)} — ${who}</span>
+    </div>
+    <div class="security-banner-actions">
+      <button class="btn btn-sm btn-danger" id="bannerOpenBtn">بررسی</button>
+      <button class="icon-btn" id="bannerCloseBtn" aria-label="بستن">✕</button>
+    </div>`;
+  banner.hidden = false;
+  document.getElementById("bannerOpenBtn").addEventListener("click", () => Nav.go("security"));
+  document.getElementById("bannerCloseBtn").addEventListener("click", () => {
+    try { sessionStorage.setItem(DISMISS_KEY, String(latest.id)); } catch (_) { /* noop */ }
+    banner.hidden = true;
+  });
+}
+
+async function refreshSecuritySummary(options = {}) {
+  try {
+    const summary = await apiCall("/api/admin/security/summary");
+    const previous = SEC_SUMMARY;
+    SEC_SUMMARY = summary;
+    renderSecurityBadge(summary);
+    renderSecurityBanner(summary);
+    renderSecurityTiles(summary);
+    // اعلان زنده: فقط وقتی هشدار بحرانیِ تازه‌ای نسبت به آخرین دیده‌شده آمده و کاربر در صفحه‌ی امنیت نیست
+    const latest = summary.latest;
+    if (!options.silent && previous && latest && latest.severity === "critical" && latest.id > seenId()
+        && !document.getElementById("view-security").classList.contains("active")) {
+      toast(`⚠ ${latest.label} — @${latest.owner_username}`, "error");
+    }
+    if (latest && document.getElementById("view-security").classList.contains("active")) setSeenId(latest.id);
+    return summary;
+  } catch (_) {
+    return null; // خطای لحظه‌ای شبکه نباید مزاحم ادمین شود
+  }
+}
+
+function startSecurityWatch() {
+  refreshSecuritySummary({ silent: true });
+  if (SEC_TIMER) return;
+  SEC_TIMER = setInterval(() => { if (!document.hidden) refreshSecuritySummary(); }, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshSecuritySummary(); });
+}
+
+function renderSecurityTiles(summary) {
+  const box = document.getElementById("securityTiles");
+  if (!box) return;
+  box.innerHTML = `
+    <div class="stat-card"><div class="label">هشدار بحرانی</div><div class="value danger">${summary.critical}</div></div>
+    <div class="stat-card"><div class="label">هشدار با شدت بالا</div><div class="value gold">${summary.high}</div></div>
+    <div class="stat-card"><div class="label">شدت متوسط</div><div class="value">${summary.medium}</div></div>
+    <div class="stat-card"><div class="label">تلاش برای گرفتن سیستم‌پرامپت</div><div class="value accent">${summary.prompt_extraction}</div></div>`;
+}
+
 let CURRENT_FLAG_FILTER = "unresolved";
-document.querySelectorAll('#view-security .tab-btn').forEach((btn) => {
+let CURRENT_SEVERITY = "";
+document.querySelectorAll("#view-security .tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll('#view-security .tab-btn').forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll("#view-security .tab-btn").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     CURRENT_FLAG_FILTER = btn.dataset.resolved;
     loadFlags();
   });
 });
+document.querySelectorAll("#severityFilter .seg-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#severityFilter .seg-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    CURRENT_SEVERITY = btn.dataset.severity;
+    loadFlags();
+  });
+});
+
+function flagCardHtml(f) {
+  const who = `@${escapeHtml(f.owner_username)}${f.owner_org_name ? ` (${escapeHtml(f.owner_org_name)})` : ""}`;
+  const where = SOURCE_LABELS[f.source] || f.source || "";
+  const visitor = f.visitor_label ? ` · بازدیدکننده ${escapeHtml(f.visitor_label)}` : "";
+  const codes = (f.codes || []).map((c) => `<span class="code-chip">${escapeHtml(c)}</span>`).join("");
+  return `
+    <article class="alert-card sev-${f.severity} ${f.resolved ? "resolved" : ""}" data-flag-id="${f.id}">
+      <header class="alert-head">
+        <span class="sev-badge sev-${f.severity}">${SEVERITY_LABELS[f.severity] || f.severity}</span>
+        <strong class="alert-title">${escapeHtml(f.label)}</strong>
+        <span class="alert-time">${formatDateTime(f.created_at)}</span>
+      </header>
+      <div class="alert-who">
+        <span>کاربر: <b>${who}</b></span>
+        ${where ? `<span>منبع: <b>${escapeHtml(where)}</b>${visitor}</span>` : ""}
+        ${f.owner_is_active === false ? '<span class="badge badge-danger">مسدود</span>' : ""}
+        ${f.resolved ? '<span class="badge badge-success">بررسی‌شده</span>' : ""}
+      </div>
+      <blockquote class="alert-quote">${escapeHtml(f.content)}</blockquote>
+      <div class="alert-codes">${codes}</div>
+      <div class="alert-actions">
+        <button class="btn btn-sm btn-soft" data-act="view" data-session="${escapeHtml(f.session_id)}">مشاهده‌ی گفت‌وگو</button>
+        ${f.owner_is_active !== false ? `<button class="btn btn-sm btn-danger" data-act="block" data-user="${f.owner_id}">مسدودکردن کاربر</button>` : ""}
+        ${!f.resolved ? `<button class="btn btn-sm btn-ghost" data-act="resolve" data-id="${f.id}">بررسی شد</button>` : ""}
+      </div>
+    </article>`;
+}
+
+function skeletonCards(n) {
+  return Array.from({ length: n }, () => `<div class="skeleton skel-row" style="height:150px;margin-bottom:12px;"></div>`).join("");
+}
 
 async function loadFlags() {
+  const box = document.getElementById("flagsList");
+  box.innerHTML = skeletonCards(3);
   try {
-    const qs = CURRENT_FLAG_FILTER === "unresolved" ? "?resolved=false" : "";
-    const flags = await apiCall(`/api/admin/security/flags${qs}`);
-    const box = document.getElementById("flagsList");
+    const params = new URLSearchParams();
+    if (CURRENT_FLAG_FILTER === "unresolved") params.set("resolved", "false");
+    if (CURRENT_SEVERITY) params.set("severity", CURRENT_SEVERITY);
+    const qs = params.toString() ? `?${params}` : "";
+    const [flags] = await Promise.all([apiCall(`/api/admin/security/flags${qs}`), refreshSecuritySummary({ silent: true })]);
     if (flags.length === 0) {
       box.innerHTML = `<div class="empty-state"><div class="icon">🛡️</div><div class="title">موردی برای بررسی نیست</div></div>`;
       return;
     }
-    box.innerHTML = flags
-      .map(
-        (f) => `
-      <div class="flag-row ${f.resolved ? "resolved" : ""}">
-        <div class="meta"><span>@${escapeHtml(f.owner_username)} · ${formatDate(f.created_at)}</span>${f.resolved ? '<span class="badge badge-success">بررسی‌شده</span>' : ""}</div>
-        <div class="reason">${escapeHtml(f.flag_reason || "")}</div>
-        <div>${escapeHtml(f.content)}</div>
-        ${!f.resolved ? `<button class="btn btn-sm btn-soft" style="margin-top:10px;" onclick="resolveFlag(${f.id})">علامت‌گذاری به‌عنوان بررسی‌شده</button>` : ""}
-      </div>`
-      )
-      .join("");
+    box.innerHTML = flags.map(flagCardHtml).join("");
   } catch (err) {
+    box.innerHTML = "";
     toastError(err);
   }
 }
+
+// یک شنونده‌ی واحد برای دکمه‌های کارت‌ها (رویدادِ مفوض) — بدون onclick درون‌خطی
+document.getElementById("flagsList").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-act]");
+  if (!btn) return;
+  if (btn.dataset.act === "view") viewSession(btn.dataset.session);
+  else if (btn.dataset.act === "resolve") resolveFlag(Number(btn.dataset.id));
+  else if (btn.dataset.act === "block") blockFlaggedUser(Number(btn.dataset.user));
+});
 
 async function resolveFlag(id) {
   try {
     await apiCall(`/api/admin/security/flags/${id}/resolve`, { method: "POST" });
     toast("مورد به‌عنوان بررسی‌شده علامت‌گذاری شد.", "success");
+    loadFlags();
+  } catch (err) {
+    toastError(err);
+  }
+}
+
+async function blockFlaggedUser(userId) {
+  if (!confirm("این کاربر مسدود شود؟ دسترسی او به پنل و ویجتش بلافاصله قطع می‌شود.")) return;
+  try {
+    await apiCall(`/api/admin/users/${userId}/block`, { method: "POST" });
+    toast("کاربر مسدود شد.", "success");
     loadFlags();
   } catch (err) {
     toastError(err);
@@ -325,6 +464,9 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str ?? "";
   return div.innerHTML;
+}
+function formatDateTime(iso) {
+  try { return new Date(iso).toLocaleString("fa-IR", { dateStyle: "short", timeStyle: "short" }); } catch (_) { return iso; }
 }
 function formatDate(iso) {
   try { return new Date(iso).toLocaleDateString("fa-IR"); } catch (_) { return iso; }

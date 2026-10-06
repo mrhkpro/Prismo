@@ -39,6 +39,7 @@
   --gold-soft: rgba(216, 180, 254, 0.13);
   --on-accent: #ffffff;
   --knob: #ffffff;
+  --on-danger: #1a0508;
   --sidebar-bg: #0d0820;
   --topbar-bg: rgba(12, 7, 28, 0.78);
 
@@ -100,6 +101,7 @@
   --gold-soft: rgba(202, 138, 4, 0.12);
   --on-accent: #2b1d00;
   --knob: #ffffff;
+  --on-danger: #ffffff;
   --sidebar-bg: #fffdf6;
   --topbar-bg: rgba(255, 253, 244, 0.84);
 
@@ -816,3 +818,40 @@ tbody tr:hover { background: var(--accent-soft); }
 
 .quick-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 700px) { .quick-inputs { grid-template-columns: 1fr; } }
+
+/* ---------- نظارت امنیتی ---------- */
+.security-banner {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 18px; padding: 12px 16px;
+  border: 1px solid var(--danger); background: var(--danger-soft); border-radius: var(--radius-md);
+  animation: view-in .28s ease;
+}
+.security-banner[hidden] { display: none; }
+.security-banner-icon { font-size: 20px; color: var(--danger); }
+.security-banner-text { flex: 1; display: flex; flex-direction: column; font-size: 13.5px; min-width: 0; }
+.security-banner-text span { color: var(--text-muted); font-size: 12.5px; }
+.security-banner-actions { display: flex; align-items: center; gap: 8px; }
+#unresolvedBadge.pulse { animation: sec-pulse 1.6s ease-in-out infinite; }
+@keyframes sec-pulse { 0%, 100% { box-shadow: 0 0 0 0 var(--danger-soft-hover); } 50% { box-shadow: 0 0 0 6px transparent; } }
+
+.alert-card {
+  position: relative; padding: 16px 18px 14px; margin-bottom: 12px; border-radius: var(--radius-lg);
+  background: var(--bg-elevated); border: 1px solid var(--border-soft); border-right: 4px solid var(--border);
+  box-shadow: var(--shadow-card);
+}
+.alert-card.sev-critical { border-right-color: var(--danger); }
+.alert-card.sev-high { border-right-color: var(--accent); }
+.alert-card.sev-medium { border-right-color: var(--text-faint); }
+.alert-card.resolved { opacity: .62; }
+.alert-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.alert-title { font-size: 14.5px; }
+.alert-time { margin-inline-start: auto; color: var(--text-faint); font-size: 12px; }
+.sev-badge { padding: 2px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 800; }
+.sev-badge.sev-critical { background: var(--danger); color: var(--on-danger); }
+.sev-badge.sev-high { background: var(--accent-soft); color: var(--accent-text); border: 1px solid var(--accent-line); }
+.sev-badge.sev-medium { background: var(--bg-elevated-2); color: var(--text-muted); border: 1px solid var(--border); }
+.alert-who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 12.5px; color: var(--text-muted); margin-bottom: 10px; }
+.alert-who b { color: var(--text); font-weight: 600; }
+.alert-quote { margin: 0 0 10px; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--bg-elevated-2); border: 1px dashed var(--border); font-size: 13.5px; white-space: pre-wrap; word-break: break-word; }
+.alert-codes { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.code-chip { font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; border-radius: 6px; background: var(--bg-input); border: 1px solid var(--border-soft); color: var(--text-faint); direction: ltr; }
+.alert-actions { display: flex; gap: 8px; flex-wrap: wrap; }

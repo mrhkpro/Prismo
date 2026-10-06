@@ -63,6 +63,7 @@
       <div class="topbar-user" id="topbarAvatar" aria-hidden="true">?</div>
     </header>
     <div class="main-body">
+      <div class="security-banner" id="securityBanner" role="alert" hidden></div>
 
     <!-- ---------- آمار کلان ---------- -->
     <section class="view active" id="view-stats">
@@ -119,12 +120,21 @@
     <!-- ---------- نظارت امنیتی ---------- -->
     <section class="view" id="view-security">
       <div class="page-head">
-        <h1>نظارت امنیتی و Prompt Injection Watch</h1>
-        <p>پیام‌هایی که الگوی مشکوک به تزریق پرامپت دارند، اینجا برای بازبینی دستی علامت‌گذاری می‌شوند.</p>
+        <h1>نظارت امنیتی</h1>
+        <p>تلاش برای گرفتن سیستم‌پرامپت، نادیده‌گرفتن دستورها و دورزدن محدودیت‌ها همین‌جا و به‌صورت زنده نشان داده می‌شود.</p>
       </div>
-      <div class="tab-strip">
-        <div class="tab-btn active" data-resolved="unresolved">بررسی‌نشده</div>
-        <div class="tab-btn" data-resolved="all">همه</div>
+      <div class="grid-4" id="securityTiles"></div>
+      <div class="toolbar" style="margin-top:20px;">
+        <div class="tab-strip" style="margin:0;">
+          <div class="tab-btn active" data-resolved="unresolved">بررسی‌نشده</div>
+          <div class="tab-btn" data-resolved="all">همه</div>
+        </div>
+        <div class="segmented" id="severityFilter" role="group" aria-label="فیلتر شدت">
+          <button type="button" class="seg-btn active" data-severity="">همه شدت‌ها</button>
+          <button type="button" class="seg-btn" data-severity="critical">بحرانی</button>
+          <button type="button" class="seg-btn" data-severity="high">بالا</button>
+          <button type="button" class="seg-btn" data-severity="medium">متوسط</button>
+        </div>
       </div>
       <div id="flagsList"></div>
     </section>
