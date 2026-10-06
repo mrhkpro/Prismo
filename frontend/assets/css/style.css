@@ -749,3 +749,12 @@ tbody tr:hover { background: var(--accent-soft); }
 .doc-row { padding: 12px 14px; }
 .chat-window { height: 540px; }
 .badge-gold { background: var(--gold-soft); }
+
+/* ---------- چت استریم ---------- */
+.chat-msg { white-space: pre-wrap; }
+.chat-msg.streaming:not(.pending)::after {
+  content: ''; display: inline-block; width: 7px; height: 1.05em; margin-inline-start: 3px; vertical-align: text-bottom;
+  background: var(--accent); border-radius: 2px; animation: caret-blink .9s steps(2, start) infinite;
+}
+@keyframes caret-blink { to { visibility: hidden; } }
+.chat-note { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); color: var(--danger); font-size: 12.5px; }

@@ -568,62 +568,139 @@ function appendChatMsg(role, text) {
 }
 
 let CHAT_REQUEST_ACTIVE = false;
+let CHAT_ABORT = null;
+
+const SEND_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
+const STOP_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>';
+
+function renderChatSources(sources) {
+  const sourcesList = document.getElementById("sourcesList");
+  if (!sources || sources.length === 0) {
+    sourcesList.innerHTML = `<span class="cell-muted">منبعی از دانشنامه پیدا نشد.</span>`;
+    return;
+  }
+  sourcesList.innerHTML = sources
+    .map(
+      (s) => `
+    <div class="source-item">
+      <div class="score">${escapeHtml(s.document_title)} · شباهت ${(s.score * 100).toFixed(1)}٪</div>
+      <div class="snippet">${escapeHtml(s.text.slice(0, 220))}${s.text.length > 220 ? "…" : ""}</div>
+    </div>`
+    )
+    .join("");
+}
+
+function showChatError(bubble, err) {
+  const requestId = err && err.requestId ? `\nشناسه درخواست: ${err.requestId}` : "";
+  const message = `${err && err.message ? err.message : String(err)}${requestId}`;
+  if (bubble.dataset.hasText === "1") {
+    // متنِ نیمه‌کاره را نگه می‌داریم و خطا را زیرش می‌نویسیم
+    const note = document.createElement("div");
+    note.className = "chat-note";
+    note.textContent = message;
+    bubble.appendChild(note);
+  } else {
+    bubble.textContent = message;
+    bubble.style.color = "var(--danger)";
+  }
+}
+
+// مسیر اصلی: استریم تکه‌تکه (مثل ChatGPT)
+async function chatViaStream(message, selectedModel, bubble) {
+  let text = "";
+  let frame = null;
+  const paint = () => {
+    frame = null;
+    bubble.textContent = text;
+    const stream = document.getElementById("chatStream");
+    stream.scrollTop = stream.scrollHeight;
+  };
+  CHAT_ABORT = new AbortController();
+  try {
+    await apiStream("/api/playground/chat/stream", {
+      signal: CHAT_ABORT.signal,
+      body: { message, session_id: CHAT_SESSION_ID, ...(selectedModel ? { model: selectedModel } : {}) },
+      onMeta: (meta) => {
+        CHAT_SESSION_ID = meta.session_id;
+        document.getElementById("activeChatModelBadge").textContent = meta.model || selectedModel || "—";
+        renderChatSources(meta.sources);
+      },
+      onDelta: (piece) => {
+        if (!text) {
+          bubble.classList.remove("pending");
+          bubble.dataset.hasText = "1";
+        }
+        text += piece;
+        if (frame === null) frame = requestAnimationFrame(paint);
+      },
+    });
+  } finally {
+    if (frame !== null) cancelAnimationFrame(frame);
+    if (text) bubble.textContent = text;
+    bubble.classList.remove("streaming");
+    CHAT_ABORT = null;
+  }
+}
+
+// مسیر پشتیبان: یک‌جا (برای سروری که استریم ندارد)
+async function chatViaRequest(message, selectedModel, bubble) {
+  const res = await apiCall("/api/playground/chat", {
+    method: "POST",
+    timeoutMs: 90000,
+    body: { message, session_id: CHAT_SESSION_ID, ...(selectedModel ? { model: selectedModel } : {}) },
+  });
+  CHAT_SESSION_ID = res.session_id;
+  bubble.textContent = res.reply;
+  bubble.classList.remove("pending");
+  document.getElementById("activeChatModelBadge").textContent = res.model || selectedModel || "—";
+  renderChatSources(res.sources);
+}
 
 async function sendChatMessage() {
-  if (CHAT_REQUEST_ACTIVE) return;
-  const input = document.getElementById("chatInput");
   const sendBtn = document.getElementById("sendChatBtn");
+  if (CHAT_REQUEST_ACTIVE) {
+    // دکمه در حالت «توقف» است
+    if (CHAT_ABORT) CHAT_ABORT.abort();
+    return;
+  }
+  const input = document.getElementById("chatInput");
   const message = input.value.trim();
   if (!message) return;
 
   CHAT_REQUEST_ACTIVE = true;
-  sendBtn.disabled = true;
+  sendBtn.innerHTML = STOP_ICON;
+  sendBtn.title = "توقف پاسخ";
   input.value = "";
   appendChatMsg("user", message);
-  const pending = appendChatMsg("bot", "در حال آماده‌سازی پاسخ…");
-  pending.classList.add("pending");
+  const bubble = appendChatMsg("bot", "در حال آماده‌سازی پاسخ…");
+  bubble.classList.add("pending", "streaming");
+
+  // همیشه مدل فعلی تنظیمات را صریحاً به backend می‌فرستیم
+  const selectedModel = CURRENT_SETTINGS && CURRENT_SETTINGS.chat_model ? CURRENT_SETTINGS.chat_model : undefined;
 
   try {
-    // همیشه مدل فعلی تنظیمات را صریحاً به backend می‌فرستیم تا تغییر مدل
-    // فقط در UI نماند و همان درخواست با مدل انتخاب‌شده اجرا شود.
-    const selectedModel = CURRENT_SETTINGS && CURRENT_SETTINGS.chat_model
-      ? CURRENT_SETTINGS.chat_model
-      : undefined;
-
-    const res = await apiCall("/api/playground/chat", {
-      method: "POST",
-      timeoutMs: 90000,
-      body: { message, session_id: CHAT_SESSION_ID, ...(selectedModel ? { model: selectedModel } : {}) },
-    });
-    CHAT_SESSION_ID = res.session_id;
-    pending.textContent = res.reply;
-    pending.classList.remove("pending");
-
-    const modelBadge = document.getElementById("activeChatModelBadge");
-    modelBadge.textContent = res.model || selectedModel || "—";
-
-    const sourcesList = document.getElementById("sourcesList");
-    if (res.sources.length === 0) {
-      sourcesList.innerHTML = `<span class="cell-muted">منبعی از دانشنامه پیدا نشد.</span>`;
-    } else {
-      sourcesList.innerHTML = res.sources
-        .map(
-          (s) => `
-        <div class="source-item">
-          <div class="score">${escapeHtml(s.document_title)} · شباهت ${(s.score * 100).toFixed(1)}٪</div>
-          <div class="snippet">${escapeHtml(s.text.slice(0, 220))}${s.text.length > 220 ? "…" : ""}</div>
-        </div>`
-        )
-        .join("");
+    try {
+      await chatViaStream(message, selectedModel, bubble);
+    } catch (err) {
+      if (err && err.aborted) {
+        // کاربر خودش متوقف کرد: متن تا اینجا می‌ماند
+        if (bubble.dataset.hasText !== "1") bubble.textContent = "پاسخ متوقف شد.";
+        bubble.classList.remove("pending");
+      } else if (err && STREAM_FALLBACK_STATUSES.includes(err.status) && bubble.dataset.hasText !== "1") {
+        await chatViaRequest(message, selectedModel, bubble);
+      } else {
+        throw err;
+      }
     }
   } catch (err) {
-    const requestId = err && err.requestId ? `\nشناسه درخواست: ${err.requestId}` : "";
-    pending.textContent = `${err && err.message ? err.message : String(err)}${requestId}`;
-    pending.classList.remove("pending");
-    pending.style.color = "var(--danger)";
+    bubble.classList.remove("pending");
+    showChatError(bubble, err);
   } finally {
     CHAT_REQUEST_ACTIVE = false;
-    sendBtn.disabled = false;
+    CHAT_ABORT = null;
+    bubble.classList.remove("streaming");
+    sendBtn.innerHTML = SEND_ICON;
+    sendBtn.title = "ارسال";
   }
 }
 document.getElementById("sendChatBtn").addEventListener("click", sendChatMessage);
