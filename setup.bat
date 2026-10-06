@@ -121,11 +121,13 @@ if not exist ".env" (
     echo       Created .env from .env.example.
 )
 
-echo [4/4] Starting FastAPI...
-start "Quasar Server" "%VENV_PY%" -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-
-timeout /t 3 /nobreak >nul
-start "" "http://127.0.0.1:8000/"
+echo [4/4] Opening Quasar setup...
+"%VENV_PY%" app\setup_bootstrap.py
+if errorlevel 1 (
+    echo ERROR: Local setup page failed to start.
+    pause
+    exit /b 1
+)
 
 echo.
 echo ================================================================
