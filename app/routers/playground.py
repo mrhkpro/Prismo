@@ -100,11 +100,6 @@ def chat_test_stream(
     """نسخه‌ی استریم چت آزمایشگاه (SSE): meta → delta... → done (یا error)."""
     session = _get_or_create_session(db, current_user, payload.session_id)
     selected_model = payload.model or current_user.settings.chat_model
-    try:
-        plan = rag_pipeline.prepare_rag_chat(db, current_user, session, payload.message, model=selected_model)
-    except llm_client.LLMError:
-        db.commit()
-        raise
     session_id, owner_id, message = session.id, current_user.id, payload.message
     db.commit()
 
@@ -112,7 +107,6 @@ def chat_test_stream(
         collected: list[str] = []
         # اولین بایت را زود بفرست تا کاربر معطل آماده‌سازی embedding نشود.
         yield ": qz-ready\n\n"
-        plan = None
         try:
             plan = rag_pipeline.prepare_rag_chat(db, current_user, session, message, model=selected_model)
             yield streaming.sse("meta", {"session_id": session_id, "model": selected_model, "sources": streaming.sources_payload(plan.matches)})
