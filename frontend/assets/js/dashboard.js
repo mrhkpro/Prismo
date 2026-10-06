@@ -483,21 +483,30 @@ document.getElementById("saveDocBtn").addEventListener("click", async () => {
   if (!title || !content) return toast("عنوان و محتوا را پر کن.", "error");
 
   const btn = document.getElementById("saveDocBtn");
+  const progress = ensureOperationProgress("در حال ایندکس سند…");
+  progress.set(10, "در حال ارسال سند…");
   btn.disabled = true;
   btn.textContent = "در حال ایندکس‌کردن…";
   try {
     if (EDITING_DOC_ID) {
-      await apiCall(`/api/knowledge/documents/${EDITING_DOC_ID}`, { method: "PUT", body: { title, content } });
+      progress.set(40, "در حال پردازش سند…");
+      await apiCall(`/api/knowledge/documents/${EDITING_DOC_ID}`, { method: "PUT", timeoutMs: 0, body: { title, content } });
+      progress.set(100, "انجام شد");
       toast("سند بروزرسانی شد.", "success");
     } else {
-      await apiCall("/api/knowledge/documents", { method: "POST", body: { title, content } });
+      progress.set(55, "در حال ایندکس‌کردن…");
+      await apiCall("/api/knowledge/documents", { method: "POST", timeoutMs: 0, body: { title, content } });
+      progress.set(100, "انجام شد");
       toast("سند اضافه و ایندکس شد.", "success");
     }
     closeDocModal();
     loadDocuments();
   } catch (err) {
+    progress.set(100, "خطا در پردازش");
+    progress.fail();
     toastError(err);
   } finally {
+    progress.finish();
     btn.disabled = false;
     btn.textContent = "ذخیره و ایندکس‌کردن";
   }
@@ -506,6 +515,26 @@ document.getElementById("saveDocBtn").addEventListener("click", async () => {
 // ---------------------------------------------------------------------------
 // ایمپورت فایل (PDF، Word، Excel، PowerPoint، ...) → متن → دانشنامه
 // ---------------------------------------------------------------------------
+function ensureOperationProgress(title = "در حال پردازش…") {
+  const host = document.getElementById("operationProgress");
+  const titleEl = host ? host.querySelector(".operation-progress-title") : null;
+  const bar = host ? host.querySelector(".operation-progress-bar > span") : null;
+  const percentEl = host ? host.querySelector(".operation-progress-percent") : null;
+  const existing = {
+    set(percent, label) {
+      if (!host) return;
+      host.hidden = false;
+      if (titleEl) titleEl.textContent = label || title;
+      if (bar) bar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+      if (percentEl) percentEl.textContent = `${Math.round(percent)}٪`;
+    },
+    fail() { host?.classList.add("error"); },
+    finish() { if (!host) return; setTimeout(() => { host.hidden = true; host.classList.remove("error"); }, 900); },
+  };
+  existing.set(0, title);
+  return existing;
+}
+
 const importList = document.getElementById("importList");
 let IMPORT_BUSY = false;
 
@@ -534,6 +563,8 @@ async function importFiles(fileList) {
   dz.classList.add("busy");
 
   let imported = 0;
+  const progress = ensureOperationProgress(`در حال وارد کردن ${files.length} فایل…`);
+  let completedFiles = 0;
   try {
     try {
       await Lazy.script("/assets/js/extract.js?v=2.5.0");
@@ -542,9 +573,15 @@ async function importFiles(fileList) {
     }
     for (const file of files) {
       const row = addImportRow(file.name);
+      progress.set(Math.round((completedFiles / files.length) * 100), `در حال خواندن ${file.name}`);
       try {
         row.set("در حال خواندن…", "work");
-        const { title, text } = await FileExtract.extract(file, (page, total) => row.set(`خواندن صفحه ${page} از ${total}…`, "work"));
+        const { title, text } = await FileExtract.extract(file, (page, total) => {
+          row.set(`خواندن صفحه ${page} از ${total}…`, "work");
+          const base = (completedFiles / files.length) * 100;
+          const share = total ? (page / total) * (100 / files.length) : 0;
+          progress.set(Math.min(99, base + share), `خواندن ${file.name}`);
+        });
 
         // فقط یک فایل کوچک: متن را برای بازبینی در همان ویرایشگر باز کن (رفتار قبلیِ آپلود TXT)
         if (files.length === 1 && text.length <= 60000) {
@@ -559,16 +596,25 @@ async function importFiles(fileList) {
         for (let i = 0; i < parts.length; i++) {
           row.set(parts.length > 1 ? `ایندکس بخش ${i + 1} از ${parts.length}…` : "در حال ایندکس‌کردن…", "work");
           const docTitle = parts.length > 1 ? `${title} (بخش ${i + 1} از ${parts.length})` : title;
-          await apiCall("/api/knowledge/documents", { method: "POST", timeoutMs: 90000, body: { title: docTitle.slice(0, 200), content: parts[i] } });
+          const base = (completedFiles / files.length) * 100;
+          const share = ((i + 1) / parts.length) * (100 / files.length);
+          progress.set(Math.min(99, base + share), `ایندکس ${file.name}`);
+          await apiCall("/api/knowledge/documents", { method: "POST", timeoutMs: 0, body: { title: docTitle.slice(0, 200), content: parts[i] } });
           imported += 1;
         }
         row.set(parts.length > 1 ? `✓ ${parts.length} بخش اضافه شد` : "✓ اضافه شد", "ok");
+        completedFiles += 1;
+        progress.set(Math.round((completedFiles / files.length) * 100), `${completedFiles} از ${files.length} فایل انجام شد`);
         row.done();
       } catch (err) {
         row.set(err && err.message ? err.message : "ناموفق", "error");
+        completedFiles += 1;
+        progress.set(Math.round((completedFiles / files.length) * 100), `${completedFiles} از ${files.length} فایل`);
       }
     }
   } finally {
+    progress.set(100, imported ? "پردازش همه فایل‌ها تمام شد" : "پردازش تمام شد");
+    progress.finish();
     IMPORT_BUSY = false;
     dz.classList.remove("busy");
     if (imported) {
@@ -747,7 +793,7 @@ async function chatViaStream(message, selectedModel, bubble) {
 async function chatViaRequest(message, selectedModel, bubble) {
   const res = await apiCall("/api/playground/chat", {
     method: "POST",
-    timeoutMs: 90000,
+    timeoutMs: 0,
     body: { message, session_id: CHAT_SESSION_ID, ...(selectedModel ? { model: selectedModel } : {}) },
   });
   CHAT_SESSION_ID = res.session_id;

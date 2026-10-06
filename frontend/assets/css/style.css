@@ -1,128 +1,38 @@
 /* =========================================================================
-   کوازار v2.4 — سیستم طراحی
-   تم تیره : شبِ بنفش (violet / indigo / fuchsia) روی زمینه‌ی تقریباً سیاه
-   تم روشن : سفیدِ گرم + طلایی + زرد
-   همه‌ی رنگ‌ها فقط از طریق توکن‌های زیر مصرف می‌شوند تا تعویض تم یک‌جا انجام شود.
+   کوازار 2.5 — سیستم طراحی هم‌راستا با Gentelella / Admin Dashboard
+   تم تیره : slate / teal
+   تم روشن : white / cool-gray / teal
+   همه‌ی رنگ‌ها فقط از طریق توکن‌های زیر مصرف می‌شوند.
    ========================================================================= */
 
 /* فونت‌ها به‌صورت غیرمسدودکننده از داخل <head> هر صفحه بارگذاری می‌شوند (preconnect + media=print/onload) */
 
-:root {
+ :root {
   color-scheme: dark;
-
-  /* سطوح */
-  --bg: #0a0614;
-  --bg-elevated: #130c26;
-  --bg-elevated-2: #1b1236;
-  --bg-input: #0e0920;
-  --bg-glass: rgba(22, 14, 44, 0.66);
-  --overlay: rgba(6, 3, 16, 0.72);
-
-  /* خطوط */
-  --border: #34265f;
-  --border-soft: #261b47;
-
-  /* متن */
-  --text: #f5f1ff;
-  --text-muted: #b3a9d6;
-  --text-faint: #8176ab;
-
-  /* رنگ برند */
-  --accent: #8b5cf6;
-  --accent-2: #c026d3;
-  --accent-3: #6366f1;
-  --accent-hover: #a78bfa;
-  --accent-text: #cbbcff;
-  --accent-soft: rgba(139, 92, 246, 0.17);
-  --accent-line: rgba(167, 139, 250, 0.35);
-  --gold: #e4cffd;
-  --gold-soft: rgba(216, 180, 254, 0.13);
-  --on-accent: #ffffff;
-  --knob: #ffffff;
-  --on-danger: #1a0508;
-  --sidebar-bg: #0d0820;
-  --topbar-bg: rgba(12, 7, 28, 0.78);
-
-  --grad-brand: linear-gradient(135deg, #6d28d9 0%, #9333ea 52%, #c026d3 100%);
-  --grad-text: linear-gradient(120deg, #ffffff 10%, #c9b6ff 55%, #f0abfc 100%);
-
-  /* وضعیت */
-  --success: #4ade80;
-  --success-soft: rgba(74, 222, 128, 0.14);
-  --danger: #fb7185;
-  --danger-soft: rgba(251, 113, 133, 0.15);
-  --danger-soft-hover: rgba(251, 113, 133, 0.26);
-  --success-soft-hover: rgba(74, 222, 128, 0.26);
-  --code-text: #a7f3d0;
-
-  /* سایه و درخشش */
-  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 48px -30px rgba(0, 0, 0, 0.85);
-  --shadow-pop: 0 34px 90px -24px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(167, 139, 250, 0.16);
-  --shadow-btn: 0 10px 28px -10px rgba(139, 92, 246, 0.75);
-  --glow-a: rgba(124, 58, 237, 0.32);
-  --glow-b: rgba(217, 70, 239, 0.18);
-  --glow-c: rgba(99, 102, 241, 0.2);
-
-  /* شکل و تایپوگرافی */
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 26px;
-
-  --font-body: 'Vazirmatn', Tahoma, sans-serif;
-  --font-mono: 'JetBrains Mono', Consolas, 'Vazirmatn', Tahoma, monospace;
+  --bg:#0f1623; --bg-elevated:#1a2332; --bg-elevated-2:#141d2b; --bg-input:#0f1623; --bg-glass:rgba(26,35,50,.94); --overlay:rgba(15,22,35,.72);
+  --border:rgba(255,255,255,.08); --border-soft:rgba(255,255,255,.05);
+  --text:#e6ebf2; --text-muted:#b3bccb; --text-faint:#8a93a3;
+  --accent:#1ABB9C; --accent-2:#169f85; --accent-3:#066fd1; --accent-hover:#27bfa1; --accent-text:#1ABB9C; --accent-soft:rgba(26,187,156,.14); --accent-line:rgba(26,187,156,.28);
+  --gold:#f59f00; --gold-soft:rgba(245,159,0,.14); --on-accent:#0f1623; --knob:#ffffff; --on-danger:#fff; --sidebar-bg:#1a2332; --topbar-bg:rgba(20,29,43,.92);
+  --grad-brand:linear-gradient(135deg,#1ABB9C 0%,#169f85 100%); --grad-text:linear-gradient(120deg,#fff 10%,#8fe7d4 65%,#1ABB9C 100%);
+  --success:#2fb344; --success-soft:rgba(47,179,68,.14); --danger:#d63939; --danger-soft:rgba(214,57,57,.14); --danger-soft-hover:rgba(214,57,57,.22); --success-soft-hover:rgba(47,179,68,.22); --code-text:#8fe7d4;
+  --shadow-card:0 1px 0 rgba(255,255,255,.03) inset,0 12px 32px -24px rgba(0,0,0,.65); --shadow-pop:0 24px 60px -24px rgba(0,0,0,.7); --shadow-btn:0 9px 20px -12px rgba(26,187,156,.7); --glow-a:rgba(26,187,156,.12); --glow-b:rgba(6,111,209,.09); --glow-c:rgba(245,159,0,.06);
+  --radius-sm:4px; --radius-md:6px; --radius-lg:8px; --radius-xl:8px;
+  --font-body:'Vazirmatn',Tahoma,sans-serif; --font-mono:'JetBrains Mono',Consolas,'Vazirmatn',Tahoma,monospace;
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-
-  --bg: #fffdf4;
-  --bg-elevated: #ffffff;
-  --bg-elevated-2: #fff7dc;
-  --bg-input: #ffffff;
-  --bg-glass: rgba(255, 255, 255, 0.78);
-  --overlay: rgba(58, 40, 4, 0.42);
-
-  --border: #ecd48a;
-  --border-soft: #f6e8b6;
-
-  --text: #2b2108;
-  --text-muted: #6b5a26;
-  --text-faint: #86743a;
-
-  --accent: #eab308;
-  --accent-2: #f59e0b;
-  --accent-3: #ca8a04;
-  --accent-hover: #facc15;
-  --accent-text: #855a00;
-  --accent-soft: rgba(234, 179, 8, 0.17);
-  --accent-line: rgba(202, 138, 4, 0.4);
-  --gold: #a16207;
-  --gold-soft: rgba(202, 138, 4, 0.12);
-  --on-accent: #2b1d00;
-  --knob: #ffffff;
-  --on-danger: #ffffff;
-  --sidebar-bg: #fffdf6;
-  --topbar-bg: rgba(255, 253, 244, 0.84);
-
-  --grad-brand: linear-gradient(135deg, #fde047 0%, #facc15 38%, #f59e0b 100%);
-  --grad-text: linear-gradient(120deg, #3a2a05 5%, #a16207 55%, #d97706 100%);
-
-  --success: #15803d;
-  --success-soft: rgba(21, 128, 61, 0.11);
-  --danger: #dc2626;
-  --danger-soft: rgba(220, 38, 38, 0.09);
-  --danger-soft-hover: rgba(220, 38, 38, 0.17);
-  --success-soft-hover: rgba(21, 128, 61, 0.19);
-  --code-text: #166534;
-
-  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 22px 44px -30px rgba(161, 98, 7, 0.45);
-  --shadow-pop: 0 34px 80px -26px rgba(120, 77, 6, 0.45), 0 0 0 1px rgba(202, 138, 4, 0.22);
-  --shadow-btn: 0 12px 26px -12px rgba(217, 119, 6, 0.8);
-  --glow-a: rgba(250, 204, 21, 0.34);
-  --glow-b: rgba(251, 191, 36, 0.24);
-  --glow-c: rgba(253, 224, 71, 0.3);
+  --bg:#f5f7fb; --bg-elevated:#ffffff; --bg-elevated-2:#f9fafb; --bg-input:#ffffff; --bg-glass:rgba(255,255,255,.92); --overlay:rgba(15,22,35,.45);
+  --border:#e6e7eb; --border-soft:#eff0f3;
+  --text:#1e2633; --text-muted:#626d7d; --text-faint:#7e8896;
+  --accent:#1ABB9C; --accent-2:#169f85; --accent-3:#066fd1; --accent-hover:#169f85; --accent-text:#087f6a; --accent-soft:rgba(26,187,156,.08); --accent-line:rgba(26,187,156,.24);
+  --gold:#f59f00; --gold-soft:rgba(245,159,0,.12); --on-accent:#0f1623; --knob:#ffffff; --on-danger:#fff; --sidebar-bg:#1a2332; --topbar-bg:rgba(255,255,255,.94);
+  --grad-brand:linear-gradient(135deg,#1ABB9C 0%,#169f85 100%); --grad-text:linear-gradient(120deg,#1e2633 5%,#168f79 60%,#066fd1 100%);
+  --success:#167a3d; --success-soft:rgba(47,179,68,.11); --danger:#d63939; --danger-soft:rgba(214,57,57,.09); --danger-soft-hover:rgba(214,57,57,.16); --success-soft-hover:rgba(47,179,68,.18); --code-text:#087f6a;
+  --shadow-card:0 1px 0 rgba(255,255,255,.9) inset,0 14px 30px -26px rgba(30,38,51,.32); --shadow-pop:0 24px 60px -28px rgba(30,38,51,.26); --shadow-btn:0 9px 22px -12px rgba(26,187,156,.65); --glow-a:rgba(26,187,156,.08); --glow-b:rgba(6,111,209,.05); --glow-c:rgba(245,159,0,.04);
 }
+
 
 * { box-sizing: border-box; }
 
@@ -789,6 +699,10 @@ tbody tr:hover { background: var(--accent-soft); }
 .import-row[data-kind="ok"] .import-state { color: var(--success); }
 .import-row[data-kind="error"] { border-color: var(--danger); }
 .import-row[data-kind="error"] .import-state { color: var(--danger); white-space: normal; text-align: left; }
+
+.operation-progress{margin:0 0 14px;padding:12px 14px;border:1px solid var(--border-soft);background:var(--bg-elevated);border-radius:var(--radius-md)}
+.operation-progress.error{border-color:var(--danger)}
+.operation-progress-head{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:12.5px;color:var(--text-muted);margin-bottom:8px}.operation-progress-percent{font-variant-numeric:tabular-nums;color:var(--accent-text);font-weight:700}.operation-progress-bar{height:7px;background:var(--bg-elevated-2);border-radius:999px;overflow:hidden}.operation-progress-bar>span{display:block;height:100%;width:0;background:var(--grad-brand);border-radius:inherit;transition:width .2s ease}
 
 /* ---------- ویجت‌ساز ---------- */
 .widget-layout { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 20px; align-items: start; }
