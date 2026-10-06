@@ -173,7 +173,10 @@
     document.body.appendChild(host);
     var root = host.attachShadow({ mode: "open" });
 
-    var sideRule = POSITION === "bottom-right" ? "right:22px;left:auto;" : "left:22px;right:auto;";
+    var POSITION_LOCKED = thisScript.hasAttribute("data-position");
+    var IS_PREVIEW = thisScript.getAttribute("data-preview") === "1";
+    var sideRule = "left:22px;right:auto;";
+    host.setAttribute("data-side", POSITION === "bottom-right" ? "right" : "left");
     var LIGHT_VARS = "--qz-panel:#ffffff;--qz-stream:#fffaf0;--qz-border:#efdca0;--qz-text:#2b2108;--qz-muted:#8a7638;--qz-bubble:#fff3c9;";
     var DARK_VARS = "--qz-panel:#130c26;--qz-stream:#0a0614;--qz-border:#34265f;--qz-text:#f5f1ff;--qz-muted:#9a8fc4;--qz-bubble:#1f1540;";
     var themeRule = THEME === "light"
@@ -212,7 +215,24 @@
       ".qz-send:disabled{opacity:.55;cursor:not-allowed;}" +
       ".qz-send svg{width:16px;height:16px;}" +
       ".qz-footer-tag{text-align:center;font-size:10.5px;color:var(--qz-muted,#9a8fc4);padding:6px 0 10px;background:var(--qz-panel,#130c26);}" +
-      "@media (max-width:480px){.qz-panel{width:calc(100vw - 12px);max-width:none;right:6px;left:6px;bottom:84px;height:min(540px,78vh);}.qz-bubble{bottom:16px;right:16px;left:auto;}}" +
+      ":host([data-side=right]) .qz-bubble,:host([data-side=right]) .qz-panel,:host([data-side=right]) .qz-teaser{right:22px;left:auto;}" +
+      ".qz-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;}" +
+      ".qz-chip{border:1px solid var(--qz-accent,#8b5cf6);background:transparent;color:var(--qz-text,#f5f1ff);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;transition:background .15s;}" +
+      ".qz-chip:hover{background:var(--qz-accent,#8b5cf6);color:var(--qz-on-accent,#fff);}" +
+      ".qz-teaser{position:fixed;bottom:92px;left:22px;max-width:230px;padding:10px 14px;border-radius:16px 16px 16px 4px;font-size:13px;line-height:1.7;cursor:pointer;direction:rtl;" +
+      "background:var(--qz-panel,#130c26);color:var(--qz-text,#f5f1ff);border:1px solid var(--qz-border,#34265f);box-shadow:0 14px 40px rgba(20,8,48,.3);z-index:2147483000;display:none;animation:qzpop .3s ease;}" +
+      ".qz-teaser.show{display:block;}.qz-teaser.high{bottom:140px;}" +
+      "@keyframes qzpop{from{opacity:0;transform:translateY(8px) scale(.96);}to{opacity:1;transform:none;}}" +
+      ".qz-petlane{position:fixed;display:none;height:52px;left:22px;right:auto;bottom:calc(96px + min(540px,78vh) - 3px);width:370px;max-width:calc(100vw - 24px);z-index:2147483000;pointer-events:none;direction:ltr;}" +
+      ":host([data-side=right]) .qz-petlane{right:22px;left:auto;}" +
+      ".qz-petlane.show{display:block;}.qz-petlane.perch{bottom:76px;width:60px;}" +
+      ".qz-pet{position:absolute;left:0;bottom:0;width:64px;height:48px;padding:0;border:0;background:transparent;cursor:pointer;pointer-events:auto;transition:transform .17s linear;image-rendering:pixelated;filter:drop-shadow(0 0 1px rgba(255,255,255,.75));}" +
+      ".qz-pet svg{display:block;width:64px;height:48px;shape-rendering:crispEdges;}" +
+      ".qz-pet.hop svg{animation:qzhop .5s ease;}@keyframes qzhop{40%{transform:translateY(-12px);}}" +
+      ".qz-heart{position:absolute;bottom:44px;width:21px;height:18px;pointer-events:none;animation:qzheart 1.15s ease-out forwards;}" +
+      "@keyframes qzheart{from{opacity:1;transform:translateY(0) scale(.8);}to{opacity:0;transform:translateY(-48px) scale(1.25);}}" +
+      "@media (prefers-reduced-motion:reduce){.qz-pet,.qz-pet svg,.qz-heart,.qz-teaser{animation:none!important;transition:none!important;}}" +
+      "@media (max-width:480px){.qz-panel{width:calc(100vw - 12px);max-width:none;right:6px;left:6px;bottom:84px;height:min(540px,78vh);}.qz-bubble{bottom:16px;right:16px;left:auto;}.qz-petlane{left:6px;right:6px;width:auto;max-width:none;bottom:calc(84px + min(540px,78vh) - 3px);}.qz-petlane.perch{left:auto;right:16px;width:60px;bottom:70px;}.qz-teaser{left:auto;right:16px;bottom:84px;}}" +
       themeRule;
     root.appendChild(style);
 
@@ -276,12 +296,9 @@
       var isOpen = open !== undefined ? open : !panel.classList.contains("open");
       panel.classList.toggle("open", isOpen);
       panel.setAttribute("aria-hidden", isOpen ? "false" : "true");
-      if (isOpen) input.focus();
+      if (isOpen) { input.focus(); hideTeaser(); }
+      if (typeof syncPetLane === "function") syncPetLane();
     }
-
-    // نقطه‌های اتصال به قابلیت‌های بعدی (حیوان خانگی و پاسخ‌های سریع)
-    function petReact() {}
-    function hideQuickReplies() {}
 
     function sendMessage(overrideText) {
       var text = (typeof overrideText === "string" ? overrideText : input.value).trim();
@@ -352,6 +369,230 @@
       });
     }
 
+/*PETS-BEGIN*/
+var PET_SPRITES = {"dog":{"body":["................","...........KK...","..K.......KDDK..",".KBK.....KDDBBK.",".KBBKKKKKKBBBBBK","..KBBBBBBBBBKBBK","..KBBBBBBBBBBBLK","..KBLLLLBBBBKPPK","..KBLLLLBBBBKKK."],"legs":{"a":["..KBK..KBK.KBK..","..KBK..KBK.KBK..","..KKK..KKK.KKK.."],"b":["...KBK.KBK..KBK.","...KBK.KBK..KBK.","...KKK.KKK..KKK."],"i":["..KBK...KBK.....","..KBK...KBK.....","..KKK...KKK....."]}},"cat":{"body":["..........K...K.",".........KBK.KBK",".........KBBBBBK",".K.......KBKBKBK","KBK......KBBBPBK","KBBKKKKKKKBBBBK.",".KBBBBBBBBBBBK..",".KBDBDBDBBBBBK..",".KBBBBBBBBBBBK.."],"legs":{"a":[".KBK..KBK.KBK...",".KBK..KBK.KBK...",".KKK..KKK.KKK..."],"b":["..KBK.KBK..KBK..","..KBK.KBK..KBK..","..KKK.KKK..KKK.."],"i":[".KBK...KBK......",".KBK...KBK......",".KKK...KKK......"]}},"raccoon":{"body":["..........K...K.",".........KBK.KBK","KLK......KBBBBBK","KDK......KKWKWKK","KLK......KWWPWWK","KDKKKKKKKKBBBBK.",".KLBBBBBBBBBBK..",".KDBBBBBBBBBBK..","..KKBBBBBBBBBK.."],"legs":{"a":["...KDK..KDK.KDK.","...KDK..KDK.KDK.","...KKK..KKK.KKK."],"b":["....KDK.KDK..KDK","....KDK.KDK..KDK","....KKK.KKK..KKK"],"i":["...KDK...KDK....","...KDK...KDK....","...KKK...KKK...."]}}};
+/*PETS-END*/
+
+    function shadeHex(hex, f) {
+      var n = parseInt(hex.slice(1), 16);
+      function ch(v) { return Math.max(0, Math.min(255, Math.round(v * f))); }
+      return "rgb(" + ch((n >> 16) & 255) + "," + ch((n >> 8) & 255) + "," + ch(n & 255) + ")";
+    }
+    function tintHex(hex, f) {
+      var n = parseInt(hex.slice(1), 16);
+      function ch(v) { return Math.round(v + (255 - v) * f); }
+      return "rgb(" + ch((n >> 16) & 255) + "," + ch((n >> 8) & 255) + "," + ch(n & 255) + ")";
+    }
+    var petSvgCache = {};
+    function petSvg(name, frame, color) {
+      var key = name + "|" + frame + "|" + color;
+      if (petSvgCache[key]) return petSvgCache[key];
+      var spec = PET_SPRITES[name] || PET_SPRITES.dog;
+      var rows = spec.body.concat(spec.legs[frame] || spec.legs.i);
+      var palette = { K: "#2b1d3a", B: color, D: shadeHex(color, 0.68), L: tintHex(color, 0.62), P: "#f472b6", W: "#ffffff" };
+      var rects = "";
+      for (var y = 0; y < rows.length; y++) {
+        var x = 0;
+        while (x < rows[y].length) {
+          var c = rows[y].charAt(x);
+          if (c === ".") { x++; continue; }
+          var run = 1;
+          while (x + run < rows[y].length && rows[y].charAt(x + run) === c) run++;
+          rects += '<rect x="' + x + '" y="' + y + '" width="' + run + '" height="1" fill="' + palette[c] + '"/>';
+          x += run;
+        }
+      }
+      var out = '<svg viewBox="0 0 16 12" aria-hidden="true">' + rects + "</svg>";
+      petSvgCache[key] = out;
+      return out;
+    }
+    var HEART_SVG = '<svg viewBox="0 0 7 6" shape-rendering="crispEdges"><path fill="#f472b6" d="M1 0h2v1h1V0h2v1h1v2H6v1H5v1H4v1H3V5H2V4H1V3H0V1h1z"/><path fill="#fff" opacity=".7" d="M1 1h1v1H1z"/></svg>';
+
+    var DEFAULT_PET_COLORS = { dog: "#C98A4B", cat: "#9696A5", raccoon: "#808090" };
+    var extras = { pet_enabled: false, pet: "dog", pet_color: "#C98A4B", teaser_enabled: false, quick_replies: [] };
+
+    var lane = document.createElement("div");
+    lane.className = "qz-petlane";
+    lane.innerHTML = '<button class="qz-pet" type="button" aria-label="حیوان خانگی ویجت — برای محبت کلیک کن"></button>';
+    root.appendChild(lane);
+    var petEl = lane.querySelector(".qz-pet");
+
+    var teaser = document.createElement("div");
+    teaser.className = "qz-teaser";
+    root.appendChild(teaser);
+
+    var pet = { x: 0, dir: 1, mode: "rest", frame: 0, walkLeft: 0, timer: null, shown: "" };
+    var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function petDraw(frame) {
+      var key = extras.pet + "|" + frame + "|" + extras.pet_color;
+      if (pet.shown !== key) { petEl.innerHTML = petSvg(extras.pet, frame, extras.pet_color); pet.shown = key; }
+      petEl.style.transform = "translateX(" + Math.round(pet.x) + "px) scaleX(" + pet.dir + ")";
+    }
+
+    function petPerched() { return !panel.classList.contains("open"); }
+
+    function petTick() {
+      if (!extras.pet_enabled) return;
+      var laneW = lane.clientWidth || 300;
+      var petW = 64;
+      if (petPerched()) {
+        pet.x = (laneW - petW) / 2; pet.dir = pet.dir || 1;
+        petDraw("i");
+        return;
+      }
+      if (pet.mode === "walk" && !reduceMotion) {
+        pet.x += pet.dir * 6;
+        var maxX = Math.max(0, laneW - petW);
+        if (pet.x <= 0) { pet.x = 0; pet.dir = 1; }
+        if (pet.x >= maxX) { pet.x = maxX; pet.dir = -1; }
+        pet.frame = pet.frame ? 0 : 1;
+        pet.walkLeft -= 170;
+        if (pet.walkLeft <= 0) pet.mode = "rest";
+        petDraw(pet.frame ? "a" : "b");
+      } else {
+        // وایساده؛ تا وقتی کاربر نوازشش نکرده همان‌جا می‌ماند
+        petDraw("i");
+      }
+    }
+
+    function petStartWalking() {
+      pet.mode = "walk";
+      pet.walkLeft = 12000 + Math.random() * 6000;
+    }
+
+    function petStart() {
+      if (pet.timer || !extras.pet_enabled) return;
+      pet.timer = setInterval(petTick, 170);
+      petTick();
+    }
+    function petStop() {
+      if (pet.timer) { clearInterval(pet.timer); pet.timer = null; }
+    }
+
+    function petHearts() {
+      var laneW = lane.clientWidth || 300;
+      for (var i = 0; i < 4; i++) {
+        (function (i) {
+          setTimeout(function () {
+            var h = document.createElement("span");
+            h.className = "qz-heart";
+            h.innerHTML = HEART_SVG;
+            h.style.left = Math.max(0, Math.min(laneW - 21, pet.x + 8 + Math.random() * 30)) + "px";
+            lane.appendChild(h);
+            setTimeout(function () { h.remove(); }, 1250);
+          }, i * 130);
+        })(i);
+      }
+    }
+
+    petEl.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (!extras.pet_enabled) return;
+      petHearts();
+      petEl.classList.remove("hop");
+      void petEl.offsetWidth;
+      petEl.classList.add("hop");
+      if (!petPerched()) petStartWalking();
+    });
+
+    function petReact(kind) {
+      if (!extras.pet_enabled) return;
+      if (kind === "happy") { petEl.classList.remove("hop"); void petEl.offsetWidth; petEl.classList.add("hop"); }
+    }
+
+    function syncPetLane() {
+      var on = !!extras.pet_enabled;
+      lane.classList.toggle("show", on);
+      lane.classList.toggle("perch", on && petPerched());
+      if (!on) { petStop(); return; }
+      pet.shown = "";
+      petStart();
+      // هر بار که پنل باز می‌شود، حیوان دوباره یک دور راه می‌رود
+      var perchedNow = petPerched();
+      if (!perchedNow && pet.lastPerched !== false) petStartWalking();
+      pet.lastPerched = perchedNow;
+      petTick();
+    }
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) petStop(); else if (extras.pet_enabled) petStart();
+    });
+
+    // ---- پاسخ‌های سریع ----
+    var chipsEl = null;
+    function hideQuickReplies() {
+      if (chipsEl) { chipsEl.remove(); chipsEl = null; }
+    }
+    function renderQuickReplies() {
+      hideQuickReplies();
+      var list = extras.quick_replies || [];
+      if (!list.length || stream.querySelectorAll(".qz-msg.user").length) return;
+      chipsEl = document.createElement("div");
+      chipsEl.className = "qz-chips";
+      list.forEach(function (label) {
+        var chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "qz-chip";
+        chip.textContent = label;
+        chip.addEventListener("click", function () { sendMessage(label); });
+        chipsEl.appendChild(chip);
+      });
+      stream.appendChild(chipsEl);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    // ---- پیام تیزر بالای دکمه ----
+    var TEASER_KEY = "qz_teaser_" + WIDGET_ID;
+    var teaserTimer = null;
+    function hideTeaser() { teaser.classList.remove("show"); clearTimeout(teaserTimer); }
+    function maybeShowTeaser(text) {
+      hideTeaser();
+      if (!extras.teaser_enabled || !text || panel.classList.contains("open")) return;
+      try { if (!IS_PREVIEW && sessionStorage.getItem(TEASER_KEY)) return; } catch (e) { /* noop */ }
+      teaserTimer = setTimeout(function () {
+        if (panel.classList.contains("open")) return;
+        teaser.textContent = text.length > 110 ? text.slice(0, 107) + "…" : text;
+        teaser.classList.toggle("high", !!extras.pet_enabled);
+        teaser.classList.add("show");
+        try { sessionStorage.setItem(TEASER_KEY, "1"); } catch (e) { /* noop */ }
+        teaserTimer = setTimeout(hideTeaser, 9000);
+      }, IS_PREVIEW ? 600 : 2500);
+    }
+    teaser.addEventListener("click", function () { hideTeaser(); togglePanel(true); });
+
+    var welcomeText = "";
+    var welcomeEl = null;
+
+    function applyExtras(next, opts) {
+      var n = next || {};
+      extras = {
+        pet_enabled: !!n.pet_enabled,
+        pet: PET_SPRITES[n.pet] ? n.pet : "dog",
+        pet_color: /^#[0-9a-f]{6}$/i.test(n.pet_color || "") ? n.pet_color : (DEFAULT_PET_COLORS[n.pet] || "#C98A4B"),
+        teaser_enabled: !!n.teaser_enabled,
+        quick_replies: Array.isArray(n.quick_replies) ? n.quick_replies.slice(0, 4) : []
+      };
+      if (!POSITION_LOCKED && (n.position === "bottom-right" || n.position === "bottom-left")) {
+        host.setAttribute("data-side", n.position === "bottom-right" ? "right" : "left");
+      }
+      syncPetLane();
+      renderQuickReplies();
+      if (!(opts && opts.silent)) maybeShowTeaser(welcomeText);
+    }
+
+    // پیش‌نمایش زنده داخل داشبورد: تغییرات بدون ذخیره‌شدن روی ویجت اعمال می‌شود
+    if (IS_PREVIEW) {
+      window.addEventListener("message", function (event) {
+        if (event.origin !== window.location.origin || !event.data || !event.data.qzPreview) return;
+        var d = event.data.qzPreview;
+        if (typeof d.title === "string") titleEl.textContent = d.title || "دستیار هوشمند";
+        if (typeof d.welcome === "string") { welcomeText = d.welcome; if (welcomeEl) welcomeEl.textContent = d.welcome; }
+        if (d.color) applyColor(d.color);
+        if (d.extras) applyExtras(d.extras, { silent: !d.showTeaser });
+      });
+    }
+
     bubble.addEventListener("click", function () { togglePanel(); });
     closeBtn.addEventListener("click", function () { togglePanel(false); });
     sendBtn.addEventListener("click", function () { sendMessage(); });
@@ -378,7 +619,9 @@
           sendBtn.disabled = true;
           return;
         }
-        addMessage("bot", cfg.welcome_message || "سلام! چطور می‌تونم کمکتون کنم؟");
+        welcomeText = cfg.welcome_message || "سلام! چطور می‌تونم کمکتون کنم؟";
+        welcomeEl = addMessage("bot", welcomeText);
+        applyExtras(cfg.extras || {});
       })
       .catch(function (err) {
         bubble.style.display = "none";
