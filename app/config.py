@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / ".env.local", override=False)
 
 
 # ============================================================
@@ -51,7 +52,7 @@ CONFIGURED_SECRET_KEY = os.getenv(
 
 SECRET_KEY = (
     CONFIGURED_SECRET_KEY
-    or secrets.token_urlsafe(32)
+    or "quasar-local-development-secret-key-2026"
 )
 
 JWT_ALGORITHM = "HS256"
@@ -59,7 +60,7 @@ JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.getenv(
         "ACCESS_TOKEN_EXPIRE_MINUTES",
-        "1440",
+        "43200" if APP_ENV == "development" else "1440",
     )
 )
 
@@ -86,13 +87,19 @@ DATA_DIR.mkdir(
 )
 
 
+DATABASE_MODE = os.getenv("DATABASE_MODE", "auto").strip().lower()
+if DATABASE_MODE not in {"auto", "supabase", "local"}:
+    raise RuntimeError("DATABASE_MODE must be one of: auto, supabase, local")
+
 RAW_DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "",
 ).strip()
 
 
-if RAW_DATABASE_URL:
+use_supabase = DATABASE_MODE == "supabase" or (DATABASE_MODE == "auto" and bool(RAW_DATABASE_URL))
+
+if use_supabase and RAW_DATABASE_URL:
 
     if RAW_DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = RAW_DATABASE_URL.replace(
@@ -111,17 +118,13 @@ if RAW_DATABASE_URL:
     else:
         DATABASE_URL = RAW_DATABASE_URL
 
-else:
-
+elif DATABASE_MODE == "supabase" and not RAW_DATABASE_URL:
     if APP_ENV == "production" or IS_VERCEL:
-        raise RuntimeError(
-            "DATABASE_URL is required on Vercel/production."
-        )
+        raise RuntimeError("DATABASE_URL is required for DATABASE_MODE=supabase.")
+    raise RuntimeError("DATABASE_URL is required when DATABASE_MODE=supabase.")
 
-    DATABASE_URL = (
-        "sqlite:///"
-        + str(DATA_DIR / "app.db")
-    )
+else:
+    DATABASE_URL = "sqlite:///" + str(DATA_DIR / "app.db")
 
 
 IS_POSTGRES = DATABASE_URL.startswith(

@@ -93,6 +93,16 @@ app = FastAPI(
 )
 
 
+@app.get("/api/runtime")
+def runtime_info():
+    return {
+        "database_mode": config.DATABASE_MODE,
+        "database": "supabase" if config.IS_POSTGRES else "local",
+        "vercel": config.IS_VERCEL,
+        "local_session_stable": not config.IS_VERCEL,
+    }
+
+
 # ============================================================
 # LOGGING
 # ============================================================
