@@ -27,3 +27,8 @@ class CommonResponseTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_common_response_ignores_greeting_emoji():
+    assert "خوشحالم" in get_common_response("سلام 👋")
+    assert "خوشحالم" in get_common_response("سلام 😊")
