@@ -135,6 +135,14 @@ function setProviderMode(useDefault) {
   badge.className = `badge ${useDefault ? "badge-success" : "badge-accent"}`;
 }
 
+document.querySelectorAll("#view-ai-settings [data-aitab]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#view-ai-settings [data-aitab]").forEach((b) => b.classList.toggle("active", b === btn));
+    document.getElementById("aitab-connect").classList.toggle("active", btn.dataset.aitab === "connect");
+    document.getElementById("aitab-battle").classList.toggle("active", btn.dataset.aitab === "battle");
+  });
+});
+
 document.getElementById("defaultProviderModeBtn").addEventListener("click", () => setProviderMode(true));
 document.getElementById("customProviderModeBtn").addEventListener("click", () => setProviderMode(false));
 
@@ -162,14 +170,14 @@ document.getElementById("discoverModelsBtn").addEventListener("click", async () 
     fillModelSelect(document.getElementById("customChatModelSelect"), DISCOVERED_CUSTOM_MODELS, currentChat);
     fillModelSelect(document.getElementById("customEmbeddingModelSelect"), DISCOVERED_CUSTOM_MODELS, currentEmbedding);
     status.textContent = `${DISCOVERED_CUSTOM_MODELS.length} مدل پیدا شد.`;
-    status.className = "field-hint discovery-status success-text";
+    status.className = "status-line success-text";
     toast("لیست مدل‌ها دریافت شد.", "success");
   } catch (err) {
     DISCOVERED_CUSTOM_MODELS = [];
     fillModelSelect(document.getElementById("customChatModelSelect"), [], "");
     fillModelSelect(document.getElementById("customEmbeddingModelSelect"), [], "");
     status.textContent = err.message;
-    status.className = "field-hint discovery-status error-text";
+    status.className = "status-line error-text";
   } finally {
     btn.disabled = false;
     btn.textContent = "دریافت مدل‌ها";
@@ -205,7 +213,7 @@ async function loadProviderSettings() {
     document.getElementById("modelDiscoveryStatus").textContent = isDefault
       ? ""
       : "برای نمایش مدل‌های این سرویس، روی «دریافت مدل‌ها» بزن.";
-    document.getElementById("modelDiscoveryStatus").className = "field-hint discovery-status";
+    document.getElementById("modelDiscoveryStatus").className = "status-line";
   } catch (err) {
     toastError(err);
   }

@@ -552,55 +552,6 @@ tbody tr:hover { background: var(--accent-soft); }
 .icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
 .icon-btn svg { width: 15px; height: 15px; }
 
-/* اتصال‌دهنده مدل */
-.page-head-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.page-head-actions { padding-top: 4px; }
-.provider-mode-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 16px; }
-.provider-mode-card {
-  display: flex; align-items: center; gap: 13px; text-align: right; padding: 16px;
-  border-radius: var(--radius-lg); border: 1px solid var(--border-soft);
-  background: var(--bg-elevated); color: var(--text); cursor: pointer;
-  transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
-}
-.provider-mode-card:hover { transform: translateY(-2px); border-color: var(--accent-line); }
-.provider-mode-card.active {
-  border-color: var(--accent); background: linear-gradient(135deg, var(--accent-soft), var(--bg-elevated));
-  box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-card);
-}
-.provider-mode-card strong { display: block; font-size: 14px; margin-bottom: 3px; }
-.provider-mode-card small { display: block; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
-.provider-mode-icon {
-  width: 44px; height: 44px; border-radius: 14px; background: var(--grad-brand); display: grid; place-items: center;
-  color: var(--on-accent); flex-shrink: 0; font-size: 18px; box-shadow: var(--shadow-btn);
-}
-.provider-panel { margin-bottom: 20px; }
-.provider-panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
-.provider-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.model-discovery-box {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px;
-  margin: 8px 0; border: 1px dashed var(--accent); border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--accent-soft), var(--bg-elevated-2));
-}
-.model-discovery-box::before {
-  content: 'GET /models'; direction: ltr; font-family: var(--font-mono); font-size: 11px; color: var(--accent-text);
-  background: var(--bg-input); border: 1px solid var(--border); padding: 5px 8px; border-radius: 8px; order: 2;
-}
-.model-discovery-box strong { font-size: 13px; }
-.model-discovery-box p { color: var(--text-muted); font-size: 12px; margin-top: 3px; }
-.discovery-status { min-height: 20px; margin-bottom: 10px; }
-.success-text { color: var(--success); }
-.error-text { color: var(--danger); }
-
-.provider-steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
-.provider-steps span {
-  display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid var(--border-soft);
-  background: var(--bg-input); border-radius: 999px; color: var(--text-muted); font-size: 11.5px;
-}
-.provider-steps b {
-  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent-soft); color: var(--accent-text); font-size: 11px;
-}
-
 /* آزمایشگاه چت */
 .chat-lab { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: start; }
 @media (max-width: 900px) { .chat-lab { grid-template-columns: 1fr; } }
@@ -681,8 +632,6 @@ tbody tr:hover { background: var(--accent-soft); }
 .overview-health-panel .panel-desc { flex: 1 1 300px; margin-bottom: 0; }
 
 @media (max-width: 900px) {
-  .page-head-row, .provider-panel-head { flex-direction: column; }
-  .provider-mode-grid { grid-template-columns: 1fr; }
   .app-shell { grid-template-columns: 1fr; }
 }
 
