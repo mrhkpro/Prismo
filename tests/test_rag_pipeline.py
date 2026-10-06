@@ -63,7 +63,7 @@ class RAGPerformanceContractTests(unittest.TestCase):
              patch.object(rag_pipeline.llm_client, "chat_completion", return_value="reply"), \
              patch.object(rag_pipeline.logger, "info") as log_info:
             reply, matches = rag_pipeline.run_rag_chat(
-                SimpleNamespace(), owner, session, "hello", model="explicit-model"
+                SimpleNamespace(), owner, session, "ساعت کاری چیست؟", model="explicit-model"
             )
 
         self.assertEqual(reply, "reply")
