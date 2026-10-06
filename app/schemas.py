@@ -133,6 +133,10 @@ class DiscoverModelsRequest(BaseModel):
 
 class DiscoverModelsResponse(BaseModel):
     models: List[str]
+    chat_models: List[str] = Field(default_factory=list)
+    embedding_models: List[str] = Field(default_factory=list)
+    unknown_models: List[str] = Field(default_factory=list)
+    embedding_probe_ok: bool = True
 
 
 class CustomConnectionTestRequest(BaseModel):

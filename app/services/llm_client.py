@@ -83,6 +83,80 @@ def _client(base_url: str, api_key: str) -> OpenAI:
     return _cached_client(normalized, api_key)
 
 
+
+_EMBEDDING_NAME_HINTS = (
+    "embedding", "embed", "text-embedding", "bge", "e5-", "e5_", "gte-", "gte_",
+    "jina-embeddings", "nomic-embed", "mxbai-embed", "arctic-embed", "snowflake-arctic-embed",
+    "multilingual-e5", "voyage-", "cohere-embed", "uae-large-v1",
+)
+
+
+def _looks_like_embedding_model(model_id: str) -> bool:
+    value = (model_id or "").strip().casefold()
+    return any(hint in value for hint in _EMBEDDING_NAME_HINTS)
+
+
+def _probe_embedding_model(client: OpenAI, model_id: str) -> tuple[bool, int | None]:
+    """Return whether a model really serves embeddings and its output dimension."""
+    response = client.embeddings.create(model=model_id, input="quasar-capability-probe")
+    data = list(getattr(response, "data", []) or [])
+    if not data or not getattr(data[0], "embedding", None):
+        return False, None
+    return True, len(data[0].embedding)
+
+
+def discover_model_capabilities(base_url: str, api_key: str) -> dict:
+    """Discover chat/embedding-capable models without persisting the API key.
+
+    OpenAI-compatible /models responses generally do not expose a portable
+    'supports embeddings' capability flag, so embedding candidates are verified
+    with a tiny real embedding request. The probe is limited to likely embedding
+    names first, then a small fallback sample of otherwise-unknown models.
+    """
+    models_list = list_models(base_url, api_key)
+    client = _client(base_url, api_key)
+
+    chat_models = list(models_list)
+    embedding_models: list[str] = []
+    unknown_models: list[str] = []
+
+    likely = [m for m in models_list if _looks_like_embedding_model(m)]
+    fallback = [m for m in models_list if m not in likely][:12]
+    candidates = likely + fallback
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def probe(model_id: str):
+        try:
+            ok, dim = _probe_embedding_model(client, model_id)
+            if ok and dim == config.EMBEDDING_DIMENSIONS:
+                return model_id, True, dim
+            return model_id, False, dim
+        except Exception:
+            return model_id, False, None
+
+    if candidates:
+        with ThreadPoolExecutor(max_workers=min(6, len(candidates))) as pool:
+            futures = [pool.submit(probe, model_id) for model_id in candidates]
+            for future in as_completed(futures):
+                model_id, ok, _dim = future.result()
+                if ok:
+                    embedding_models.append(model_id)
+
+    embedding_models = sorted(set(embedding_models), key=str.casefold)
+    unknown_models = sorted([m for m in models_list if m not in set(likely)], key=str.casefold)
+
+    # A provider may expose only one model which is not conventionally named;
+    # the limited fallback above still gives it a chance without probing an
+    # unbounded catalogue.
+    return {
+        "models": models_list,
+        "chat_models": chat_models,
+        "embedding_models": embedding_models,
+        "unknown_models": unknown_models,
+        "embedding_probe_ok": bool(embedding_models),
+    }
+
 def list_models(base_url: str, api_key: str) -> List[str]:
     """مدل‌های موجود در یک endpoint سازگار با OpenAI را بدون ذخیره‌ی کلید می‌خواند."""
     if not base_url:

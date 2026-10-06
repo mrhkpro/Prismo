@@ -64,9 +64,16 @@ class AIProviderTests(unittest.TestCase):
         payload = schemas.DiscoverModelsRequest(
             base_url="https://api.example/v1", api_key="form-secret"
         )
-        with patch("app.routers.settings.llm_client.list_models", return_value=["chat-1", "embed-1"]):
+        with patch("app.routers.settings.llm_client.discover_model_capabilities", return_value={
+            "models": ["chat-1", "embed-1"],
+            "chat_models": ["chat-1"],
+            "embedding_models": ["embed-1"],
+            "unknown_models": [],
+            "embedding_probe_ok": True,
+        }):
             response = settings_router.discover_models(payload, FakeUser())
         self.assertEqual(response.models, ["chat-1", "embed-1"])
+        self.assertEqual(response.embedding_models, ["embed-1"])
         self.assertEqual(FakeUser.settings.api_key, "saved-key")
 
 
@@ -196,3 +203,22 @@ class ProviderRelayTests(unittest.TestCase):
             provider = llm_client.resolve_provider(FakeSettings())
         self.assertEqual(provider.base_url, "https://direct.example/v1")
         self.assertEqual(provider.api_key, "direct-key")
+
+
+class ProviderCapabilityTests(unittest.TestCase):
+    def test_discovery_separates_verified_embedding_models(self):
+        fake_client = SimpleNamespace(
+            models=SimpleNamespace(list=lambda: SimpleNamespace(data=[
+                SimpleNamespace(id="chat-alpha"),
+                SimpleNamespace(id="qwen3-embedding-4b"),
+            ])),
+            embeddings=SimpleNamespace(create=lambda **kwargs: SimpleNamespace(
+                data=[SimpleNamespace(embedding=[0.0] * llm_client.config.EMBEDDING_DIMENSIONS)]
+                if kwargs["model"] == "qwen3-embedding-4b" else []
+            )),
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client):
+            result = llm_client.discover_model_capabilities("https://example.com/v1", "secret")
+        self.assertEqual(result["chat_models"], ["chat-alpha", "qwen3-embedding-4b"])
+        self.assertEqual(result["embedding_models"], ["qwen3-embedding-4b"])
+
