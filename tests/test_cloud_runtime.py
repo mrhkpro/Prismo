@@ -55,3 +55,10 @@ class CloudRuntimeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_postgres_database_uses_warm_connection_pool():
+    source = (Path(__file__).resolve().parents[1] / "app" / "database.py").read_text(encoding="utf-8")
+    assert "pool_size=3" in source
+    assert "max_overflow=2" in source
+    assert "pool_recycle=900" in source

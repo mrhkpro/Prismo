@@ -163,7 +163,11 @@ async def request_logging_middleware(
         # محتوای گفت‌وگو/ویجت عمومی نباید توسط مرورگر، CDN یا موتور جست‌وجو cache/index شود.
         no_store_path = (
             request.url.path.startswith("/public/widget/")
-            or request.url.path in {"/widget.js", "/widget-preview.html"}
+            or request.url.path in {
+                "/", "/index.html", "/dashboard.html", "/admin.html",
+                "/setup.html", "/widget.js", "/widget-preview.html",
+            }
+            or request.url.path.endswith(".html")
         )
         if no_store_path:
             response.headers["Cache-Control"] = "no-store, no-cache, no-transform, private"

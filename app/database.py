@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.pool import NullPool
+
 
 from . import config
 
@@ -22,7 +22,11 @@ if config.IS_POSTGRES:
 
     engine = create_engine(
         config.DATABASE_URL,
-        poolclass=NullPool,
+        pool_size=3,
+        max_overflow=2,
+        pool_recycle=900,
+        pool_pre_ping=False,
+        pool_use_lifo=True,
         connect_args=connect_args,
     )
 
