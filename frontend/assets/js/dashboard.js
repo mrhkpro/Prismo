@@ -488,32 +488,57 @@ document.getElementById("clearKbBtn").addEventListener("click", async () => {
   }
 });
 
+function ensureDocSaveProgress(title = "در حال ذخیره…") {
+  const host = document.getElementById("docSaveProgress");
+  if (!host) return { set() {}, fail() {}, finish() {} };
+  const titleEl = host.querySelector(".operation-progress-title");
+  const bar = host.querySelector(".operation-progress-bar-fill");
+  const percentEl = host.querySelector(".operation-progress-percent");
+  host.hidden = false;
+  host.classList.remove("error");
+  const set = (percent, label) => {
+    const safe = Math.max(0, Math.min(100, Number(percent) || 0));
+    if (titleEl) titleEl.textContent = label || title;
+    if (bar) bar.style.width = `${safe}%`;
+    if (percentEl) percentEl.textContent = `${Math.round(safe)}٪`;
+  };
+  set(0, title);
+  return {
+    set,
+    fail() { host.classList.add("error"); },
+    finish() {
+      setTimeout(() => { host.hidden = true; host.classList.remove("error"); }, 1000);
+    },
+  };
+}
+
 document.getElementById("saveDocBtn").addEventListener("click", async () => {
   const title = document.getElementById("docTitleInput").value.trim();
   const content = document.getElementById("docContentInput").value.trim();
   if (!title || !content) return toast("عنوان و محتوا را پر کن.", "error");
 
   const btn = document.getElementById("saveDocBtn");
-  const progress = ensureOperationProgress("در حال ایندکس سند…");
-  progress.set(10, "در حال ارسال سند…");
+  const progress = ensureDocSaveProgress("در حال ذخیره اطلاعات…");
+  progress.set(10, "در حال ذخیره اطلاعات…");
   btn.disabled = true;
-  btn.textContent = "در حال ایندکس‌کردن…";
+  btn.textContent = "در حال ذخیره…";
   try {
+    let saved;
     if (EDITING_DOC_ID) {
-      progress.set(40, "در حال پردازش سند…");
-      await apiCall(`/api/knowledge/documents/${EDITING_DOC_ID}`, { method: "PUT", timeoutMs: 0, body: { title, content } });
-      progress.set(100, "انجام شد");
-      toast("سند بروزرسانی شد.", "success");
+      progress.set(35, "در حال ذخیره متن سند…");
+      saved = await apiCall(`/api/knowledge/documents/${EDITING_DOC_ID}`, { method: "PUT", timeoutMs: 0, body: { title, content } });
+      progress.set(100, saved && saved.chunk_count ? "ذخیره و ایندکس کامل شد" : "سند ذخیره شد؛ ایندکس در دسترس نیست");
+      toast(saved && saved.chunk_count ? "سند بروزرسانی و ایندکس شد." : "سند ذخیره شد، اما سرویس embedding در دسترس نبود؛ بعداً می‌توانی دوباره ایندکس کنی.", saved && saved.chunk_count ? "success" : "warning");
     } else {
-      progress.set(55, "در حال ایندکس‌کردن…");
-      await apiCall("/api/knowledge/documents", { method: "POST", timeoutMs: 0, body: { title, content } });
-      progress.set(100, "انجام شد");
-      toast("سند اضافه و ایندکس شد.", "success");
+      progress.set(35, "در حال ذخیره متن سند…");
+      saved = await apiCall("/api/knowledge/documents", { method: "POST", timeoutMs: 0, body: { title, content } });
+      progress.set(100, saved && saved.chunk_count ? "ذخیره و ایندکس کامل شد" : "سند ذخیره شد؛ ایندکس در دسترس نیست");
+      toast(saved && saved.chunk_count ? "سند اضافه و ایندکس شد." : "سند ذخیره شد، اما سرویس embedding در دسترس نبود؛ بعداً می‌توانی دوباره ایندکس کنی.", saved && saved.chunk_count ? "success" : "warning");
     }
     closeDocModal();
-    loadDocuments();
+    await loadDocuments();
   } catch (err) {
-    progress.set(100, "خطا در پردازش");
+    progress.set(100, err?.message || "ذخیره ناموفق بود");
     progress.fail();
     toastError(err);
   } finally {
@@ -619,7 +644,7 @@ async function importFiles(fileList) {
   let completedFiles = 0;
   try {
     try {
-      await Lazy.script("/assets/js/extract.js?v=2.6.5");
+      await Lazy.script("/assets/js/extract.js?v=2.6.6");
     } catch (err) {
       return toastError(err);
     }
@@ -1127,7 +1152,7 @@ async function loadWidgetSection() {
     const [cfg, embed] = await Promise.all([
       apiCall("/api/widget/config"),
       apiCall("/api/widget/embed-code"),
-      Lazy.script("/assets/js/pets.js?v=2.6.5").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+      Lazy.script("/assets/js/pets.js?v=2.6.6").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
     ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";
