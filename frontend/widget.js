@@ -15,7 +15,18 @@
 (function () {
   "use strict";
 
+  function ensureWidgetFont() {
+    var href = "https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap";
+    if (document.querySelector('link[data-qz-widget-font="vazirmatn"]')) return;
+    var link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    link.setAttribute("data-qz-widget-font", "vazirmatn");
+    document.head.appendChild(link);
+  }
+
   function boot() {
+    ensureWidgetFont();
     var thisScript =
       document.currentScript ||
       (function () {
@@ -187,7 +198,7 @@
 
     var style = document.createElement("style");
     style.textContent =
-      ":host{all:initial;}*{box-sizing:border-box;font-family:'Vazirmatn',Tahoma,Arial,sans-serif;}" +
+      ":host{all:initial;font-family:'Vazirmatn',Tahoma,Arial,sans-serif;}*{box-sizing:border-box;font-family:'Vazirmatn',Tahoma,Arial,sans-serif;}" +
       ".qz-bubble{position:fixed;bottom:22px;" + sideRule + "width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;" +
       "box-shadow:0 12px 35px rgba(0,0,0,.24);z-index:2147483000;border:none;transition:transform .18s ease,box-shadow .18s ease;}" +
       ".qz-bubble:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 16px 38px rgba(0,0,0,.28);}" +
@@ -350,7 +361,6 @@
         if (raf !== null) cancelAnimationFrame(raf);
         pending.classList.remove("pending", "streaming");
         pending.textContent = fullText || "پاسخی دریافت نشد.";
-        petReact("happy");
       }).catch(function (err) {
         if (raf !== null) cancelAnimationFrame(raf);
         pending.classList.remove("streaming");
@@ -464,6 +474,7 @@ var PET_SPRITES = {"dog":{"body":["................","...........KK...","..K....
     }
 
     var petLoveLevel = 0;
+    var petHopBusy = false;
     var HEART_COLORS = ["#d6336c", "#f59f00", "#ae3ec9", "#1ABB9C", "#066fd1"];
     function petHearts() {
       petLoveLevel = (petLoveLevel + 1) % HEART_COLORS.length;
@@ -479,17 +490,23 @@ var PET_SPRITES = {"dog":{"body":["................","...........KK...","..K....
 
     petEl.addEventListener("click", function (e) {
       e.stopPropagation();
-      if (!extras.pet_enabled) return;
+      if (!extras.pet_enabled || petHopBusy) return;
+      petHopBusy = true;
       petHearts();
       petEl.classList.remove("hop");
       void petEl.offsetWidth;
       petEl.classList.add("hop");
       petStartWalking();
+      setTimeout(function () {
+        petHopBusy = false;
+        petEl.classList.remove("hop");
+      }, 520);
     });
 
     function petReact(kind) {
+      // حیوان فقط با کلیک کاربر می‌پرد؛ پاسخ مدل دیگر باعث پرش خودکار نمی‌شود.
       if (!extras.pet_enabled) return;
-      if (kind === "happy") { petEl.classList.remove("hop"); void petEl.offsetWidth; petEl.classList.add("hop"); }
+      if (kind === "think") return;
     }
 
     function syncPetLane() {
@@ -514,7 +531,9 @@ var PET_SPRITES = {"dog":{"body":["................","...........KK...","..K....
     }
     function renderQuickReplies() {
       hideQuickReplies();
-      var list = extras.quick_replies || [];
+      var list = extras.quick_replies && extras.quick_replies.length
+        ? extras.quick_replies
+        : ["سلام 👋", "حالت چطوره؟", "چه کمکی می‌تونی بکنی؟"];
       if (!list.length || stream.querySelectorAll(".qz-msg.user").length) return;
       chipsEl = document.createElement("div");
       chipsEl.className = "qz-chips";

@@ -1,6 +1,4 @@
 (async function () {
-  await QzDatabaseMode.ready();
-
   // اگر از قبل وارد شده، مستقیم برو داشبورد
   if (Auth.isLoggedIn()) {
     location.href = "/dashboard.html";
