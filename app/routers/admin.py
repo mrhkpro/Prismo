@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from .. import config, models, schemas
 from ..database import get_db
+from ..services import injection_scanner
 from ..security import create_impersonation_token, require_admin
 
 router = APIRouter(prefix="/api/admin", tags=["پنل مدیریت (ادمین)"])
@@ -289,9 +290,15 @@ def all_conversations(
     return _sessions_out(db, sessions)
 
 
+def _source_value(session: models.ChatSession) -> str:
+    source = session.source
+    return getattr(source, "value", source) or ""
+
+
 @router.get("/security/flags", response_model=list[schemas.FlaggedMessageOut])
 def security_flags(
     resolved: Optional[bool] = Query(default=None),
+    severity: Optional[str] = Query(default=None, pattern="^(critical|high|medium)$"),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -305,15 +312,57 @@ def security_flags(
     )
     if resolved is not None:
         query = query.filter(models.ChatMessage.resolved.is_(resolved))
-    rows = query.order_by(models.ChatMessage.created_at.desc()).offset(offset).limit(limit).all()
+    # شدت از روی کدهای متن دلیل محاسبه می‌شود؛ برای فیلتر دقیق، کمی بیشتر می‌خوانیم و در پایتون برش می‌زنیم
+    rows = query.order_by(models.ChatMessage.created_at.desc()).offset(offset).limit(limit if not severity else 500).all()
 
-    return [
-        schemas.FlaggedMessageOut(
-            id=msg.id, session_id=session.id, owner_username=user.username, role=msg.role,
-            content=msg.content, flag_reason=msg.flag_reason, resolved=bool(msg.resolved), created_at=msg.created_at,
+    result = []
+    for msg, session, user in rows:
+        info = injection_scanner.describe_reason(msg.flag_reason)
+        if severity and info["severity"] != severity:
+            continue
+        result.append(
+            schemas.FlaggedMessageOut(
+                id=msg.id, session_id=session.id, owner_username=user.username, role=msg.role,
+                content=msg.content, flag_reason=msg.flag_reason, resolved=bool(msg.resolved), created_at=msg.created_at,
+                owner_id=user.id, owner_org_name=user.org_name, owner_is_active=bool(user.is_active),
+                source=_source_value(session), visitor_label=session.visitor_label,
+                severity=info["severity"], category=info["category"], label=info["label"], codes=info["codes"],
+            )
         )
-        for msg, session, user in rows
-    ]
+        if len(result) >= limit:
+            break
+    return result
+
+
+@router.get("/security/summary", response_model=schemas.SecuritySummaryOut)
+def security_summary(db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
+    """شمارنده‌های سبکِ هشدار برای نشان‌دادن Badge و اعلان زنده در همه‌ی صفحه‌های ادمین."""
+    rows = (
+        db.query(models.ChatMessage.id, models.ChatMessage.flag_reason, models.ChatMessage.created_at, models.ChatSession.source, models.User.username)
+        .join(models.ChatSession, models.ChatMessage.session_id == models.ChatSession.id)
+        .join(models.User, models.ChatSession.user_id == models.User.id)
+        .filter(models.ChatMessage.is_flagged.is_(True), models.ChatMessage.resolved.is_(False))
+        .order_by(models.ChatMessage.created_at.desc(), models.ChatMessage.id.desc())
+        .limit(500)
+        .all()
+    )
+    counts = {"critical": 0, "high": 0, "medium": 0}
+    extraction = 0
+    latest = None
+    for msg_id, reason, created_at, source, username in rows:
+        info = injection_scanner.describe_reason(reason)
+        counts[info["severity"]] += 1
+        if info["category"] == "prompt_extraction":
+            extraction += 1
+        if latest is None:
+            latest = schemas.SecurityAlertOut(
+                id=msg_id, owner_username=username, severity=info["severity"], label=info["label"],
+                source=getattr(source, "value", source), created_at=created_at,
+            )
+    return schemas.SecuritySummaryOut(
+        unresolved_total=len(rows), critical=counts["critical"], high=counts["high"], medium=counts["medium"],
+        prompt_extraction=extraction, latest=latest,
+    )
 
 
 @router.post("/security/flags/{message_id}/resolve")

@@ -352,8 +352,36 @@ class FlaggedMessageOut(BaseModel):
     flag_reason: Optional[str] = None
     resolved: bool
     created_at: datetime
+    # فیلدهای تکمیلیِ نظارت امنیتی (از روی کدهای flag_reason و نشست محاسبه می‌شوند؛ ستون جدیدی لازم نیست)
+    owner_id: Optional[int] = None
+    owner_org_name: Optional[str] = None
+    owner_is_active: Optional[bool] = None
+    source: Optional[str] = None
+    visitor_label: Optional[str] = None
+    severity: str = "high"
+    category: str = "instruction_override"
+    label: str = ""
+    codes: list[str] = []
 
     model_config = {"from_attributes": True}
+
+
+class SecurityAlertOut(BaseModel):
+    id: int
+    owner_username: str
+    severity: str
+    label: str
+    source: Optional[str] = None
+    created_at: datetime
+
+
+class SecuritySummaryOut(BaseModel):
+    unresolved_total: int
+    critical: int
+    high: int
+    medium: int
+    prompt_extraction: int
+    latest: Optional[SecurityAlertOut] = None
 
 
 class ImpersonateResponse(BaseModel):
