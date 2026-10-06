@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from .. import models
 from . import injection_scanner, llm_client, rag_store
+from .common_responses import get_common_response
 
 logger = logging.getLogger("quasar.rag")
 
@@ -48,6 +49,7 @@ class RagPlan:
     model: str
     temperature: float
     no_answer: Optional[str] = None
+    instant_reply: Optional[str] = None
     started: float = 0.0
     embedding_ms: int = 0
     search_ms: int = 0
@@ -62,9 +64,19 @@ def prepare_rag_chat(
 ) -> RagPlan:
     """بازیابی معنایی + ساخت پیام‌های مدل (بدون صدازدن مدل چت)."""
     settings = owner.settings
-    provider = llm_client.resolve_provider(settings)
     started = time.perf_counter()
     selected_model = model or settings.chat_model
+
+    # پیام‌های پرتکرار را بدون embedding و بدون تماس با مدل پاسخ بده.
+    common_reply = get_common_response(user_message)
+    if common_reply:
+        return RagPlan(
+            matches=[], messages=[], provider=None, model=selected_model,
+            temperature=settings.temperature or 0.7, started=started,
+            instant_reply=common_reply,
+        )
+
+    provider = llm_client.resolve_provider(settings)
 
     embedding_started = time.perf_counter()
     query_embedding = llm_client.embed_text(user_message, provider)
@@ -117,6 +129,8 @@ def run_rag_chat(
 ) -> Tuple[str, List[Tuple[models.Chunk, float]]]:
     """یک چرخه‌ی کامل RAG را روی «دانشنامه‌ی owner» اجرا می‌کند و پاسخ + منابع را برمی‌گرداند."""
     plan = prepare_rag_chat(db, owner, session, user_message, model=model)
+    if plan.instant_reply:
+        return plan.instant_reply, []
     if plan.no_answer:
         return plan.no_answer, []
     llm_started = time.perf_counter()
