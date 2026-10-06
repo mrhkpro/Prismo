@@ -11,6 +11,7 @@
   <style>
     :root{color-scheme:dark;--bg:#0f1623;--panel:#1a2332;--panel2:#141d2b;--border:rgba(255,255,255,.09);--text:#e6ebf2;--muted:#aeb7c6;--faint:#7f8a9d;--accent:#1abb9c;--accent2:#169f85;--blue:#066fd1;--shadow:0 28px 80px rgba(0,0,0,.42)}
     *{box-sizing:border-box}
+    ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(179,188,203,.25);border:2px solid transparent;background-clip:padding-box;border-radius:999px}::-webkit-scrollbar-thumb:hover{background:rgba(26,187,156,.55);background-clip:padding-box}html{scrollbar-width:thin;scrollbar-color:rgba(179,188,203,.32) transparent}
     html,body{margin:0;min-height:100%;font-family:'Vazirmatn',Tahoma,Arial,sans-serif}
     body{min-height:100vh;display:grid;place-items:center;padding:28px;direction:rtl;color:var(--text);background:
       radial-gradient(900px 520px at 92% -8%,rgba(26,187,156,.13),transparent 62%),
@@ -99,8 +100,35 @@
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.detail || 'تنظیمات ذخیره نشد.');
           status.className = 'setup-status ok';
-          status.textContent = 'انجام شد. در حال اجرای کوازار…';
-          setTimeout(() => location.href = '/', 900);
+          status.textContent = mode === 'supabase' ? 'Supabase انتخاب شد. در حال بررسی آماده‌شدن سرور…' : 'حالت لوکال انتخاب شد. در حال اجرای کوازار…';
+          let attempts = 0;
+          const waitForApp = async () => {
+            attempts += 1;
+            try {
+              const app = await fetch('http://127.0.0.1:8000/api/runtime', { cache: 'no-store', headers: {Accept:'application/json'} });
+              if (app.ok) { location.href = 'http://127.0.0.1:8000/'; return; }
+            } catch (_) {}
+            try {
+              const boot = await fetch('/__setup/status', {cache:'no-store'}).then(r => r.json());
+              if (boot.state === 'failed') {
+                throw new Error(boot.detail || 'برنامه اصلی اجرا نشد.');
+              }
+            } catch (bootErr) {
+              if (bootErr && bootErr.message) {
+                status.className = 'setup-status error';
+                status.textContent = bootErr.message;
+                options.querySelectorAll('button').forEach(b => b.disabled = false);
+                return;
+              }
+            }
+            if (attempts < 40) setTimeout(waitForApp, 500);
+            else {
+              status.className = 'setup-status error';
+              status.textContent = 'راه‌اندازی بیشتر از حد معمول طول کشید. فایل data/quasar-startup.log را بررسی کن.';
+              options.querySelectorAll('button').forEach(b => b.disabled = false);
+            }
+          };
+          waitForApp();
         } catch (err) {
           status.className = 'setup-status error';
           status.textContent = err.message || 'خطا در تنظیم پروژه.';
