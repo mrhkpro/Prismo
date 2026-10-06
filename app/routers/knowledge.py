@@ -8,6 +8,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..security import get_current_user
 from ..services import llm_client, rag_store, text_split
+from ..exceptions import LLMError
 
 router = APIRouter(prefix="/api/knowledge", tags=["دانشنامه"])
 
@@ -22,13 +23,21 @@ def _doc_out(doc: models.Document, chunk_count: int | None = None) -> schemas.Do
     )
 
 
-def _index_document(db: Session, user: models.User, doc: models.Document) -> None:
-    """متن سند را تکه‌تکه، امبد و در فروشگاه برداری ذخیره می‌کند."""
+def _build_index_payload(user: models.User, doc: models.Document):
+    """قطعه‌بندی و embedding را قبل از دست‌زدن به chunkهای قبلی آماده می‌کند."""
     provider = llm_client.resolve_provider(user.settings)
     pieces = text_split.split_text(doc.content)
     if not pieces:
-        return
+        return [], []
     embeddings = llm_client.embed_texts(pieces, provider)
+    return pieces, embeddings
+
+
+def _index_document(db: Session, user: models.User, doc: models.Document) -> None:
+    """متن سند را تکه‌تکه، امبد و در فروشگاه برداری ذخیره می‌کند."""
+    pieces, embeddings = _build_index_payload(user, doc)
+    if not pieces:
+        return
     rag_store.add_chunks(db, user.id, doc.id, pieces, embeddings)
 
 
@@ -57,10 +66,19 @@ def create_document(
     db.add(doc)
     db.flush()
 
-    _index_document(db, current_user, doc)
-
+    # متن سند باید حتی در صورت قطعی embedding ذخیره شود؛ شکست provider نباید
+    # کل عملیات «ذخیره اطلاعات» را به خطای 500 تبدیل کند.
     db.commit()
     db.refresh(doc)
+
+    try:
+        _index_document(db, current_user, doc)
+        db.commit()
+    except LLMError:
+        db.rollback()
+        # سند خام عمداً نگه داشته می‌شود؛ کاربر بعداً می‌تواند reindex کند.
+        db.refresh(doc)
+
     return _doc_out(doc)
 
 
@@ -108,10 +126,12 @@ def update_document(
     doc.updated_at = datetime.utcnow()
 
     if content_changed:
-        # چون متن تغییر کرده، باید تکه‌ها و بردارهای قبلی را دور ریخته و دوباره بسازیم
+        # ابتدا embedding متن جدید را آماده می‌کنیم؛ اگر provider قطع باشد،
+        # chunkهای قدیمی دست‌نخورده می‌مانند و خود متن جدید ذخیره می‌شود.
+        pieces, embeddings = _build_index_payload(current_user, doc)
         rag_store.delete_document_chunks(db, doc.id)
-        db.flush()
-        _index_document(db, current_user, doc)
+        if pieces:
+            rag_store.add_chunks(db, current_user.id, doc.id, pieces, embeddings)
 
     db.commit()
     db.refresh(doc)
