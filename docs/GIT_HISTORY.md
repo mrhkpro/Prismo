@@ -59,3 +59,19 @@ Baseline first, then the redesign, then tests and the fixes they uncovered. Ever
 - `fix/playground-session-source-scope` → playground only continues playground sessions
 - `docs/release-2.4.0` → changelog and this history
 
+## v2.5.0 release chain
+
+- `style/gentelella-shell` → topbar, breadcrumb, rail/drawer sidebar, card primitives, skeleton styles
+- `style/ai-connection-redesign` → decluttered AI connection page
+- `feature/streaming-chat` → SSE streaming for lab chat and public widget
+- `feature/knowledge-file-import` → PDF/Office/OpenDocument/EPUB/... import in the browser
+- `feature/widget-extras-backend` → `widget_extras` JSON column, safe raw-SQL access, migration 002
+- `feature/widget-pixel-pet` → pixel pets, quick replies, teaser, live preview channel
+- `feature/widget-builder-redesign` → tabbed widget builder with swatches and embed theme
+- `fix/switch-knob-token` → token for the switch knob, sprite parity tests
+- `feature/admin-security-alerts` → scanner v2, severity, flags enrichment, summary endpoint
+- `feature/admin-security-ui` → live banner, badge, alert cards
+- `perf/lazy-loading-and-click-guard` → skeletons, on-demand scripts, GET de-dup, click guard, cache headers
+- `chore/release-2.5.0` → asset versions 2.5.0
+- `docs/release-2.5.0` → this changelog and history
+
