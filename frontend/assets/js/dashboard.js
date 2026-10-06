@@ -567,7 +567,7 @@ async function importFiles(fileList) {
   let completedFiles = 0;
   try {
     try {
-      await Lazy.script("/assets/js/extract.js?v=2.6.0");
+      await Lazy.script("/assets/js/extract.js?v=2.6.3");
     } catch (err) {
       return toastError(err);
     }
@@ -827,14 +827,22 @@ async function sendChatMessage() {
 
   try {
     try {
-      await chatViaStream(message, selectedModel, bubble);
+      const streamResult = await chatViaStream(message, selectedModel, bubble);
+      // اگر اتصال SSE ظاهراً موفق شد ولی هیچ deltaای نرسید، همان درخواست را
+      // یک‌جا تکرار می‌کنیم تا پراکسی/سرورهای ناسازگار باعث «خطا در پاسخ» نشوند.
+      if (streamResult && !streamResult.gotDelta && bubble.dataset.hasText !== "1") {
+        await chatViaRequest(message, selectedModel, bubble);
+      }
     } catch (err) {
       if (err && err.aborted) {
-        // کاربر خودش متوقف کرد: متن تا اینجا می‌ماند
+        // توقف دستی، بدون تبدیل آن به خطای قرمز.
         if (bubble.dataset.hasText !== "1") bubble.textContent = "پاسخ متوقف شد.";
         bubble.classList.remove("pending");
-      } else if (err && STREAM_FALLBACK_STATUSES.includes(err.status) && bubble.dataset.hasText !== "1") {
+      } else if (bubble.dataset.hasText !== "1" && (err?.streamError || STREAM_FALLBACK_STATUSES.includes(err?.status))) {
+        // خطای خود Stream را مخفی می‌کنیم و مسیر معمولی را امتحان می‌کنیم.
         await chatViaRequest(message, selectedModel, bubble);
+      } else if (bubble.dataset.hasText === "1") {
+        // اگر بخشی از پاسخ آمده، آن را نگه می‌داریم و UI را با پیام خطا خراب نمی‌کنیم.
       } else {
         throw err;
       }
@@ -1051,7 +1059,7 @@ async function loadWidgetSection() {
     const [cfg, embed] = await Promise.all([
       apiCall("/api/widget/config"),
       apiCall("/api/widget/embed-code"),
-      Lazy.script("/assets/js/pets.js?v=2.6.0").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+      Lazy.script("/assets/js/pets.js?v=2.6.3").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
     ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";

@@ -5,15 +5,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_auth_page_uses_versioned_assets_and_theme_support():
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert "/assets/css/style.css?v=2.6.2" in html
-    assert "/assets/js/theme.js?v=2.6.2" in html
-    assert "/assets/js/auth.js?v=2.6.2" in html
+    assert "/assets/css/style.css?v=2.6.3" in html
+    assert "/assets/js/theme.js?v=2.6.3" in html
+    assert "/assets/js/auth.js?v=2.6.3" in html
 
 
 def test_admin_page_loads_theme_support():
     html = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
-    assert "/assets/js/theme.js?v=2.6.2" in html
-    assert "/assets/css/style.css?v=2.6.2" in html
+    assert "/assets/js/theme.js?v=2.6.3" in html
+    assert "/assets/css/style.css?v=2.6.3" in html
 
 
 def test_theme_script_is_safe_without_local_storage():
@@ -73,3 +73,16 @@ def test_file_import_supports_pdf_and_office_formats():
         assert f'"{ext}"' in js, ext
     assert (ROOT / "frontend" / "assets" / "vendor" / "pdfjs" / "pdf.min.js").exists()
     assert (ROOT / "frontend" / "assets" / "vendor" / "pdfjs" / "pdf.worker.min.js").exists()
+
+
+def test_all_entry_pages_are_not_indexed_or_archived():
+    for name in ("index.html", "dashboard.html", "admin.html", "setup.html", "widget-preview.html"):
+        html = (ROOT / "frontend" / name).read_text(encoding="utf-8")
+        assert 'noindex, noarchive, nosnippet, noimageindex' in html
+
+
+def test_greeting_demo_emoji_is_styled_instead_of_raw_text_only():
+    html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+    css = (ROOT / "frontend" / "assets" / "css" / "style.css").read_text(encoding="utf-8")
+    assert 'class="demo-welcome-emoji"' in html
+    assert '.demo-welcome-emoji' in css

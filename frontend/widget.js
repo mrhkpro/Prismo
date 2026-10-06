@@ -82,6 +82,39 @@
       } catch (e) { /* noop */ }
     }
 
+    function normalizeQuickText(value) {
+      return String(value || "")
+        .toLowerCase()
+        .replace(/[يى]/g, "ی").replace(/ك/g, "ک")
+        .replace(/[ۀة]/g, "ه")
+        .replace(/[\u{1F1E6}-\u{1FAFF}\u2600-\u27BF]/gu, " ")
+        .replace(/[\u200d\ufe0f]/g, " ")
+        .replace(/[!؟?،.,؛;]+/g, " ")
+        .replace(/\s+/g, " ").trim();
+    }
+
+    var QUICK_RESPONSES = {
+      "سلام": "سلام! 👋 خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
+      "درود": "سلام! 👋 خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
+      "hi": "سلام! 👋 خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
+      "hello": "سلام! 👋 خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
+      "خوبی": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
+      "حالت چطوره": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
+      "حالت خوبه": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
+      "چطوری": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
+      "چه خبر": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
+      "ممنون": "خواهش می‌کنم 🌱",
+      "مرسی": "خواهش می‌کنم 🌱",
+      "متشکرم": "خواهش می‌کنم 🌱",
+      "خداحافظ": "خداحافظ! 👋 هر وقت خواستی من اینجام.",
+      "فعلا": "خداحافظ! 👋 هر وقت خواستی من اینجام.",
+      "بای": "خداحافظ! 👋 هر وقت خواستی من اینجام."
+    };
+
+    function getQuickReply(text) {
+      return QUICK_RESPONSES[normalizeQuickText(text)] || null;
+    }
+
     function fetchJson(url, options, timeoutMs) {
       var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
       var timer = controller && timeoutMs > 0 ? setTimeout(function () { controller.abort(); }, timeoutMs) : null;
@@ -321,13 +354,31 @@
       input.style.height = "42px";
       hideQuickReplies();
       addMessage("user", text);
+      var chatUrl = API_BASE + "/public/widget/" + encodeURIComponent(WIDGET_ID) + "/chat";
       var pending = addMessage("bot", "در حال پاسخ…");
       pending.classList.add("pending");
       isSending = true;
+
+      var quickReply = getQuickReply(text);
+      if (quickReply) {
+        pending.classList.remove("pending");
+        pending.textContent = quickReply;
+        pending.classList.add("streaming");
+        isSending = false;
+        sendBtn.disabled = false;
+        petReact("happy");
+        var quickPayload = { message: text, session_id: getSessionId(), visitor_label: getVisitorLabel() };
+        fetch(chatUrl, {
+          method: "POST", headers: {"Content-Type":"application/json", "Cache-Control":"no-cache"},
+          body: JSON.stringify(quickPayload), cache: "no-store", keepalive: true
+        }).then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (d) { if (d && d.session_id) setSessionId(d.session_id); })
+          .catch(function () {});
+        return;
+      }
+
       sendBtn.disabled = true;
       petReact("think");
-
-      var chatUrl = API_BASE + "/public/widget/" + encodeURIComponent(WIDGET_ID) + "/chat";
       var payload = { message: text, session_id: getSessionId(), visitor_label: getVisitorLabel() };
       var fullText = "";
       var raf = null;
