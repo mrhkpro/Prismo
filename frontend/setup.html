@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>راه‌اندازی کوازار</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="/assets/css/style.css?v=2.6.0">
+  <style>
+    body{display:grid;place-items:center;padding:24px;min-height:100vh}
+    .setup-wrap{width:min(760px,100%)}
+    .setup-card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-pop);padding:34px}
+    .setup-mark{width:48px;height:48px;border-radius:var(--radius-md);display:grid;place-items:center;background:var(--grad-brand);color:var(--on-accent);margin-bottom:18px;font-weight:800;font-size:20px}
+    .setup-title{font-size:28px;margin-bottom:8px}.setup-sub{color:var(--text-muted);margin-bottom:26px;line-height:1.9}
+    .setup-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .setup-option{border:1px solid var(--border);background:var(--bg-elevated-2);color:var(--text);border-radius:var(--radius-md);padding:22px;text-align:right;cursor:pointer;transition:.16s}
+    .setup-option:hover{border-color:var(--accent-line);transform:translateY(-2px);box-shadow:var(--shadow-card)}
+    .setup-option strong{display:block;font-size:16px;margin-bottom:7px}.setup-option span{display:block;color:var(--text-muted);line-height:1.8;font-size:13px}
+    .setup-status{min-height:24px;margin-top:18px;color:var(--text-muted);font-size:13px}.setup-status.error{color:var(--danger)}.setup-status.ok{color:var(--success)}
+    .setup-foot{margin-top:24px;color:var(--text-faint);font-size:12px;line-height:1.8}
+    @media(max-width:640px){.setup-card{padding:22px}.setup-grid{grid-template-columns:1fr}.setup-title{font-size:23px}}
+  </style>
+</head>
+<body>
+  <main class="setup-wrap">
+    <section class="setup-card" aria-labelledby="setupTitle">
+      <div class="setup-mark">Q</div>
+      <h1 class="setup-title" id="setupTitle">کوازار را چطور اجرا کنیم؟</h1>
+      <p class="setup-sub" id="setupSub">برای همین اجرای فعلی یکی را انتخاب کن. این صفحه فقط از طریق <b>setup.bat</b> نمایش داده می‌شود؛ اجرای معمول سایت دیگر این سؤال را نشان نمی‌دهد.</p>
+      <div class="setup-grid" id="setupOptions">
+        <button class="setup-option" type="button" data-mode="local">
+          <strong>کاملاً لوکال</strong>
+          <span>SQLite داخلی، بدون Supabase و مناسب اجرای سریع روی همین سیستم.</span>
+        </button>
+        <button class="setup-option" type="button" data-mode="supabase">
+          <strong>Supabase</strong>
+          <span>PostgreSQL / Supabase با تنظیمات قبلی پروژه برای اجرای ابری یا اتصال مستقیم.</span>
+        </button>
+      </div>
+      <div class="setup-status" id="setupStatus" aria-live="polite"></div>
+      <div class="setup-foot">در Vercel این صفحه وارد چرخه اجرای برنامه نمی‌شود و انتخاب دیتابیس از طریق Environment Variables پروژه انجام می‌شود.</div>
+    </section>
+  </main>
+  <script>
+  (async function () {
+    const status = document.getElementById('setupStatus');
+    const options = document.getElementById('setupOptions');
+    try {
+      const runtime = await fetch('/api/runtime', {headers:{Accept:'application/json'}}).then(r => r.ok ? r.json() : null);
+      if (runtime && runtime.vercel) {
+        document.getElementById('setupTitle').textContent = 'این نسخه روی Vercel اجرا می‌شود';
+        document.getElementById('setupSub').textContent = 'انتخاب دیتابیس در Vercel از متغیرهای محیطی انجام می‌شود؛ این صفحه نباید برای اجرای عادی نمایش داده شود.';
+        options.style.display = 'none';
+        status.textContent = 'در حال انتقال به صفحه اصلی…';
+        setTimeout(() => location.href = '/', 700);
+        return;
+      }
+    } catch (_) {}
+
+    options.querySelectorAll('[data-mode]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const mode = btn.dataset.mode;
+        options.querySelectorAll('button').forEach(b => b.disabled = true);
+        status.className = 'setup-status';
+        status.textContent = mode === 'local' ? 'در حال تنظیم اجرای کاملاً لوکال…' : 'در حال تنظیم اتصال Supabase…';
+        try {
+          const response = await fetch('/__setup/choose', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','Accept':'application/json'},
+            body: JSON.stringify({mode})
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.detail || 'تنظیمات ذخیره نشد.');
+          status.className = 'setup-status ok';
+          status.textContent = 'انجام شد. در حال اجرای کوازار…';
+          setTimeout(() => location.href = '/', 900);
+        } catch (err) {
+          status.className = 'setup-status error';
+          status.textContent = err.message || 'خطا در تنظیم پروژه.';
+          options.querySelectorAll('button').forEach(b => b.disabled = false);
+        }
+      });
+    });
+  })();
+  </script>
+</body>
+</html>
