@@ -31,9 +31,9 @@ def test_api_client_enforces_request_timeout_and_accessible_toast():
     assert 'aria-live' in js
 
 
-def test_chat_request_uses_longer_timeout_and_explicit_selected_model():
+def test_chat_request_waits_without_a_client_deadline_and_explicitly_sends_selected_model():
     js = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
-    assert 'timeoutMs: 90000' in js
+    assert 'timeoutMs: 0' in js
     assert 'selectedModel = CURRENT_SETTINGS && CURRENT_SETTINGS.chat_model' in js
     assert 'model: selectedModel' in js
 

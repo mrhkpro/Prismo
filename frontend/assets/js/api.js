@@ -34,7 +34,7 @@ async function apiCallRaw(path, { method = "GET", body = null, auth = true, time
 
   let res;
   const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-  const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  const timeoutId = controller && timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
   try {
     res = await fetch(path, {
       method,
@@ -44,7 +44,7 @@ async function apiCallRaw(path, { method = "GET", body = null, auth = true, time
     });
   } catch (networkErr) {
     if (networkErr && networkErr.name === "AbortError") {
-      throw new Error("پاسخ سرور بیش از حد طول کشید. دوباره تلاش کنید.");
+      throw new Error("درخواست متوقف شد.");
     }
     throw new Error("ارتباط با سرور برقرار نشد. مطمئن شوید بک‌اند در حال اجراست.");
   } finally {
@@ -171,7 +171,7 @@ const Skel = {
 // خطاهایی که یعنی «سرور استریم ندارد» و فراخوان می‌تواند به نسخه‌ی غیراستریم برگردد
 const STREAM_FALLBACK_STATUSES = [404, 405, 415, 501];
 
-async function apiStream(path, { body, onMeta, onDelta, signal, auth = true, idleTimeoutMs = 90000 } = {}) {
+async function apiStream(path, { body, onMeta, onDelta, signal, auth = true, idleTimeoutMs = 0 } = {}) {
   const headers = { "Content-Type": "application/json", Accept: "text/event-stream" };
   if (auth) {
     const token = Auth.getToken();
@@ -184,7 +184,7 @@ async function apiStream(path, { body, onMeta, onDelta, signal, auth = true, idl
   let idleTimer = null;
   const armIdle = () => {
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => controller.abort(), idleTimeoutMs);
+    if (idleTimeoutMs > 0) idleTimer = setTimeout(() => controller.abort(), idleTimeoutMs);
   };
 
   let res;
@@ -194,7 +194,7 @@ async function apiStream(path, { body, onMeta, onDelta, signal, auth = true, idl
   } catch (err) {
     clearTimeout(idleTimer);
     if (err && err.name === "AbortError") {
-      const e = new Error(signal && signal.aborted ? "متوقف شد." : "پاسخ سرور بیش از حد طول کشید.");
+      const e = new Error(signal && signal.aborted ? "متوقف شد." : "ارتباط با سرویس قطع شد.");
       e.aborted = Boolean(signal && signal.aborted);
       throw e;
     }
@@ -263,7 +263,7 @@ async function apiStream(path, { body, onMeta, onDelta, signal, auth = true, idl
     if (buffer.trim()) handleFrame(buffer);
   } catch (err) {
     if (err && err.name === "AbortError") {
-      const e = new Error(signal && signal.aborted ? "متوقف شد." : "پاسخ سرور بیش از حد طول کشید.");
+      const e = new Error(signal && signal.aborted ? "متوقف شد." : "ارتباط با سرویس قطع شد.");
       e.aborted = Boolean(signal && signal.aborted);
       e.partial = gotDelta;
       throw e;
