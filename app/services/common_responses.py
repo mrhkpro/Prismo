@@ -42,7 +42,10 @@ def _normalize(text: str) -> str:
     text = (text or "").strip().lower()
     text = text.replace("ي", "ی").replace("ى", "ی").replace("ك", "ک")
     text = text.replace("ۀ", "ه").replace("ة", "ه")
-    text = re.sub(r"\s+", " ", text)
+    # ایموجی و نشانه‌های تزئینی نباید باعث شوند «سلام 👋» از پاسخ آماده خارج شود.
+    text = re.sub(r"[\U0001F1E6-\U0001FAFF\u2600-\u27BF]", " ", text)
+    text = re.sub(r"[\u200d\ufe0f]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
     return text
 
 
