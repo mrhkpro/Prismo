@@ -129,9 +129,9 @@ def chat_test_stream(
                 rag_pipeline.log_rag_timing(owner_id, plan, int((time.perf_counter() - started) * 1000))
             yield streaming.sse("done", {})
         except llm_client.LLMError as exc:
-            yield streaming.sse("error", {"message": str(exc), "partial": bool(collected)})
+            yield streaming.sse("error", {"message": str(exc), "retry": True, "partial": bool(collected)})
         except Exception:  # noqa: BLE001
-            yield streaming.sse("error", {"message": "فعلاً نتونستم پاسخ را آماده کنم. دوباره امتحان کن.", "partial": bool(collected)})
+            yield streaming.sse("error", {"message": "", "retry": True, "partial": bool(collected)})
         finally:
             text = "".join(collected)
             if text:

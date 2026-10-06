@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -7,6 +7,13 @@ from ..database import get_db
 from ..services import llm_client, rag_pipeline, rate_limit, streaming, widget_extras
 
 router = APIRouter(prefix="/public/widget", tags=["ویجت عمومی (بدون نیاز به ورود)"])
+
+WIDGET_PRIVATE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, no-transform, private",
+    "Pragma": "no-cache",
+    "Expires": "0",
+    "X-Robots-Tag": "noindex, noarchive, nosnippet",
+}
 
 
 def _get_owner_by_widget(db: Session, widget_id: str) -> models.User:
@@ -20,7 +27,7 @@ def _get_owner_by_widget(db: Session, widget_id: str) -> models.User:
 def widget_public_config(widget_id: str, db: Session = Depends(get_db)):
     owner = _get_owner_by_widget(db, widget_id)
     s = owner.settings
-    return schemas.WidgetPublicConfig(
+    payload = schemas.WidgetPublicConfig(
         widget_id=s.widget_id,
         title=s.widget_title,
         welcome_message=s.widget_welcome_message,
@@ -29,6 +36,7 @@ def widget_public_config(widget_id: str, db: Session = Depends(get_db)):
         online=owner.is_active,
         extras=widget_extras.load(db, owner.id)[0],
     )
+    return JSONResponse(content=payload.model_dump(), headers=WIDGET_PRIVATE_HEADERS)
 
 
 @router.post("/{widget_id}/chat", response_model=schemas.WidgetChatResponse)
@@ -68,7 +76,7 @@ def widget_chat(widget_id: str, payload: schemas.WidgetChatRequest, request: Req
 
     rag_pipeline.save_turn(db, session, payload.message, reply)
 
-    return schemas.WidgetChatResponse(session_id=session.id, reply=reply)
+    return JSONResponse(content=schemas.WidgetChatResponse(session_id=session.id, reply=reply).model_dump(), headers=WIDGET_PRIVATE_HEADERS)
 
 
 @router.post("/{widget_id}/chat/stream")
@@ -120,10 +128,10 @@ def widget_chat_stream(widget_id: str, payload: schemas.WidgetChatRequest, reque
                 yield from streaming.relay_model_stream(pieces, collected)
             yield streaming.sse("done", {})
         except llm_client.LLMError as exc:
-            yield streaming.sse("error", {"message": str(exc), "partial": bool(collected)})
+            yield streaming.sse("error", {"message": "", "retry": True, "partial": bool(collected)})
         except Exception:  # noqa: BLE001
             # خطاهای غیرقابل پیش‌بینی نباید در UI به «500 + شناسه درخواست» تبدیل شوند.
-            yield streaming.sse("error", {"message": "فعلاً نتونستم پاسخ را آماده کنم. دوباره امتحان کن.", "partial": bool(collected)})
+            yield streaming.sse("error", {"message": "", "retry": True, "partial": bool(collected)})
         finally:
             text = "".join(collected)
             if text:

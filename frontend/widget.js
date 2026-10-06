@@ -151,8 +151,10 @@
           if (event === "meta" && handlers.meta) handlers.meta(data);
           else if (event === "delta" && handlers.delta) handlers.delta(data.t || "");
           else if (event === "error") {
-            var err = new Error(data.message || "خطا در دریافت پاسخ.");
+            var err = new Error(data.message || "STREAM_RETRY");
             err.streamError = true;
+            err.retry = data.retry !== false;
+            err.partial = Boolean(data.partial);
             throw err;
           }
         }
@@ -344,16 +346,18 @@
           if (raf === null) raf = requestAnimationFrame(paint);
         }
       }, 0).catch(function (err) {
-        if (!fullText && err && FALLBACK_STATUSES.indexOf(err.status) !== -1) {
-          // سرور/مرورگر استریم ندارد → همان درخواست را یک‌جا بفرست
+        // قطع/خطای SSE را به کاربر نشان نده؛ همان پیام را به صورت یک‌جا
+        // دوباره می‌فرستیم. این مسیر timeout ندارد تا پاسخ‌های طولانی قطع نشوند.
+        if (!fullText && (err && (err.streamError || err.status === undefined || FALLBACK_STATUSES.indexOf(err.status) !== -1))) {
           payload.session_id = getSessionId();
           return fetchJson(chatUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-          }, 30000).then(function (data) {
+            headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
+            body: JSON.stringify(payload),
+            cache: "no-store"
+          }, 0).then(function (data) {
             setSessionId(data.session_id);
-            fullText = data.reply || "پاسخی دریافت نشد.";
+            fullText = data.reply || "";
           });
         }
         throw err;
@@ -364,13 +368,16 @@
       }).catch(function (err) {
         if (raf !== null) cancelAnimationFrame(raf);
         pending.classList.remove("streaming");
-        var message = err && err.message ? err.message : "ارتباط با سرویس برقرار نشد.";
+        // متن‌های داخلی Abort/SSE هرگز مستقیم به کاربر نمایش داده نمی‌شوند.
+        var internal = err && (err.message === "متوقف شد." || err.message === "STREAM_RETRY" || err.name === "AbortError");
+        var message = internal ? "" : (err && err.message ? err.message : "ارتباط با سرویس برقرار نشد.");
         if (fullText) {
           pending.textContent = fullText;
+        } else if (message) {
+          pending.remove();
           addMessage("error", message);
         } else {
           pending.remove();
-          addMessage("error", message);
         }
         petReact("sad");
       }).finally(function () {
