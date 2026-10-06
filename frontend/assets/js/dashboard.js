@@ -529,7 +529,7 @@ document.getElementById("saveDocBtn").addEventListener("click", async () => {
 function ensureOperationProgress(title = "در حال پردازش…") {
   const host = document.getElementById("operationProgress");
   const titleEl = host ? host.querySelector(".operation-progress-title") : null;
-  const bar = host ? host.querySelector(".operation-progress-bar > span") : null;
+  const bar = host ? host.querySelector(".operation-progress-bar-fill") : null;
   const percentEl = host ? host.querySelector(".operation-progress-percent") : null;
   const existing = {
     set(percent, label) {
@@ -552,17 +552,58 @@ let IMPORT_BUSY = false;
 function addImportRow(name) {
   const row = document.createElement("div");
   row.className = "import-row";
-  row.innerHTML = `<span class="import-name"></span><span class="import-state"></span>`;
+  row.innerHTML = `<span class="import-name"></span><span class="import-state"></span><span class="import-percent">0٪</span><div class="import-meter"><span></span></div>`;
   row.querySelector(".import-name").textContent = name;
   importList.prepend(row);
   const state = row.querySelector(".import-state");
+  const meter = row.querySelector(".import-meter > span");
+  const percent = row.querySelector(".import-percent");
   return {
-    set(text, kind) {
+    set(text, kind, value) {
       state.textContent = text;
       row.dataset.kind = kind || "";
+      if (Number.isFinite(value)) {
+        const safe = Math.max(0, Math.min(100, value));
+        meter.style.width = `${safe}%`;
+        percent.textContent = `${Math.round(safe)}٪`;
+      }
     },
-    done() { setTimeout(() => row.classList.add("fade"), 6000); setTimeout(() => row.remove(), 6800); },
+    done() { this.set("✓ اضافه شد", "ok", 100); setTimeout(() => row.classList.add("fade"), 6000); setTimeout(() => row.remove(), 6800); },
   };
+}
+
+function apiUploadJson(path, body, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", path, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    const token = Auth.getToken();
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      let data = null;
+      try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch (_) {}
+      if (xhr.status === 401) {
+        Auth.clear();
+        location.href = "/index.html";
+        reject(new Error("نشست شما منقضی شده؛ دوباره وارد شوید."));
+        return;
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        const message = data && data.detail ? data.detail : `خطا (${xhr.status})`;
+        const error = new Error(typeof message === "string" ? message : JSON.stringify(message));
+        error.status = xhr.status;
+        reject(error);
+        return;
+      }
+      resolve(data);
+    };
+    xhr.onerror = () => reject(new Error("ارتباط با سرور برقرار نشد."));
+    xhr.onabort = () => reject(new Error("آپلود متوقف شد."));
+    xhr.send(JSON.stringify(body));
+  });
 }
 
 async function importFiles(fileList) {
@@ -578,7 +619,7 @@ async function importFiles(fileList) {
   let completedFiles = 0;
   try {
     try {
-      await Lazy.script("/assets/js/extract.js?v=2.6.4");
+      await Lazy.script("/assets/js/extract.js?v=2.6.5");
     } catch (err) {
       return toastError(err);
     }
@@ -586,12 +627,13 @@ async function importFiles(fileList) {
       const row = addImportRow(file.name);
       progress.set(Math.round((completedFiles / files.length) * 100), `در حال خواندن ${file.name}`);
       try {
-        row.set("در حال خواندن…", "work");
+        row.set("در حال خواندن…", "work", 5);
         const { title, text } = await FileExtract.extract(file, (page, total) => {
-          row.set(`خواندن صفحه ${page} از ${total}…`, "work");
+          const phase = total ? (page / total) * 20 : 10;
+          row.set(`خواندن صفحه ${page} از ${total}…`, "work", Math.min(20, phase));
           const base = (completedFiles / files.length) * 100;
           const share = total ? (page / total) * (100 / files.length) : 0;
-          progress.set(Math.min(99, base + share), `خواندن ${file.name}`);
+          progress.set(Math.min(99, base + share * 0.2), `خواندن ${file.name}`);
         });
 
         // فقط یک فایل کوچک: متن را برای بازبینی در همان ویرایشگر باز کن (رفتار قبلیِ آپلود TXT)
@@ -599,26 +641,30 @@ async function importFiles(fileList) {
           row.set("آماده‌ی بازبینی", "ok");
           EDITING_DOC_ID = null;
           openDocModal("افزودن سند جدید", title, text);
-          row.done();
+          row.set("✓ متن استخراج شد؛ آمادهٔ ذخیره", "ok", 100);
           continue;
         }
 
         const parts = FileExtract.splitForUpload(text);
         for (let i = 0; i < parts.length; i++) {
-          row.set(parts.length > 1 ? `ایندکس بخش ${i + 1} از ${parts.length}…` : "در حال ایندکس‌کردن…", "work");
+          row.set(parts.length > 1 ? `در حال ارسال و ایندکس بخش ${i + 1} از ${parts.length}` : "در حال ارسال و ایندکس…", "work", 20);
           const docTitle = parts.length > 1 ? `${title} (بخش ${i + 1} از ${parts.length})` : title;
           const base = (completedFiles / files.length) * 100;
-          const share = ((i + 1) / parts.length) * (100 / files.length);
-          progress.set(Math.min(99, base + share), `ایندکس ${file.name}`);
-          await apiCall("/api/knowledge/documents", { method: "POST", timeoutMs: 0, body: { title: docTitle.slice(0, 200), content: parts[i] } });
+          const share = 80 / parts.length;
+          await apiUploadJson("/api/knowledge/documents", { title: docTitle.slice(0, 200), content: parts[i] }, (uploadPercent) => {
+            const rowPercent = 20 + (uploadPercent / 100) * (share * 0.92);
+            row.set(parts.length > 1 ? `در حال آپلود/ایندکس بخش ${i + 1} از ${parts.length}` : "در حال آپلود و ایندکس…", "work", rowPercent);
+            const totalWithinFile = ((i * share) + (uploadPercent / 100) * share);
+            progress.set(Math.min(99, ((completedFiles * 100) / files.length) + ((20 + totalWithinFile) / files.length)), `آپلود ${file.name}`);
+          });
+          row.set(parts.length > 1 ? `ایندکس بخش ${i + 1} از ${parts.length}` : "ایندکس نهایی…", "work", 98);
           imported += 1;
         }
-        row.set(parts.length > 1 ? `✓ ${parts.length} بخش اضافه شد` : "✓ اضافه شد", "ok");
+        row.done();
         completedFiles += 1;
         progress.set(Math.round((completedFiles / files.length) * 100), `${completedFiles} از ${files.length} فایل انجام شد`);
-        row.done();
       } catch (err) {
-        row.set(err && err.message ? err.message : "ناموفق", "error");
+        row.set(err && err.message ? err.message : "ناموفق", "error", 100);
         completedFiles += 1;
         progress.set(Math.round((completedFiles / files.length) * 100), `${completedFiles} از ${files.length} فایل`);
       }
@@ -715,11 +761,22 @@ document.querySelectorAll("#view-test-lab .tab-btn").forEach((btn) => {
 });
 
 // --- تست گفت‌وگوی RAG ---
+function renderChatMarkdown(value) {
+  const source = String(value ?? "");
+  let html = escapeHtml(source);
+  html = html.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  html = html.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__([^_\n]+)__/g, "<strong>$1</strong>");
+  html = html.replace(/\n/g, "<br>");
+  return html;
+}
+
 function appendChatMsg(role, text) {
   const stream = document.getElementById("chatStream");
   const el = document.createElement("div");
   el.className = `chat-msg ${role === "user" ? "user" : "bot"}`;
-  el.textContent = text;
+  if (role === "user") el.textContent = text;
+  else el.innerHTML = renderChatMarkdown(text);
   stream.appendChild(el);
   stream.scrollTop = stream.scrollHeight;
   return el;
@@ -769,13 +826,13 @@ async function chatViaStream(message, selectedModel, bubble) {
   let frame = null;
   const paint = () => {
     frame = null;
-    bubble.textContent = text;
+    bubble.innerHTML = renderChatMarkdown(text);
     const stream = document.getElementById("chatStream");
     stream.scrollTop = stream.scrollHeight;
   };
   CHAT_ABORT = new AbortController();
   try {
-    await apiStream("/api/playground/chat/stream", {
+    const streamResult = await apiStream("/api/playground/chat/stream", {
       signal: CHAT_ABORT.signal,
       body: { message, session_id: CHAT_SESSION_ID, ...(selectedModel ? { model: selectedModel } : {}) },
       onMeta: (meta) => {
@@ -792,9 +849,10 @@ async function chatViaStream(message, selectedModel, bubble) {
         if (frame === null) frame = requestAnimationFrame(paint);
       },
     });
+    return streamResult;
   } finally {
     if (frame !== null) cancelAnimationFrame(frame);
-    if (text) bubble.textContent = text;
+    if (text) bubble.innerHTML = renderChatMarkdown(text);
     bubble.classList.remove("streaming");
     CHAT_ABORT = null;
   }
@@ -808,7 +866,7 @@ async function chatViaRequest(message, selectedModel, bubble) {
     body: { message, session_id: CHAT_SESSION_ID, ...(selectedModel ? { model: selectedModel } : {}) },
   });
   CHAT_SESSION_ID = res.session_id;
-  bubble.textContent = res.reply;
+  bubble.innerHTML = renderChatMarkdown(res.reply);
   bubble.classList.remove("pending");
   document.getElementById("activeChatModelBadge").textContent = res.model || selectedModel || "—";
   renderChatSources(res.sources);
@@ -830,7 +888,7 @@ async function sendChatMessage() {
   sendBtn.title = "توقف پاسخ";
   input.value = "";
   appendChatMsg("user", message);
-  const bubble = appendChatMsg("bot", "در حال آماده‌سازی پاسخ…");
+  const bubble = appendChatMsg("bot", "در حال آماده‌سازی پاسخ");
   bubble.classList.add("pending", "streaming");
 
   // همیشه مدل فعلی تنظیمات را صریحاً به backend می‌فرستیم
@@ -846,8 +904,7 @@ async function sendChatMessage() {
       }
     } catch (err) {
       if (err && err.aborted) {
-        // توقف دستی، بدون تبدیل آن به خطای قرمز.
-        if (bubble.dataset.hasText !== "1") bubble.textContent = "پاسخ متوقف شد.";
+        // توقف دستی: متن فعلی را نگه می‌داریم و پیام خطا نمی‌سازیم.
         bubble.classList.remove("pending");
       } else if (bubble.dataset.hasText !== "1" && (err?.streamError || STREAM_FALLBACK_STATUSES.includes(err?.status))) {
         // خطای خود Stream را مخفی می‌کنیم و مسیر معمولی را امتحان می‌کنیم.
@@ -1070,7 +1127,7 @@ async function loadWidgetSection() {
     const [cfg, embed] = await Promise.all([
       apiCall("/api/widget/config"),
       apiCall("/api/widget/embed-code"),
-      Lazy.script("/assets/js/pets.js?v=2.6.4").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+      Lazy.script("/assets/js/pets.js?v=2.6.5").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
     ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";
