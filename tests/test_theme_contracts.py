@@ -130,10 +130,21 @@ class PageWiringTests(unittest.TestCase):
             versions.update(re.findall(r"\?v=(\d+\.\d+\.\d+)", self.read(page)))
         self.assertEqual(versions, {"2.4.0"})
 
-    def test_new_scripts_are_loaded_lazily(self):
+    def test_heavy_scripts_are_loaded_on_demand_not_with_the_page(self):
         dashboard = self.read("dashboard.html")
-        for script in ("extract.js", "pets.js", "shell.js"):
-            self.assertRegex(dashboard, rf'<script src="/assets/js/{script}\?v=[\d.]+" defer></script>', script)
+        self.assertRegex(dashboard, r'<script src="/assets/js/shell.js\?v=[\d.]+" defer></script>')
+        for script in ("extract.js", "pets.js"):
+            self.assertNotIn(f"/assets/js/{script}", dashboard, f"{script} باید با Lazy.script بارگذاری شود نه با صفحه")
+        js = (FRONTEND / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('Lazy.script("/assets/js/extract.js', js)
+        self.assertIn('Lazy.script("/assets/js/pets.js', js)
+
+    def test_fonts_do_not_block_rendering(self):
+        for page in ("index.html", "dashboard.html", "admin.html"):
+            html = self.read(page)
+            self.assertIn('rel="preconnect" href="https://fonts.googleapis.com"', html, page)
+            self.assertIn("onload=\"this.media='all'\"", html, page)
+        self.assertNotIn("@import", CSS)
 
     def test_brand_icons_follow_theme_text_colour(self):
         for page in ("index.html", "dashboard.html", "admin.html"):

@@ -25,7 +25,7 @@ const Auth = {
   },
 };
 
-async function apiCall(path, { method = "GET", body = null, auth = true, timeoutMs = 30000 } = {}) {
+async function apiCallRaw(path, { method = "GET", body = null, auth = true, timeoutMs = 30000 } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth) {
     const token = Auth.getToken();
@@ -73,6 +73,97 @@ async function apiCall(path, { method = "GET", body = null, auth = true, timeout
   }
   return data;
 }
+
+
+// ---------------------------------------------------------------------------
+// سرعت و رفتار کلیک: ادغام درخواست‌های GET هم‌زمان، قفل اجرای تکراری، لود تنبل اسکریپت
+// ---------------------------------------------------------------------------
+const _inflightGets = new Map();
+const _cloneJson = (v) => (typeof structuredClone === "function" ? structuredClone(v) : JSON.parse(JSON.stringify(v)));
+
+// چند بخشِ صفحه که هم‌زمان یک آدرس GET را بخواهند، فقط یک درخواست شبکه می‌سازند.
+function apiCall(path, options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
+  if (method !== "GET") return apiCallRaw(path, options);
+  let pending = _inflightGets.get(path);
+  if (!pending) {
+    pending = apiCallRaw(path, options).finally(() => _inflightGets.delete(path));
+    _inflightGets.set(path, pending);
+  }
+  return pending.then(_cloneJson);
+}
+
+// تا وقتی اجرای قبلیِ همین کلید تمام نشده، اجرای دوباره همان نتیجه را برمی‌گرداند (مثلاً دوبار کلیک روی «ویرایش»)
+const _locks = new Map();
+function once(key, fn) {
+  if (_locks.has(key)) return _locks.get(key);
+  let result;
+  try { result = Promise.resolve(fn()); } catch (err) { result = Promise.reject(err); }
+  const tracked = result.finally(() => _locks.delete(key));
+  _locks.set(key, tracked);
+  return tracked;
+}
+
+// اسکریپت‌های سنگین/کم‌استفاده فقط وقتی لازم شدند بارگذاری می‌شوند
+const Lazy = {
+  _scripts: new Map(),
+  script(src) {
+    if (!this._scripts.has(src)) {
+      const promise = new Promise((resolve, reject) => {
+        const el = document.createElement("script");
+        el.src = src;
+        el.async = true;
+        el.onload = () => resolve();
+        el.onerror = () => { this._scripts.delete(src); el.remove(); reject(new Error("بارگذاری بخشی از صفحه ناموفق بود؛ اتصال اینترنت را بررسی کن.")); };
+        document.head.appendChild(el);
+      });
+      this._scripts.set(src, promise);
+    }
+    return this._scripts.get(src);
+  },
+};
+
+// اسکلت‌های بارگذاری (skeleton) — تا کاربر بفهمد داده در راه است
+const Skel = {
+  rows(count = 3, height = 62) {
+    return `<div class="skel-stack" aria-busy="true" aria-label="در حال بارگذاری">${Array.from({ length: count }, () => `<div class="skeleton skel-row" style="height:${height}px"></div>`).join("")}</div>`;
+  },
+  tableRows(count = 4, cols = 6) {
+    const cell = '<td><div class="skeleton skel-line w80"></div></td>';
+    return Array.from({ length: count }, () => `<tr class="skel-tr">${cell.repeat(cols)}</tr>`).join("");
+  },
+  tiles(count = 4) {
+    return Array.from({ length: count }, () => '<div class="skeleton skel-tile"></div>').join("");
+  },
+  // کلاس skeleton را روی عنصرها می‌گذارد/برمی‌دارد
+  toggle(selectorOrEls, on) {
+    const els = typeof selectorOrEls === "string" ? document.querySelectorAll(selectorOrEls) : selectorOrEls;
+    els.forEach((el) => el.classList.toggle("skeleton", on));
+  },
+};
+
+// دوبار کلیک پشت‌سرهم روی یک دکمه فقط یک‌بار حساب می‌شود (بدون آسیب به کلیک بعدی)
+(function installClickGuard() {
+  const SELECTOR = 'button, a[href], .nav-item, .tab-btn, .seg-btn, .icon-btn, .auth-tab, .swatch, .pet-card, .dropzone, [data-act]';
+  const WINDOW_MS = 350;
+  const last = new WeakMap();
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (!e.isTrusted || !e.target || !e.target.closest) return;
+      const el = e.target.closest(SELECTOR);
+      if (!el || el.disabled || el.hasAttribute("data-allow-repeat")) return;
+      const now = performance.now();
+      if (now - (last.get(el) || -Infinity) < WINDOW_MS) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+      last.set(el, now);
+    },
+    true
+  );
+})();
 
 // ---------------------------------------------------------------------------
 // استریم (SSE روی fetch): meta → delta → done / error

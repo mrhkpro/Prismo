@@ -46,6 +46,8 @@ async function init() {
 // آمار کلان
 // ---------------------------------------------------------------------------
 async function loadStats() {
+  const grid = document.getElementById("statsGrid");
+  if (!grid.children.length) grid.innerHTML = Skel.tiles(12);
   try {
     const s = await apiCall("/api/admin/stats");
     document.getElementById("statsGrid").innerHTML = `
@@ -72,6 +74,8 @@ async function loadStats() {
 // ---------------------------------------------------------------------------
 async function loadUsers() {
   const search = document.getElementById("userSearchInput").value.trim();
+  const usersBody = document.getElementById("usersTableBody");
+  if (!usersBody.children.length || usersBody.querySelector(".skel-tr")) usersBody.innerHTML = Skel.tableRows(5, 7);
   try {
     const users = await apiCall(`/api/admin/users${search ? `?search=${encodeURIComponent(search)}` : ""}`);
     document.getElementById("usersTableBody").innerHTML = users
@@ -115,7 +119,11 @@ async function loadUsers() {
 document.getElementById("userSearchBtn").addEventListener("click", loadUsers);
 document.getElementById("userSearchInput").addEventListener("keydown", (e) => { if (e.key === "Enter") loadUsers(); });
 
-async function toggleBlock(userId, isCurrentlyActive) {
+function toggleBlock(userId, isCurrentlyActive) {
+  return once(`block:${userId}`, () => toggleBlockImpl(userId, isCurrentlyActive));
+}
+
+async function toggleBlockImpl(userId, isCurrentlyActive) {
   const action = isCurrentlyActive ? "block" : "unblock";
   if (isCurrentlyActive && !confirm("این کاربر مسدود شود؟ دسترسی او به پنل و ویجتش بلافاصله قطع می‌شود.")) return;
   try {
@@ -127,7 +135,11 @@ async function toggleBlock(userId, isCurrentlyActive) {
   }
 }
 
-async function impersonate(userId) {
+function impersonate(userId) {
+  return once(`impersonate:${userId}`, () => impersonateImpl(userId));
+}
+
+async function impersonateImpl(userId) {
   if (!confirm("وارد حساب این کاربر شوی؟ می‌تونی بعداً به پنل ادمین برگردی.")) return;
   try {
     const res = await apiCall(`/api/admin/users/${userId}/impersonate`, { method: "POST" });
@@ -138,7 +150,11 @@ async function impersonate(userId) {
   }
 }
 
-async function changeRole(userId, newRole) {
+function changeRole(userId, newRole) {
+  return once(`role:${userId}`, () => changeRoleImpl(userId, newRole));
+}
+
+async function changeRoleImpl(userId, newRole) {
   try {
     await apiCall(`/api/admin/users/${userId}/role`, { method: "POST", body: { role: newRole } });
     toast("نقش کاربر تغییر کرد.", "success");
@@ -149,7 +165,11 @@ async function changeRole(userId, newRole) {
   }
 }
 
-async function inspectUser(userId) {
+function inspectUser(userId) {
+  return once(`inspect:${userId}`, () => inspectUserImpl(userId));
+}
+
+async function inspectUserImpl(userId) {
   try {
     const safe = (path, fallback) => apiCall(path).catch((e) => { toastError(e); return fallback; });
     const [detail, docs, sessions] = await Promise.all([
@@ -221,6 +241,8 @@ document.querySelectorAll('#view-conversations .tab-btn').forEach((btn) => {
 });
 
 async function loadConversations() {
+  const convBody = document.getElementById("conversationsTableBody");
+  if (!convBody.children.length || convBody.querySelector(".skel-tr")) convBody.innerHTML = Skel.tableRows(5, 6);
   try {
     const qs = CURRENT_CONV_SOURCE ? `?source=${CURRENT_CONV_SOURCE}` : "";
     const sessions = await apiCall(`/api/admin/conversations${qs}`);
@@ -244,7 +266,11 @@ async function loadConversations() {
   }
 }
 
-async function viewSession(sessionId) {
+function viewSession(sessionId) {
+  return once(`session:${sessionId}`, () => viewSessionImpl(sessionId));
+}
+
+async function viewSessionImpl(sessionId) {
   try {
     const messages = await apiCall(`/api/admin/sessions/${sessionId}/messages`);
     document.getElementById("sessionModalBody").innerHTML = messages
@@ -436,7 +462,11 @@ document.getElementById("flagsList").addEventListener("click", (e) => {
   else if (btn.dataset.act === "block") blockFlaggedUser(Number(btn.dataset.user));
 });
 
-async function resolveFlag(id) {
+function resolveFlag(id) {
+  return once(`resolve:${id}`, () => resolveFlagImpl(id));
+}
+
+async function resolveFlagImpl(id) {
   try {
     await apiCall(`/api/admin/security/flags/${id}/resolve`, { method: "POST" });
     toast("مورد به‌عنوان بررسی‌شده علامت‌گذاری شد.", "success");
@@ -446,7 +476,11 @@ async function resolveFlag(id) {
   }
 }
 
-async function blockFlaggedUser(userId) {
+function blockFlaggedUser(userId) {
+  return once(`flag-block:${userId}`, () => blockFlaggedUserImpl(userId));
+}
+
+async function blockFlaggedUserImpl(userId) {
   if (!confirm("این کاربر مسدود شود؟ دسترسی او به پنل و ویجتش بلافاصله قطع می‌شود.")) return;
   try {
     await apiCall(`/api/admin/users/${userId}/block`, { method: "POST" });
