@@ -2,6 +2,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from .. import config, models, schemas
@@ -104,7 +105,6 @@ def chat_test_stream(
     except llm_client.LLMError:
         db.commit()
         raise
-    # همه‌ی خواندن‌های وابسته به نشست دیتابیس باید پیش از شروع استریم انجام شوند
     session_id, owner_id, message = session.id, current_user.id, payload.message
     meta = {"session_id": session_id, "model": selected_model, "sources": streaming.sources_payload(plan.matches)}
     db.commit()
@@ -127,7 +127,6 @@ def chat_test_stream(
         except llm_client.LLMError as exc:
             yield streaming.sse("error", {"message": str(exc), "partial": bool(collected)})
         finally:
-            # حتی اگر کاربر وسط پاسخ قطع کند، گفت‌وگوی تا آن لحظه ذخیره می‌شود
             text = "".join(collected)
             if text:
                 try:
