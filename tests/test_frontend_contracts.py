@@ -5,15 +5,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_auth_page_uses_versioned_assets_and_theme_support():
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert "/assets/css/style.css?v=2.6.4" in html
-    assert "/assets/js/theme.js?v=2.6.4" in html
-    assert "/assets/js/auth.js?v=2.6.4" in html
+    assert "/assets/css/style.css?v=2.6.5" in html
+    assert "/assets/js/theme.js?v=2.6.5" in html
+    assert "/assets/js/auth.js?v=2.6.5" in html
 
 
 def test_admin_page_loads_theme_support():
     html = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
-    assert "/assets/js/theme.js?v=2.6.4" in html
-    assert "/assets/css/style.css?v=2.6.4" in html
+    assert "/assets/js/theme.js?v=2.6.5" in html
+    assert "/assets/css/style.css?v=2.6.5" in html
 
 
 def test_theme_script_is_safe_without_local_storage():
@@ -96,3 +96,32 @@ def test_embedding_discovery_ui_and_scrollbars():
     assert "embedding_models" in js
     assert "--qz-stream" in widget
     assert "scrollbar-width: thin" in css
+
+
+def test_knowledge_upload_has_visible_progress_and_real_upload_tracking():
+    html = (ROOT / "frontend" / "dashboard.html").read_text(encoding="utf-8")
+    js = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    assert 'id="operationProgress"' in html
+    assert 'class="operation-progress-bar-fill"' in html
+    assert 'XMLHttpRequest()' in js
+    assert 'xhr.upload.onprogress' in js
+
+
+def test_chat_stream_is_enabled_and_markdown_bold_is_rendered_safely():
+    dashboard = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    widget = (ROOT / "frontend" / "widget.js").read_text(encoding="utf-8")
+    playground = (ROOT / "app" / "routers" / "playground.py").read_text(encoding="utf-8")
+    llm = (ROOT / "app" / "services" / "llm_client.py").read_text(encoding="utf-8")
+    assert '/api/playground/chat/stream' in dashboard
+    assert 'renderChatMarkdown' in dashboard
+    assert 'renderChatMarkdown' in widget
+    assert 'stream=True' in llm
+    assert playground.count('plan = rag_pipeline.prepare_rag_chat') == 1
+
+
+def test_streaming_ui_has_no_post_completion_typing_cursor():
+    css = (ROOT / "frontend" / "assets" / "css" / "style.css").read_text(encoding="utf-8")
+    widget = (ROOT / "frontend" / "widget.js").read_text(encoding="utf-8")
+    assert 'caret-blink' not in css
+    assert 'chat-msg.streaming:not(.pending)::after' not in css
+    assert 'qz-msg.streaming::after' not in widget
