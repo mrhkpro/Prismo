@@ -94,10 +94,10 @@
     }
 
     var QUICK_RESPONSES = {
-      "سلام": "سلام! 👋 خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
-      "درود": "سلام! 👋 خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
-      "hi": "سلام! 👋 خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
-      "hello": "سلام! 👋 خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
+      "سلام": "سلام! خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
+      "درود": "سلام! خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
+      "hi": "سلام! خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
+      "hello": "سلام! خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
       "خوبی": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
       "حالت چطوره": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
       "حالت خوبه": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
@@ -106,9 +106,9 @@
       "ممنون": "خواهش می‌کنم 🌱",
       "مرسی": "خواهش می‌کنم 🌱",
       "متشکرم": "خواهش می‌کنم 🌱",
-      "خداحافظ": "خداحافظ! 👋 هر وقت خواستی من اینجام.",
-      "فعلا": "خداحافظ! 👋 هر وقت خواستی من اینجام.",
-      "بای": "خداحافظ! 👋 هر وقت خواستی من اینجام."
+      "خداحافظ": "خداحافظ! هر وقت خواستی من اینجام.",
+      "فعلا": "خداحافظ! هر وقت خواستی من اینجام.",
+      "بای": "خداحافظ! هر وقت خواستی من اینجام."
     };
 
     function getQuickReply(text) {
@@ -246,7 +246,8 @@
       ".qz-head-title{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14.5px;}" +
       ".qz-head-dot{width:8px;height:8px;border-radius:50%;background:#2fb344;box-shadow:0 0 0 3px rgba(74,222,128,.3);}" +
       ".qz-close{background:rgba(127,127,127,.22);border:none;color:var(--qz-on-accent,#ffffff);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:15px;line-height:1;}" +
-      ".qz-stream{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--qz-stream,#0f1623);}" +
+      ".qz-stream{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--qz-stream,#0f1623);scrollbar-width:thin;scrollbar-color:var(--qz-accent,#1ABB9C) transparent;}" +
+      ".qz-stream::-webkit-scrollbar{width:8px}.qz-stream::-webkit-scrollbar-track{background:transparent}.qz-stream::-webkit-scrollbar-thumb{background:rgba(128,138,154,.32);border-radius:999px;border:2px solid transparent;background-clip:padding-box}.qz-stream::-webkit-scrollbar-thumb:hover{background:var(--qz-accent,#1ABB9C);background-clip:padding-box}" +
       ".qz-msg{max-width:84%;padding:10px 14px;border-radius:15px;font-size:13.5px;line-height:1.8;white-space:pre-wrap;word-break:break-word;}" +
       ".qz-msg.bot{align-self:flex-start;background:var(--qz-bubble,#141d2b);border:1px solid var(--qz-border,#e6e7eb);border-bottom-right-radius:5px;}" +
       ".qz-msg.user{align-self:flex-end;color:var(--qz-on-accent,#ffffff);border-bottom-left-radius:5px;}" +

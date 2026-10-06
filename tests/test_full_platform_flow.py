@@ -98,7 +98,13 @@ class PlatformTestCase(unittest.TestCase):
             patch.object(llm_client, "chat_completion", fake_chat),
             patch.object(llm_client, "stream_chat_completion", fake_stream),
             patch.object(llm_client, "timed_chat_completion", fake_timed),
-            patch.object(llm_client, "list_models", lambda base_url, api_key: ["gpt-b", "GPT-a"]),
+            patch.object(llm_client, "discover_model_capabilities", lambda base_url, api_key: {
+                "models": ["gpt-b", "GPT-a"],
+                "chat_models": ["gpt-b", "GPT-a"],
+                "embedding_models": ["embed-1"],
+                "unknown_models": [],
+                "embedding_probe_ok": True,
+            }),
             patch.object(llm_client, "test_connection", lambda provider: (True, "اتصال برقرار است.")),
             patch.object(llm_client, "provider_diagnostics", lambda provider: {
                 "ok": True, "base_url": provider.base_url, "model": provider.chat_model, "dns": ["1.2.3.4"],
@@ -179,19 +185,19 @@ class AuthFlowTests(PlatformTestCase):
         self.assertEqual(self.client.get("/api/health").json(), {"status": "ok"})
         index = self.client.get("/index.html")
         self.assertEqual(index.status_code, 200)
-        self.assertIn("style.css?v=2.6.3", index.text)
+        self.assertIn("style.css?v=2.6.4", index.text)
         self.assertEqual(self.client.get("/assets/css/style.css").status_code, 200)
         self.assertEqual(self.client.get("/widget.js").status_code, 200)
 
     def test_versioned_assets_are_cached_long_but_html_and_widget_are_not(self):
-        cached = self.client.get("/assets/css/style.css?v=2.6.3")
+        cached = self.client.get("/assets/css/style.css?v=2.6.4")
         self.assertEqual(cached.status_code, 200)
         self.assertIn("immutable", cached.headers.get("cache-control", ""))
         self.assertIn("max-age=31536000", cached.headers.get("cache-control", ""))
         # بدون ?v= یا خارج از /assets نباید کش بلندمدت بگیرند (تا انتشار جدید به همه برسد)
         self.assertNotIn("immutable", self.client.get("/assets/css/style.css").headers.get("cache-control", ""))
         self.assertNotIn("immutable", self.client.get("/index.html").headers.get("cache-control", ""))
-        self.assertNotIn("immutable", self.client.get("/widget.js?v=2.6.3").headers.get("cache-control", ""))
+        self.assertNotIn("immutable", self.client.get("/widget.js?v=2.6.4").headers.get("cache-control", ""))
 
     def test_frontend_vendor_and_script_files_are_served(self):
         for path in ("/assets/js/shell.js", "/assets/js/extract.js", "/assets/js/pets.js", "/assets/vendor/pdfjs/pdf.min.js", "/assets/vendor/pdfjs/pdf.worker.min.js"):
@@ -296,7 +302,7 @@ class SettingsFlowTests(PlatformTestCase):
         token = self.register("roya")
         found = self.client.post("/api/settings/discover-models", headers=h(token),
                                  json={"base_url": "https://api.example.com/v1/", "api_key": "k"})
-        self.assertEqual(found.json(), {"models": ["gpt-b", "GPT-a"]})
+        self.assertEqual(found.json(), {"models": ["gpt-b", "GPT-a"], "chat_models": ["gpt-b", "GPT-a"], "embedding_models": ["embed-1"], "unknown_models": [], "embedding_probe_ok": True})
         self.assertEqual(self.client.post("/api/settings/discover-models", headers=h(token),
                                           json={"base_url": "ftp://bad"}).status_code, 422)
         custom = self.client.post("/api/settings/test-custom-connection", headers=h(token),
@@ -353,7 +359,7 @@ class WidgetFlowTests(PlatformTestCase):
         self.assertEqual(embed["widget_id"], wid)
         code = embed["embed_code_template"]
         self.assertIn(f'data-widget-id="{wid}"', code)
-        self.assertIn("__BASE_URL__/widget.js?v=2.6.3", code)
+        self.assertIn("__BASE_URL__/widget.js?v=2.6.4", code)
         self.assertIn('data-theme="auto"', code)
 
     def test_unknown_widget_is_404(self):
