@@ -38,6 +38,8 @@
   --gold: #e4cffd;
   --gold-soft: rgba(216, 180, 254, 0.13);
   --on-accent: #ffffff;
+  --sidebar-bg: #0d0820;
+  --topbar-bg: rgba(12, 7, 28, 0.78);
 
   --grad-brand: linear-gradient(135deg, #6d28d9 0%, #9333ea 52%, #c026d3 100%);
   --grad-text: linear-gradient(120deg, #ffffff 10%, #c9b6ff 55%, #f0abfc 100%);
@@ -96,6 +98,8 @@
   --gold: #a16207;
   --gold-soft: rgba(202, 138, 4, 0.12);
   --on-accent: #2b1d00;
+  --sidebar-bg: #fffdf6;
+  --topbar-bg: rgba(255, 253, 244, 0.84);
 
   --grad-brand: linear-gradient(135deg, #fde047 0%, #facc15 38%, #f59e0b 100%);
   --grad-text: linear-gradient(120deg, #3a2a05 5%, #a16207 55%, #d97706 100%);
@@ -680,6 +684,119 @@ tbody tr:hover { background: var(--accent-soft); }
   .page-head-row, .provider-panel-head { flex-direction: column; }
   .provider-mode-grid { grid-template-columns: 1fr; }
   .app-shell { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
-  .main-area { padding: 64px 20px 40px; }
 }
+
+/* =========================================================================
+   v2.5 — قالب الهام‌گرفته از Gentelella
+   نوار بالایی + breadcrumb، سایدبار جمع‌شونده (rail) و کشویی (موبایل)،
+   کارت‌های ساده با سربرگ، کنترل segmented و اسکلت‌های بارگذاری (skeleton)
+   ========================================================================= */
+
+/* ---------- ساختار کلی ---------- */
+.app-shell { grid-template-columns: 264px minmax(0, 1fr); transition: grid-template-columns .22s ease; }
+.sidebar { background: var(--sidebar-bg); transition: transform .22s ease; z-index: 300; }
+.main-area { padding: 0; display: flex; flex-direction: column; min-width: 0; }
+.main-body { padding: 26px 34px 70px; width: 100%; max-width: 1280px; margin-inline: auto; }
+
+/* ---------- نوار بالایی ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 200;
+  display: flex; align-items: center; gap: 12px;
+  height: 58px; padding: 0 22px;
+  background: var(--topbar-bg);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-soft);
+}
+.topbar-menu { flex-shrink: 0; }
+.topbar-spacer { flex: 1; }
+.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text-faint); min-width: 0; }
+.breadcrumb .sep { opacity: .5; }
+.breadcrumb b { color: var(--text); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar .theme-toggle { position: static; box-shadow: none; padding: 6px 12px; background: transparent; }
+.topbar-user {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: var(--grad-brand); color: var(--on-accent);
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;
+}
+.sidebar-scrim { display: none; position: fixed; inset: 0; background: var(--overlay); z-index: 250; }
+
+/* ---------- سایدبار rail (فقط دسکتاپ) ---------- */
+@media (min-width: 901px) {
+  body.sidebar-rail .app-shell { grid-template-columns: 74px minmax(0, 1fr); }
+  body.sidebar-rail .sidebar { padding-inline: 10px; }
+  body.sidebar-rail .nav-label, body.sidebar-rail .nav-group-label, body.sidebar-rail .sidebar-user .who,
+  body.sidebar-rail .brand-text, body.sidebar-rail #unresolvedBadge { display: none; }
+  body.sidebar-rail .nav-item { justify-content: center; padding-inline: 0; }
+  body.sidebar-rail .brand, body.sidebar-rail .sidebar-user { justify-content: center; padding-inline: 0; }
+  body.sidebar-rail .nav-item.active::after { inset-inline: auto; right: 2px; }
+}
+
+/* ---------- سایدبار کشویی (موبایل/تبلت) ---------- */
+@media (max-width: 900px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { display: flex; position: fixed; inset-block: 0; right: 0; width: 280px; transform: translateX(100%); box-shadow: var(--shadow-pop); }
+  body.sidebar-open .sidebar { transform: none; }
+  body.sidebar-open .sidebar-scrim { display: block; }
+  .main-body { padding: 18px 16px 60px; }
+  .topbar { padding: 0 14px; }
+}
+
+/* ---------- عنوان صفحه (ساده‌تر برای صفحه‌های غیر از خانه) ---------- */
+.view:not(#view-overview):not(#view-stats) .page-head h1 {
+  background: none; -webkit-text-fill-color: currentColor; color: var(--text); font-size: 22px; letter-spacing: -.01em;
+}
+.view:not(#view-overview):not(#view-stats) .page-head { margin-bottom: 18px; }
+
+/* ---------- کارت با سربرگ (الگوی x_panel) ---------- */
+.panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+.panel-head .panel-title { margin-bottom: 2px; }
+.panel-head .panel-desc { margin-bottom: 0; }
+.panel-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.panel-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--border-soft); }
+.panel.flat::before { display: none; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.toolbar-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ---------- کنترل segmented ---------- */
+.segmented { display: inline-flex; gap: 3px; padding: 3px; background: var(--bg-elevated-2); border: 1px solid var(--border-soft); border-radius: var(--radius-md); }
+.seg-btn {
+  border: 0; background: transparent; color: var(--text-muted); cursor: pointer;
+  padding: 7px 16px; border-radius: var(--radius-sm); font-weight: 600; font-size: 13.5px;
+  transition: background .16s, color .16s;
+}
+.seg-btn:hover { color: var(--text); }
+.seg-btn.active { background: var(--bg-elevated); color: var(--accent-text); box-shadow: 0 0 0 1px var(--accent-line); }
+
+/* ---------- فرم دو ستونه و ردیف اطلاعات ---------- */
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
+.form-grid .span-2 { grid-column: 1 / -1; }
+@media (max-width: 700px) { .form-grid { grid-template-columns: 1fr; } }
+.input-action { display: flex; gap: 8px; }
+.input-action > input, .input-action > select { flex: 1; min-width: 0; }
+.status-line { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-faint); min-height: 20px; }
+.status-line.success-text { color: var(--success); }
+.status-line.error-text { color: var(--danger); }
+
+/* ---------- اسکلت بارگذاری (lazy loading) ---------- */
+@keyframes skel-shimmer { 100% { transform: translateX(-100%); } }
+.skeleton { position: relative; overflow: hidden; background: var(--bg-elevated-2); border-radius: var(--radius-sm); min-height: 14px; }
+.skeleton::after {
+  content: ''; position: absolute; inset: 0; transform: translateX(100%);
+  background: linear-gradient(90deg, transparent, var(--accent-soft), transparent);
+  animation: skel-shimmer 1.3s ease-in-out infinite;
+}
+.skel-row { height: 62px; border-radius: var(--radius-md); }
+.skel-stack { display: flex; flex-direction: column; gap: 10px; }
+.skel-line { height: 12px; }
+.skel-line.w60 { width: 60%; } .skel-line.w40 { width: 40%; } .skel-line.w80 { width: 80%; }
+.skel-tile { height: 98px; border-radius: var(--radius-lg); }
+.is-loading { pointer-events: none; }
+.stat-card.is-loading .value { color: transparent; background: var(--bg-elevated-2); border-radius: 8px; width: 60px; min-height: 30px; }
+
+/* ---------- کارایی: رندر تنبل بخش‌های بیرون از دید ---------- */
+.view:not(.active) { content-visibility: auto; contain-intrinsic-size: 1px 600px; }
+
+/* ---------- ریزتنظیمات ظاهر کارت‌ها ---------- */
+.doc-row { padding: 12px 14px; }
+.chat-window { height: 540px; }
+.badge-gold { background: var(--gold-soft); }

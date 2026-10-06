@@ -36,6 +36,8 @@ async function init() {
   }
   document.getElementById("sidebarUserName").textContent = ADMIN_USER.username;
   document.getElementById("avatarInitial").textContent = ADMIN_USER.username[0].toUpperCase();
+  const topAvatar = document.getElementById("topbarAvatar");
+  if (topAvatar) topAvatar.textContent = document.getElementById("avatarInitial").textContent;
   await loadStats();
 }
 
