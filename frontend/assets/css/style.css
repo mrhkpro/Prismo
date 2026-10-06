@@ -38,6 +38,7 @@
   --gold: #e4cffd;
   --gold-soft: rgba(216, 180, 254, 0.13);
   --on-accent: #ffffff;
+  --knob: #ffffff;
   --sidebar-bg: #0d0820;
   --topbar-bg: rgba(12, 7, 28, 0.78);
 
@@ -98,6 +99,7 @@
   --gold: #a16207;
   --gold-soft: rgba(202, 138, 4, 0.12);
   --on-accent: #2b1d00;
+  --knob: #ffffff;
   --sidebar-bg: #fffdf6;
   --topbar-bg: rgba(255, 253, 244, 0.84);
 
@@ -798,7 +800,7 @@ tbody tr:hover { background: var(--accent-soft); }
 .switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; margin-top: 2px; }
 .switch input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0; }
 .switch-track { position: absolute; inset: 0; border-radius: 999px; background: var(--border); transition: background .18s; pointer-events: none; }
-.switch-track::after { content: ''; position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35); transition: transform .18s; }
+.switch-track::after { content: ''; position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--knob); box-shadow: 0 1px 3px rgba(0,0,0,.35); transition: transform .18s; }
 .switch input:checked + .switch-track { background: var(--grad-brand); }
 .switch input:checked + .switch-track::after { transform: translateX(-20px); }
 .switch input:focus-visible + .switch-track { outline: 2px solid var(--accent); outline-offset: 2px; }

@@ -17,7 +17,7 @@ REQUIRED_TOKENS = {
     "--border", "--border-soft", "--text", "--text-muted", "--text-faint",
     "--accent", "--accent-hover", "--accent-text", "--accent-soft", "--accent-line", "--on-accent",
     "--gold", "--gold-soft", "--grad-brand", "--grad-text",
-    "--success", "--success-soft", "--danger", "--danger-soft", "--code-text",
+    "--success", "--success-soft", "--danger", "--danger-soft", "--code-text", "--knob", "--sidebar-bg", "--topbar-bg",
     "--shadow-card", "--shadow-pop", "--shadow-btn", "--glow-a", "--glow-b", "--glow-c",
 }
 
@@ -130,6 +130,11 @@ class PageWiringTests(unittest.TestCase):
             versions.update(re.findall(r"\?v=(\d+\.\d+\.\d+)", self.read(page)))
         self.assertEqual(versions, {"2.4.0"})
 
+    def test_new_scripts_are_loaded_lazily(self):
+        dashboard = self.read("dashboard.html")
+        for script in ("extract.js", "pets.js", "shell.js"):
+            self.assertRegex(dashboard, rf'<script src="/assets/js/{script}\?v=[\d.]+" defer></script>', script)
+
     def test_brand_icons_follow_theme_text_colour(self):
         for page in ("index.html", "dashboard.html", "admin.html"):
             self.assertNotIn('stroke="#fff"', self.read(page), page)
@@ -150,6 +155,33 @@ class PageWiringTests(unittest.TestCase):
 
     def test_dashboard_badge_matches_release(self):
         self.assertIn("QUASAR 2.4", self.read("dashboard.html"))
+
+
+class PetSpriteContractTests(unittest.TestCase):
+    """بلوک اسپرایت‌ها در widget.js و pets.js باید یکسان باشد، وگرنه پیش‌نمایش با ویجت واقعی فرق می‌کند."""
+
+    @staticmethod
+    def block(path):
+        text = (FRONTEND / path).read_text(encoding="utf-8")
+        match = re.search(r"/\*PETS-BEGIN\*/(.*?)/\*PETS-END\*/", text, re.S)
+        assert match, path
+        return match.group(1)
+
+    def test_widget_and_dashboard_share_identical_sprites(self):
+        self.assertEqual(self.block("widget.js").strip(), self.block("assets/js/pets.js").strip())
+
+    def test_every_sprite_frame_is_a_16_column_grid(self):
+        import json
+        raw = self.block("widget.js").split("=", 1)[1].strip().rstrip(";")
+        sprites = json.loads(raw)
+        self.assertEqual(set(sprites), {"dog", "cat", "raccoon"})
+        for name, spec in sprites.items():
+            self.assertEqual(len(spec["body"]), 9, name)
+            self.assertEqual(set(spec["legs"]), {"a", "b", "i"}, name)
+            for rows in [spec["body"]] + list(spec["legs"].values()):
+                for row in rows:
+                    self.assertEqual(len(row), 16, (name, row))
+                    self.assertRegex(row, r"^[.KBDLPW]+$")
 
 
 class WidgetThemeTests(unittest.TestCase):
