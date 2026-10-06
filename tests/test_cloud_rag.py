@@ -89,7 +89,7 @@ class CloudRAGPipelineTests(unittest.TestCase):
     def setUp(self):
         self.owner = SimpleNamespace(
             id=42,
-            settings=SimpleNamespace(top_k=4, similarity_threshold=0.25, system_prompt="Only use context", temperature=0.7),
+            settings=SimpleNamespace(chat_model="test-chat", top_k=4, similarity_threshold=0.25, system_prompt="Only use context", temperature=0.7),
         )
         self.session = SimpleNamespace(messages=[])
 
