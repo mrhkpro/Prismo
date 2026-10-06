@@ -11,6 +11,8 @@ def test_setup_page_is_separate_and_main_pages_do_not_ask_database_mode():
     assert 'data-mode="local"' in setup
     assert 'data-mode="supabase"' in setup
     assert "/__setup/choose" in setup
+    assert "<style>" in setup
+    assert "/assets/css/style.css" not in setup
     assert "database-mode.js" not in index
     assert "database-mode.js" not in dashboard
     assert "QzDatabaseMode.ready" not in auth

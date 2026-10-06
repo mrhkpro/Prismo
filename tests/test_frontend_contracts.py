@@ -5,15 +5,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_auth_page_uses_versioned_assets_and_theme_support():
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert "/assets/css/style.css?v=2.6.1" in html
-    assert "/assets/js/theme.js?v=2.6.1" in html
-    assert "/assets/js/auth.js?v=2.6.1" in html
+    assert "/assets/css/style.css?v=2.6.2" in html
+    assert "/assets/js/theme.js?v=2.6.2" in html
+    assert "/assets/js/auth.js?v=2.6.2" in html
 
 
 def test_admin_page_loads_theme_support():
     html = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
-    assert "/assets/js/theme.js?v=2.6.1" in html
-    assert "/assets/css/style.css?v=2.6.1" in html
+    assert "/assets/js/theme.js?v=2.6.2" in html
+    assert "/assets/css/style.css?v=2.6.2" in html
 
 
 def test_theme_script_is_safe_without_local_storage():
@@ -51,7 +51,8 @@ def test_chat_streams_with_automatic_fallback_and_stop_button():
     js = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
     api = (ROOT / "frontend" / "assets" / "js" / "api.js").read_text(encoding="utf-8")
     assert '/api/playground/chat/stream' in js
-    assert 'STREAM_FALLBACK_STATUSES.includes(err.status)' in js
+    assert 'err?.streamError || STREAM_FALLBACK_STATUSES.includes(err?.status)' in js
+    assert 'await chatViaRequest(message, selectedModel, bubble);' in js
     assert 'CHAT_ABORT.abort()' in js
     assert 'async function apiStream' in api
     assert 'text/event-stream' in api
