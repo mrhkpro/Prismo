@@ -59,6 +59,7 @@ if __name__ == "__main__":
 
 def test_postgres_database_uses_warm_connection_pool():
     source = (Path(__file__).resolve().parents[1] / "app" / "database.py").read_text(encoding="utf-8")
-    assert "pool_size=3" in source
-    assert "max_overflow=2" in source
-    assert "pool_recycle=900" in source
+    assert "pool_size=6" in source
+    assert "max_overflow=4" in source
+    assert "pool_timeout=10" in source
+    assert "pool_recycle=1800" in source

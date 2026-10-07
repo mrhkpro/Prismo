@@ -169,7 +169,6 @@
         var reader = res.body.getReader();
         var decoder = new TextDecoder("utf-8");
         var buffer = "";
-        var gotDelta = false;
 
         function handleFrame(frame) {
           var event = "message";
@@ -183,7 +182,7 @@
           var data = {};
           try { data = JSON.parse(dataParts.join("\n")); } catch (e) { return; }
           if (event === "meta" && handlers.meta) handlers.meta(data);
-          else if (event === "delta") { gotDelta = true; if (handlers.delta) handlers.delta(data.t || ""); }
+          else if (event === "delta" && handlers.delta) handlers.delta(data.t || "");
           else if (event === "error") {
             var err = new Error(data.message || "STREAM_RETRY");
             err.streamError = true;
@@ -197,7 +196,7 @@
           return reader.read().then(function (r) {
             if (r.done) {
               if (buffer.trim()) handleFrame(buffer);
-              return { gotDelta: gotDelta };
+              return;
             }
             arm();
             buffer += decoder.decode(r.value, { stream: true });
@@ -253,7 +252,8 @@
       ".qz-msg.bot{align-self:flex-start;background:var(--qz-bubble,#141d2b);border:1px solid var(--qz-border,#e6e7eb);border-bottom-right-radius:5px;}" +
       ".qz-msg.user{align-self:flex-end;color:var(--qz-on-accent,#ffffff);border-bottom-left-radius:5px;}" +
       ".qz-msg.error{align-self:center;background:rgba(214,69,69,.12);color:#d64545;font-size:12.5px;text-align:center;}" +
-      ".qz-msg.pending{opacity:.55;}" +  +
+      ".qz-msg.pending{opacity:.55;}" +
+      ".qz-msg.streaming::after{content:'';display:inline-block;width:6px;height:1em;margin-right:3px;vertical-align:text-bottom;background:var(--qz-accent,#1ABB9C);border-radius:2px;animation:qzblink .9s steps(2,start) infinite;}@keyframes qzblink{to{visibility:hidden;}}" +
       ".qz-foot{display:flex;gap:8px;padding:12px;border-top:1px solid var(--qz-border,#e6e7eb);background:var(--qz-panel,#1a2332);flex-shrink:0;align-items:flex-end;}" +
       ".qz-input{flex:1;resize:none;border:1px solid var(--qz-border,#e6e7eb);background:transparent;color:var(--qz-text,#e6ebf2);border-radius:18px;" +
       "padding:10px 14px;font-size:13.5px;outline:none;max-height:90px;min-height:42px;line-height:1.5;font-family:inherit;}" +
@@ -329,25 +329,11 @@
       for (var i = 0; i < userMsgs.length; i++) userMsgs[i].style.background = widgetColor;
     }
 
-    function renderChatMarkdown(value) {
-      var source = String(value || "");
-      var html = escapeHtml(source);
-      html = html.replace(/`([^`\n]+)`/g, "<code>$1</code>");
-      html = html.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
-      html = html.replace(/__([^_\n]+)__/g, "<strong>$1</strong>");
-      html = html.replace(/\n/g, "<br>");
-      return html;
-    }
-
     function addMessage(role, text) {
       var el = document.createElement("div");
       el.className = "qz-msg " + role;
-      if (role === "user") {
-        el.style.background = widgetColor;
-        el.textContent = text || "";
-      } else {
-        el.innerHTML = renderChatMarkdown(text || "");
-      }
+      if (role === "user") el.style.background = widgetColor;
+      el.textContent = text || "";
       stream.appendChild(el);
       stream.scrollTop = stream.scrollHeight;
       return el;
@@ -370,7 +356,7 @@
       hideQuickReplies();
       addMessage("user", text);
       var chatUrl = API_BASE + "/public/widget/" + encodeURIComponent(WIDGET_ID) + "/chat";
-      var pending = addMessage("bot", "در حال پاسخ");
+      var pending = addMessage("bot", "در حال پاسخ…");
       pending.classList.add("pending");
       isSending = true;
 
@@ -378,7 +364,7 @@
       if (quickReply) {
         pending.classList.remove("pending");
         pending.textContent = quickReply;
-        pending.classList.remove("streaming");
+        pending.classList.add("streaming");
         isSending = false;
         sendBtn.disabled = false;
         petReact("happy");
@@ -400,7 +386,7 @@
 
       function paint() {
         raf = null;
-        pending.innerHTML = renderChatMarkdown(fullText);
+        pending.textContent = fullText;
         stream.scrollTop = stream.scrollHeight;
       }
 
@@ -411,20 +397,7 @@
           fullText += piece;
           if (raf === null) raf = requestAnimationFrame(paint);
         }
-      }, 0).then(function (result) {
-        if (!fullText && result && result.gotDelta === false) {
-          payload.session_id = getSessionId();
-          return fetchJson(chatUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
-            body: JSON.stringify(payload),
-            cache: "no-store"
-          }, 0).then(function (data) {
-            setSessionId(data.session_id);
-            fullText = data.reply || "";
-          });
-        }
-      }).catch(function (err) {
+      }, 0).catch(function (err) {
         // قطع/خطای SSE را به کاربر نشان نده؛ همان پیام را به صورت یک‌جا
         // دوباره می‌فرستیم. این مسیر timeout ندارد تا پاسخ‌های طولانی قطع نشوند.
         if (!fullText && (err && (err.streamError || err.status === undefined || FALLBACK_STATUSES.indexOf(err.status) !== -1))) {
@@ -443,7 +416,7 @@
       }).then(function () {
         if (raf !== null) cancelAnimationFrame(raf);
         pending.classList.remove("pending", "streaming");
-        pending.innerHTML = renderChatMarkdown(fullText || "پاسخی دریافت نشد.");
+        pending.textContent = fullText || "پاسخی دریافت نشد.";
       }).catch(function (err) {
         if (raf !== null) cancelAnimationFrame(raf);
         pending.classList.remove("streaming");
@@ -451,7 +424,7 @@
         var internal = err && (err.message === "متوقف شد." || err.message === "STREAM_RETRY" || err.name === "AbortError");
         var message = internal ? "" : (err && err.message ? err.message : "ارتباط با سرویس برقرار نشد.");
         if (fullText) {
-          pending.innerHTML = renderChatMarkdown(fullText);
+          pending.textContent = fullText;
         } else if (message) {
           pending.remove();
           addMessage("error", message);

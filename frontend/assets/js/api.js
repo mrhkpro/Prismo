@@ -294,9 +294,37 @@ function toast(message, type = "default") {
   const host = ensureToastHost();
   const el = document.createElement("div");
   el.className = `toast ${type}`;
-  el.textContent = message;
+  el.setAttribute("role", type === "error" ? "alert" : "status");
+
+  if (type === "success" || type === "error") {
+    const icon = document.createElement("span");
+    icon.className = "toast-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = type === "success" ? "✓" : "!";
+    el.appendChild(icon);
+  }
+  const text = document.createElement("span");
+  text.className = "toast-msg";
+  text.textContent = message;
+  el.appendChild(text);
+
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "toast-close";
+  close.setAttribute("aria-label", "بستن");
+  close.textContent = "×";
+  el.appendChild(close);
+
+  const dismiss = () => {
+    if (!el.isConnected || el.classList.contains("leaving")) return;
+    el.classList.add("leaving");
+    setTimeout(() => el.remove(), 220);
+  };
+  close.addEventListener("click", dismiss);
   host.appendChild(el);
-  setTimeout(() => el.remove(), 4200);
+  // حداکثر ۳ نوار هم‌زمان؛ قدیمی‌ترین کنار می‌رود
+  while (host.children.length > 3) host.firstElementChild.remove();
+  setTimeout(dismiss, type === "error" ? 6500 : 4200);
 }
 
 function toastError(err) {

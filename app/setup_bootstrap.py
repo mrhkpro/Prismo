@@ -40,7 +40,7 @@ def _upsert_env(name: str, value: str) -> None:
 
 
 class SetupHandler(BaseHTTPRequestHandler):
-    server_version = "QuasarSetup/2.6.6"
+    server_version = "QuasarSetup/2.6.5"
 
     def _json(self, status: int, payload: dict) -> None:
         raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")

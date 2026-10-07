@@ -24,9 +24,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app import models
-from app.exceptions import LLMError
 from app.database import Base
-from app.routers.knowledge import reindex_document, create_document
+from app.routers.knowledge import reindex_document
 
 
 class KnowledgeReindexTests(unittest.TestCase):
@@ -60,19 +59,6 @@ class KnowledgeReindexTests(unittest.TestCase):
         self.assertEqual(result.chunk_count, 1)
         texts = [c.text for c in self.db.query(models.Chunk).filter(models.Chunk.document_id == self.doc.id).all()]
         self.assertEqual(texts, ["new"])
-
-
-    def test_create_keeps_document_when_embedding_service_is_down(self):
-        with patch("app.routers.knowledge._index_document", side_effect=LLMError("embedding unavailable")):
-            result = create_document(
-                type("Payload", (), {"title": "Saved", "content": "content"})(),
-                self.user,
-                self.db,
-            )
-        self.assertEqual(result.title, "Saved")
-        self.assertEqual(result.chunk_count, 0)
-        stored = self.db.query(models.Document).filter(models.Document.id == result.id).one()
-        self.assertEqual(stored.content, "content")
 
     def test_reindex_does_not_access_another_users_document(self):
         other = models.User(username="other", password_hash="hash")

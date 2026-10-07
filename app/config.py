@@ -188,6 +188,12 @@ AI_MAX_RETRIES = int(
     os.getenv("AI_MAX_RETRIES", "0")
 )
 
+# برای ایندکس سریع اسناد، embeddingها به batchهای بزرگ‌تر و چند درخواست
+# هم‌زمان تقسیم می‌شوند. این مقادیر از env قابل تنظیم‌اند تا با محدودیت
+# provider یا Relay مقصد هماهنگ شوند.
+EMBEDDING_BATCH_SIZE = max(1, int(os.getenv("EMBEDDING_BATCH_SIZE", "32")))
+EMBEDDING_CONCURRENCY = max(1, int(os.getenv("EMBEDDING_CONCURRENCY", "4")))
+
 AI_MAX_OUTPUT_TOKENS = int(
     os.getenv("AI_MAX_OUTPUT_TOKENS", "900")
 )

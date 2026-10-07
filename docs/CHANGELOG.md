@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.6.5 — 2026-10-07 — Save no longer hangs on PostgreSQL, top notification bar, streaming fix
+
+> Entries for 2.6.0–2.6.4 were never written; this file resumes from the 2.5.0 notes below.
+
+### Fixed
+- **"سرویس موقتاً در دسترس نیست" on every save / widget load (PostgreSQL / Supabase).** Creating the `widget_extras` column ran `ALTER TABLE` on a *second* connection while the request's own transaction still held a lock on `user_settings`, so the request waited for itself until the platform cut it off. The existence check now reads the catalog (no lock) and, only when the column is really missing, the DDL runs on the request's own connection with `lock_timeout = 5s`. The public widget config endpoint had the same hang and is fixed by the same change. SQLite never showed it, which is why the test suite stayed green.
+- **Streaming chat (playground and public widget).** The SSE generator kept using the request's database session and ORM objects after FastAPI had closed it (`DetachedInstanceError`, swallowed into an empty error event). It now opens short-lived sessions of its own, releases the connection before the long model call, and saves the turn with a separate session. The playground endpoint also stopped running retrieval (embedding) twice per message.
+
+### UI
+- Notifications are a bar at the **top** of the page (centered, above the topbar) with an icon, a close button, up to three at a time and a longer lifetime for errors; reduced-motion aware.
+- The text next to the widget "save" button was removed. Unsaved changes are shown as a dot on the button; the migration-002 hint is a notification.
+
+### Chore / tests
+- Asset versions `2.6.4` → `2.6.5` (assets are cached as immutable).
+- `tests/test_widget_extras_ddl.py` (DDL must not open a second connection; no-op when the column exists) and a toast/save-button contract in `tests/test_frontend_contracts.py`. Verified separately against a real PostgreSQL + pgvector instance: save, widget config, documents, chat, both streams, admin.
+
 ## v2.5.0 — 2026-10-05 — Gentelella-style UI, streaming, file import, widget pet, admin alerts, speed
 
 ### UI / UX

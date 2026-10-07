@@ -185,19 +185,19 @@ class AuthFlowTests(PlatformTestCase):
         self.assertEqual(self.client.get("/api/health").json(), {"status": "ok"})
         index = self.client.get("/index.html")
         self.assertEqual(index.status_code, 200)
-        self.assertIn("style.css?v=2.6.6", index.text)
+        self.assertIn("style.css?v=2.6.5", index.text)
         self.assertEqual(self.client.get("/assets/css/style.css").status_code, 200)
         self.assertEqual(self.client.get("/widget.js").status_code, 200)
 
     def test_versioned_assets_are_cached_long_but_html_and_widget_are_not(self):
-        cached = self.client.get("/assets/css/style.css?v=2.6.6")
+        cached = self.client.get("/assets/css/style.css?v=2.6.5")
         self.assertEqual(cached.status_code, 200)
         self.assertIn("immutable", cached.headers.get("cache-control", ""))
         self.assertIn("max-age=31536000", cached.headers.get("cache-control", ""))
         # بدون ?v= یا خارج از /assets نباید کش بلندمدت بگیرند (تا انتشار جدید به همه برسد)
         self.assertNotIn("immutable", self.client.get("/assets/css/style.css").headers.get("cache-control", ""))
         self.assertNotIn("immutable", self.client.get("/index.html").headers.get("cache-control", ""))
-        self.assertNotIn("immutable", self.client.get("/widget.js?v=2.6.6").headers.get("cache-control", ""))
+        self.assertNotIn("immutable", self.client.get("/widget.js?v=2.6.5").headers.get("cache-control", ""))
 
     def test_frontend_vendor_and_script_files_are_served(self):
         for path in ("/assets/js/shell.js", "/assets/js/extract.js", "/assets/js/pets.js", "/assets/vendor/pdfjs/pdf.min.js", "/assets/vendor/pdfjs/pdf.worker.min.js"):
@@ -359,7 +359,7 @@ class WidgetFlowTests(PlatformTestCase):
         self.assertEqual(embed["widget_id"], wid)
         code = embed["embed_code_template"]
         self.assertIn(f'data-widget-id="{wid}"', code)
-        self.assertIn("__BASE_URL__/widget.js?v=2.6.6", code)
+        self.assertIn("__BASE_URL__/widget.js?v=2.6.5", code)
         self.assertIn('data-theme="auto"', code)
 
     def test_unknown_widget_is_404(self):

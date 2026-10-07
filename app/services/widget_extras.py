@@ -46,24 +46,48 @@ _last_failed_at: Dict[int, float] = {}
 _RETRY_AFTER_SECONDS = 60
 
 
-def _ensure_column(bind) -> bool:
-    """ستون widget_extras را (در صورت نبود) می‌سازد. نتیجه‌ی موفق در حافظه‌ی پروسه کش می‌شود."""
+def _column_exists(db: Session) -> bool:
+    """وجود ستون را فقط از کاتالوگ می‌خواند؛ هیچ قفلی روی user_settings نمی‌گیرد."""
+    if config.IS_POSTGRES:
+        row = db.execute(
+            text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_schema = ANY (current_schemas(false)) "
+                "AND table_name = 'user_settings' AND column_name = 'widget_extras' LIMIT 1"
+            )
+        ).first()
+        return row is not None
+    return any(r[1] == "widget_extras" for r in db.execute(text("PRAGMA table_info(user_settings)")).fetchall())
+
+
+def _ensure_column(db: Session) -> bool:
+    """ستون widget_extras را (در صورت نبود) می‌سازد. نتیجه‌ی موفق در حافظه‌ی پروسه کش می‌شود.
+
+    نکته‌ی مهم: DDL حتماً روی «همین اتصال/نشستِ درخواست» اجرا می‌شود، نه روی یک اتصال دوم.
+    تراکنش درخواست معمولاً از قبل روی user_settings قفل خواندن دارد؛ ALTER TABLE روی اتصال دیگر
+    منتظر آزاد شدن همان قفل می‌ماند و خودِ درخواست منتظر ALTER می‌ماند (deadlock روی PostgreSQL/Supabase
+    که در سایت به‌شکل «سرویس موقتاً در دسترس نیست» دیده می‌شد). برای اطمینان، lock_timeout هم گذاشته شده.
+    """
+    bind = db.get_bind()
     if bind in _ready_engines:
         return True
     if time.time() - _last_failed_at.get(id(bind), 0.0) < _RETRY_AFTER_SECONDS:
         return False
     try:
+        if _column_exists(db):
+            _ready_engines.add(bind)
+            return True
+        db.commit()  # قفل‌های تراکنش فعلی آزاد شود؛ بعد DDL روی همین اتصال
         if config.IS_POSTGRES:
-            with bind.begin() as conn:
-                conn.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS widget_extras text"))
+            db.execute(text("SET LOCAL lock_timeout = '5s'"))
+            db.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS widget_extras text"))
         else:
-            columns = {c["name"] for c in inspect(bind).get_columns("user_settings")}
-            if "widget_extras" not in columns:
-                with bind.begin() as conn:
-                    conn.execute(text("ALTER TABLE user_settings ADD COLUMN widget_extras TEXT"))
+            db.execute(text("ALTER TABLE user_settings ADD COLUMN widget_extras TEXT"))
+        db.commit()
         _ready_engines.add(bind)
         return True
     except Exception as exc:  # noqa: BLE001
+        db.rollback()
         _last_failed_at[id(bind)] = time.time()
         logger.warning("widget_extras column is not available: %s", exc)
         return False
@@ -138,7 +162,7 @@ def _read(db: Session, user_id: int) -> Tuple[Dict[str, Any], bool]:
             else:
                 db.rollback()
             logger.info("widget_extras read failed (attempt %s): %s", attempt, exc)
-            if attempt == 1 and _ensure_column(db.get_bind()):
+            if attempt == 1 and _ensure_column(db):
                 continue
             return dict(DEFAULTS, quick_replies=[]), False
     return dict(DEFAULTS, quick_replies=[]), False
@@ -152,7 +176,7 @@ def load(db: Session, user_id: int) -> Tuple[Dict[str, Any], bool]:
 def save(db: Session, user_id: int, incoming: Dict[str, Any]) -> Dict[str, Any]:
     current, _available = _read(db, user_id)
     merged = sanitize(incoming, base=current)
-    if not _ensure_column(db.get_bind()):
+    if not _ensure_column(db):
         raise HTTPException(status_code=503, detail=MIGRATION_HINT)
     try:
         db.execute(

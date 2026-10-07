@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
@@ -5,6 +7,8 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..services import llm_client, rag_pipeline, rate_limit, streaming, widget_extras
+
+logger = logging.getLogger("quasar.public_widget")
 
 router = APIRouter(prefix="/public/widget", tags=["ویجت عمومی (بدون نیاز به ورود)"])
 
@@ -106,8 +110,10 @@ def widget_chat_stream(widget_id: str, payload: schemas.WidgetChatRequest, reque
         )
         db.add(session)
         db.flush()
-    session_id, message = session.id, payload.message
+    session_id, owner_id, message = session.id, owner.id, payload.message
     db.commit()
+    # نشست درخواست (db) پیش از شروع استریم بسته می‌شود؛ generator با نشست‌های کوتاه‌مدت خودش کار می‌کند.
+    bind = db.get_bind()
 
     def event_stream():
         collected: list[str] = []
@@ -115,8 +121,13 @@ def widget_chat_stream(widget_id: str, payload: schemas.WidgetChatRequest, reque
         yield ": qz-ready\n\n"
         plan = None
         try:
-            plan = rag_pipeline.prepare_rag_chat(db, owner, session, message)
-            yield streaming.sse("meta", {"session_id": session_id, "sources": streaming.sources_payload(plan.matches)})
+            with Session(bind=bind, autoflush=False) as work_db:
+                chat_owner = work_db.get(models.User, owner_id)
+                chat_session = work_db.get(models.ChatSession, session_id)
+                plan = rag_pipeline.prepare_rag_chat(work_db, chat_owner, chat_session, message)
+                meta = {"session_id": session_id, "sources": streaming.sources_payload(plan.matches)}
+            # اتصال دیتابیس پیش از تماس طولانی با مدل آزاد شد.
+            yield streaming.sse("meta", meta)
             if plan.instant_reply or plan.no_answer:
                 reply = plan.instant_reply or plan.no_answer
                 collected.append(reply or "")
@@ -127,17 +138,19 @@ def widget_chat_stream(widget_id: str, payload: schemas.WidgetChatRequest, reque
                 )
                 yield from streaming.relay_model_stream(pieces, collected)
             yield streaming.sse("done", {})
-        except llm_client.LLMError as exc:
+        except llm_client.LLMError:
             yield streaming.sse("error", {"message": "", "retry": True, "partial": bool(collected)})
         except Exception:  # noqa: BLE001
             # خطاهای غیرقابل پیش‌بینی نباید در UI به «500 + شناسه درخواست» تبدیل شوند.
+            logger.exception("public widget stream failed")
             yield streaming.sse("error", {"message": "", "retry": True, "partial": bool(collected)})
         finally:
             text = "".join(collected)
             if text:
                 try:
-                    rag_pipeline.save_turn(db, session_id, message, text)
+                    with Session(bind=bind, autoflush=False) as save_db:
+                        rag_pipeline.save_turn(save_db, session_id, message, text)
                 except Exception:  # noqa: BLE001
-                    db.rollback()
+                    logger.exception("could not save streamed widget turn")
 
     return StreamingResponse(event_stream(), media_type="text/event-stream", headers=streaming.SSE_HEADERS)

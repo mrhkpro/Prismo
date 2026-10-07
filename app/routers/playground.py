@@ -1,3 +1,4 @@
+import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -9,6 +10,8 @@ from .. import config, models, schemas
 from ..database import get_db
 from ..security import get_current_user
 from ..services import llm_client, rag_pipeline, rag_store, streaming
+
+logger = logging.getLogger("quasar.playground")
 
 router = APIRouter(prefix="/api/playground", tags=["آزمایشگاه تست"])
 
@@ -101,15 +104,23 @@ def chat_test_stream(
     session = _get_or_create_session(db, current_user, payload.session_id)
     selected_model = payload.model or current_user.settings.chat_model
     session_id, owner_id, message = session.id, current_user.id, payload.message
-    db.commit()
+    db.commit()  # نشست حتی اگر مدل خطا بدهد حفظ می‌شود
+    # نشست درخواست (db) پیش از شروع استریم بسته می‌شود؛ generator با نشست‌های کوتاه‌مدت خودش کار می‌کند.
+    bind = db.get_bind()
 
     def event_stream():
         collected: list[str] = []
         # اولین بایت را زود بفرست تا کاربر معطل آماده‌سازی embedding نشود.
         yield ": qz-ready\n\n"
+        plan = None
         try:
-            plan = rag_pipeline.prepare_rag_chat(db, current_user, session, message, model=selected_model)
-            yield streaming.sse("meta", {"session_id": session_id, "model": selected_model, "sources": streaming.sources_payload(plan.matches)})
+            with Session(bind=bind, autoflush=False) as work_db:
+                owner = work_db.get(models.User, owner_id)
+                chat_session = work_db.get(models.ChatSession, session_id)
+                plan = rag_pipeline.prepare_rag_chat(work_db, owner, chat_session, message, model=selected_model)
+                meta = {"session_id": session_id, "model": selected_model, "sources": streaming.sources_payload(plan.matches)}
+            # اتصال دیتابیس پیش از تماس طولانی با مدل آزاد شد.
+            yield streaming.sse("meta", meta)
             if plan.instant_reply or plan.no_answer:
                 reply = plan.instant_reply or plan.no_answer
                 collected.append(reply or "")
@@ -125,14 +136,16 @@ def chat_test_stream(
         except llm_client.LLMError as exc:
             yield streaming.sse("error", {"message": str(exc), "retry": True, "partial": bool(collected)})
         except Exception:  # noqa: BLE001
+            logger.exception("playground stream failed")
             yield streaming.sse("error", {"message": "", "retry": True, "partial": bool(collected)})
         finally:
             text = "".join(collected)
             if text:
                 try:
-                    rag_pipeline.save_turn(db, session_id, message, text)
+                    with Session(bind=bind, autoflush=False) as save_db:
+                        rag_pipeline.save_turn(save_db, session_id, message, text)
                 except Exception:  # noqa: BLE001
-                    db.rollback()
+                    logger.exception("could not save streamed turn")
 
     return StreamingResponse(event_stream(), media_type="text/event-stream", headers=streaming.SSE_HEADERS)
 

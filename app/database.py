@@ -22,9 +22,12 @@ if config.IS_POSTGRES:
 
     engine = create_engine(
         config.DATABASE_URL,
-        pool_size=3,
-        max_overflow=2,
-        pool_recycle=900,
+        # Pool بزرگ‌تر باعث می‌شود هم‌زمانی embedding/درخواست‌های API
+        # برای Local + Supabase پشت صف یک connection نماند.
+        pool_size=6,
+        max_overflow=4,
+        pool_timeout=10,
+        pool_recycle=1800,
         pool_pre_ping=False,
         pool_use_lifo=True,
         connect_args=connect_args,

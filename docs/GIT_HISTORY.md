@@ -75,3 +75,15 @@ Baseline first, then the redesign, then tests and the fixes they uncovered. Ever
 - `chore/release-2.5.0` → asset versions 2.5.0
 - `docs/release-2.5.0` → this changelog and history
 
+## v2.6.5 release chain
+
+> The delivered v2.6.4 archive did not contain the `.git` directory, so the earlier branches listed above are not in this repository. History resumes from a baseline snapshot of v2.6.4; everything after it is merged into `main` with `--no-ff` as before.
+
+- `chore/v2.6.4-baseline` → snapshot of the delivered v2.6.4 tree (on `main`)
+- `chore/asset-version-2.6.5` → asset/embed versions `2.6.5` (cache bust)
+- `fix/widget-extras-ddl-deadlock` → DDL on the request connection + catalog check + lock timeout; regression tests
+- `fix/stream-detached-session` → SSE endpoints use their own short-lived sessions; no double retrieval
+- `style/top-toast-bar` → notifications pinned to the top, no inline text beside save, unsaved-dot on the button
+- `docs/release-2.6.5` → changelog and this history
+
+`.env` stays untracked (see `.gitignore`).

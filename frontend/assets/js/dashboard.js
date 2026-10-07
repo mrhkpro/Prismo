@@ -432,6 +432,20 @@ function openDocModal(title, docTitle = "", docContent = "") {
   document.getElementById("docModalTitle").textContent = title;
   document.getElementById("docTitleInput").value = docTitle;
   document.getElementById("docContentInput").value = docContent;
+  const progress = document.getElementById("docIndexProgress");
+  if (progress) {
+    progress.hidden = true;
+    progress.classList.remove("error");
+  }
+  clearDocProgressTipTimer();
+  DOC_PROGRESS_TOKEN += 1;
+  DOC_PROGRESS_PERCENT = 0;
+  DOC_PROGRESS_BASE_MESSAGE = "";
+  DOC_PROGRESS_TIP_INDEX = 0;
+  const progressBar = document.getElementById("docIndexProgressBar");
+  const progressPercent = document.getElementById("docIndexProgressPercent");
+  if (progressBar) progressBar.style.width = "0%";
+  if (progressPercent) progressPercent.textContent = "0٪";
   document.getElementById("docModal").classList.add("show");
 }
 function closeDocModal() {
@@ -488,29 +502,75 @@ document.getElementById("clearKbBtn").addEventListener("click", async () => {
   }
 });
 
-function ensureDocSaveProgress(title = "در حال ذخیره…") {
-  const host = document.getElementById("docSaveProgress");
-  if (!host) return { set() {}, fail() {}, finish() {} };
-  const titleEl = host.querySelector(".operation-progress-title");
-  const bar = host.querySelector(".operation-progress-bar-fill");
-  const percentEl = host.querySelector(".operation-progress-percent");
-  host.hidden = false;
-  host.classList.remove("error");
-  const set = (percent, label) => {
-    const safe = Math.max(0, Math.min(100, Number(percent) || 0));
-    if (titleEl) titleEl.textContent = label || title;
-    if (bar) bar.style.width = `${safe}%`;
-    if (percentEl) percentEl.textContent = `${Math.round(safe)}٪`;
-  };
-  set(0, title);
-  return {
-    set,
-    fail() { host.classList.add("error"); },
-    finish() {
-      setTimeout(() => { host.hidden = true; host.classList.remove("error"); }, 1000);
-    },
-  };
+const DOC_PROGRESS_TIPS = [
+  "نکته: جست‌وجوی معنایی فقط دنبال کلمهٔ دقیق نمی‌گردد؛ مفهوم سؤال را هم در نظر می‌گیرد.",
+  "یادآوری: بعد از ایندکس، پاسخ‌های تست و ویجت می‌توانند از همین دانشنامه استفاده کنند.",
+  "نکته: هرچه متن سند منظم‌تر و بخش‌بندی‌شده‌تر باشد، بازیابی اطلاعات دقیق‌تر می‌شود.",
+  "قابلیت جالب: مدل می‌تواند از چند بخش مرتبط سند، یک پاسخ یکپارچه بسازد.",
+  "پشت صحنه: برای هر بخش، یک نمایش عددی ساخته می‌شود تا پیدا کردن اطلاعات مرتبط سریع شود.",
+];
+let DOC_PROGRESS_TIMER = null;
+let DOC_PROGRESS_TIP_INDEX = 0;
+let DOC_PROGRESS_TOKEN = 0;
+let DOC_PROGRESS_PERCENT = 0;
+let DOC_PROGRESS_BASE_MESSAGE = "";
+
+function clearDocProgressTipTimer() {
+  if (DOC_PROGRESS_TIMER) {
+    clearTimeout(DOC_PROGRESS_TIMER);
+    DOC_PROGRESS_TIMER = null;
+  }
 }
+
+function scheduleDocProgressTips() {
+  clearDocProgressTipTimer();
+  if (DOC_PROGRESS_PERCENT >= 100) return;
+  const token = ++DOC_PROGRESS_TOKEN;
+  DOC_PROGRESS_TIMER = setTimeout(() => {
+    if (token !== DOC_PROGRESS_TOKEN || DOC_PROGRESS_PERCENT >= 100) return;
+    const title = document.getElementById("docIndexProgressTitle");
+    if (!title) return;
+    DOC_PROGRESS_TIP_INDEX = (DOC_PROGRESS_TIP_INDEX + 1) % DOC_PROGRESS_TIPS.length;
+    title.classList.add("swap");
+    setTimeout(() => {
+      if (token !== DOC_PROGRESS_TOKEN || DOC_PROGRESS_PERCENT >= 100) return;
+      title.textContent = DOC_PROGRESS_TIPS[DOC_PROGRESS_TIP_INDEX];
+      title.classList.remove("swap");
+      DOC_PROGRESS_TIMER = setTimeout(() => {
+        if (token !== DOC_PROGRESS_TOKEN || DOC_PROGRESS_PERCENT >= 100) return;
+        title.classList.add("swap");
+        setTimeout(() => {
+          if (token !== DOC_PROGRESS_TOKEN || DOC_PROGRESS_PERCENT >= 100) return;
+          title.textContent = DOC_PROGRESS_BASE_MESSAGE;
+          title.classList.remove("swap");
+          scheduleDocProgressTips();
+        }, 220);
+      }, 4200);
+    }, 220);
+  }, 5500);
+}
+
+function setDocIndexProgress(percent, message, error = false) {
+  const host = document.getElementById("docIndexProgress");
+  if (!host) return;
+  const title = document.getElementById("docIndexProgressTitle");
+  const percentEl = document.getElementById("docIndexProgressPercent");
+  const bar = document.getElementById("docIndexProgressBar");
+  const safePercent = Math.max(0, Math.min(100, Math.round(percent || 0)));
+  DOC_PROGRESS_PERCENT = safePercent;
+  DOC_PROGRESS_BASE_MESSAGE = message || "در حال پردازش سند…";
+  host.hidden = false;
+  host.classList.toggle("error", Boolean(error));
+  if (title) {
+    title.classList.remove("swap");
+    title.textContent = DOC_PROGRESS_BASE_MESSAGE;
+  }
+  if (percentEl) percentEl.textContent = `${safePercent}٪`;
+  if (bar) bar.style.width = `${safePercent}%`;
+  DOC_PROGRESS_TOKEN += 1;
+  scheduleDocProgressTips();
+}
+
 
 document.getElementById("saveDocBtn").addEventListener("click", async () => {
   const title = document.getElementById("docTitleInput").value.trim();
@@ -518,35 +578,49 @@ document.getElementById("saveDocBtn").addEventListener("click", async () => {
   if (!title || !content) return toast("عنوان و محتوا را پر کن.", "error");
 
   const btn = document.getElementById("saveDocBtn");
-  const progress = ensureDocSaveProgress("در حال ذخیره اطلاعات…");
-  progress.set(10, "در حال ذخیره اطلاعات…");
+  const closeBtn = document.getElementById("closeDocModalBtn");
   btn.disabled = true;
-  btn.textContent = "در حال ذخیره…";
+  if (closeBtn) closeBtn.disabled = true;
+
   try {
-    let saved;
     if (EDITING_DOC_ID) {
-      progress.set(35, "در حال ذخیره متن سند…");
-      saved = await apiCall(`/api/knowledge/documents/${EDITING_DOC_ID}`, { method: "PUT", timeoutMs: 0, body: { title, content } });
-      progress.set(100, saved && saved.chunk_count ? "ذخیره و ایندکس کامل شد" : "سند ذخیره شد؛ ایندکس در دسترس نیست");
-      toast(saved && saved.chunk_count ? "سند بروزرسانی و ایندکس شد." : "سند ذخیره شد، اما سرویس embedding در دسترس نبود؛ بعداً می‌توانی دوباره ایندکس کنی.", saved && saved.chunk_count ? "success" : "warning");
-    } else {
-      progress.set(35, "در حال ذخیره متن سند…");
-      saved = await apiCall("/api/knowledge/documents", { method: "POST", timeoutMs: 0, body: { title, content } });
-      progress.set(100, saved && saved.chunk_count ? "ذخیره و ایندکس کامل شد" : "سند ذخیره شد؛ ایندکس در دسترس نیست");
-      toast(saved && saved.chunk_count ? "سند اضافه و ایندکس شد." : "سند ذخیره شد، اما سرویس embedding در دسترس نبود؛ بعداً می‌توانی دوباره ایندکس کنی.", saved && saved.chunk_count ? "success" : "warning");
+      // ویرایش سند همان مسیر قبلی را حفظ می‌کند؛ این نوار مخصوص «افزودن سند جدید» است.
+      btn.textContent = "در حال ذخیره…";
+      await apiCall(`/api/knowledge/documents/${EDITING_DOC_ID}`, { method: "PUT", timeoutMs: 0, body: { title, content } });
+      toast("سند بروزرسانی شد.", "success");
+      closeDocModal();
+      loadDocuments();
+      return;
     }
+
+    setDocIndexProgress(0, "در حال آماده‌سازی سند…", "embedding");
+    btn.textContent = "در حال تبدیل و ایندکس…";
+
+    await apiStream("/api/knowledge/documents/stream", {
+      body: { title, content },
+      idleTimeoutMs: 0,
+      onMeta(data) {
+        if (data && typeof data.progress === "number") {
+          setDocIndexProgress(data.progress, data.message || "در حال ذخیره و ایندکس سند…");
+        }
+      },
+    });
+
+    setDocIndexProgress(100, "همه بخش‌های سند با موفقیت ذخیره شد؛ دانشنامه آماده است ✓");
+    toast("سند اضافه و ایندکس شد.", "success");
+    await new Promise((resolve) => setTimeout(resolve, 850));
     closeDocModal();
-    await loadDocuments();
+    loadDocuments();
   } catch (err) {
-    progress.set(100, err?.message || "ذخیره ناموفق بود");
-    progress.fail();
+    setDocIndexProgress(DOC_PROGRESS_PERCENT, err && err.message ? err.message : "ایندکس سند ناموفق بود.", true);
     toastError(err);
   } finally {
-    progress.finish();
     btn.disabled = false;
+    if (closeBtn) closeBtn.disabled = false;
     btn.textContent = "ذخیره و ایندکس‌کردن";
   }
 });
+
 
 // ---------------------------------------------------------------------------
 // ایمپورت فایل (PDF، Word، Excel، PowerPoint، ...) → متن → دانشنامه
@@ -554,7 +628,7 @@ document.getElementById("saveDocBtn").addEventListener("click", async () => {
 function ensureOperationProgress(title = "در حال پردازش…") {
   const host = document.getElementById("operationProgress");
   const titleEl = host ? host.querySelector(".operation-progress-title") : null;
-  const bar = host ? host.querySelector(".operation-progress-bar-fill") : null;
+  const bar = host ? host.querySelector(".operation-progress-bar > span") : null;
   const percentEl = host ? host.querySelector(".operation-progress-percent") : null;
   const existing = {
     set(percent, label) {
@@ -577,58 +651,17 @@ let IMPORT_BUSY = false;
 function addImportRow(name) {
   const row = document.createElement("div");
   row.className = "import-row";
-  row.innerHTML = `<span class="import-name"></span><span class="import-state"></span><span class="import-percent">0٪</span><div class="import-meter"><span></span></div>`;
+  row.innerHTML = `<span class="import-name"></span><span class="import-state"></span>`;
   row.querySelector(".import-name").textContent = name;
   importList.prepend(row);
   const state = row.querySelector(".import-state");
-  const meter = row.querySelector(".import-meter > span");
-  const percent = row.querySelector(".import-percent");
   return {
-    set(text, kind, value) {
+    set(text, kind) {
       state.textContent = text;
       row.dataset.kind = kind || "";
-      if (Number.isFinite(value)) {
-        const safe = Math.max(0, Math.min(100, value));
-        meter.style.width = `${safe}%`;
-        percent.textContent = `${Math.round(safe)}٪`;
-      }
     },
-    done() { this.set("✓ اضافه شد", "ok", 100); setTimeout(() => row.classList.add("fade"), 6000); setTimeout(() => row.remove(), 6800); },
+    done() { setTimeout(() => row.classList.add("fade"), 6000); setTimeout(() => row.remove(), 6800); },
   };
-}
-
-function apiUploadJson(path, body, onProgress) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", path, true);
-    xhr.setRequestHeader("Content-Type", "application/json");
-    const token = Auth.getToken();
-    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable && onProgress) onProgress(Math.round((event.loaded / event.total) * 100));
-    };
-    xhr.onload = () => {
-      let data = null;
-      try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch (_) {}
-      if (xhr.status === 401) {
-        Auth.clear();
-        location.href = "/index.html";
-        reject(new Error("نشست شما منقضی شده؛ دوباره وارد شوید."));
-        return;
-      }
-      if (xhr.status < 200 || xhr.status >= 300) {
-        const message = data && data.detail ? data.detail : `خطا (${xhr.status})`;
-        const error = new Error(typeof message === "string" ? message : JSON.stringify(message));
-        error.status = xhr.status;
-        reject(error);
-        return;
-      }
-      resolve(data);
-    };
-    xhr.onerror = () => reject(new Error("ارتباط با سرور برقرار نشد."));
-    xhr.onabort = () => reject(new Error("آپلود متوقف شد."));
-    xhr.send(JSON.stringify(body));
-  });
 }
 
 async function importFiles(fileList) {
@@ -644,7 +677,7 @@ async function importFiles(fileList) {
   let completedFiles = 0;
   try {
     try {
-      await Lazy.script("/assets/js/extract.js?v=2.6.6");
+      await Lazy.script("/assets/js/extract.js?v=2.6.5");
     } catch (err) {
       return toastError(err);
     }
@@ -652,13 +685,12 @@ async function importFiles(fileList) {
       const row = addImportRow(file.name);
       progress.set(Math.round((completedFiles / files.length) * 100), `در حال خواندن ${file.name}`);
       try {
-        row.set("در حال خواندن…", "work", 5);
+        row.set("در حال خواندن…", "work");
         const { title, text } = await FileExtract.extract(file, (page, total) => {
-          const phase = total ? (page / total) * 20 : 10;
-          row.set(`خواندن صفحه ${page} از ${total}…`, "work", Math.min(20, phase));
+          row.set(`خواندن صفحه ${page} از ${total}…`, "work");
           const base = (completedFiles / files.length) * 100;
           const share = total ? (page / total) * (100 / files.length) : 0;
-          progress.set(Math.min(99, base + share * 0.2), `خواندن ${file.name}`);
+          progress.set(Math.min(99, base + share), `خواندن ${file.name}`);
         });
 
         // فقط یک فایل کوچک: متن را برای بازبینی در همان ویرایشگر باز کن (رفتار قبلیِ آپلود TXT)
@@ -666,30 +698,26 @@ async function importFiles(fileList) {
           row.set("آماده‌ی بازبینی", "ok");
           EDITING_DOC_ID = null;
           openDocModal("افزودن سند جدید", title, text);
-          row.set("✓ متن استخراج شد؛ آمادهٔ ذخیره", "ok", 100);
+          row.done();
           continue;
         }
 
         const parts = FileExtract.splitForUpload(text);
         for (let i = 0; i < parts.length; i++) {
-          row.set(parts.length > 1 ? `در حال ارسال و ایندکس بخش ${i + 1} از ${parts.length}` : "در حال ارسال و ایندکس…", "work", 20);
+          row.set(parts.length > 1 ? `ایندکس بخش ${i + 1} از ${parts.length}…` : "در حال ایندکس‌کردن…", "work");
           const docTitle = parts.length > 1 ? `${title} (بخش ${i + 1} از ${parts.length})` : title;
           const base = (completedFiles / files.length) * 100;
-          const share = 80 / parts.length;
-          await apiUploadJson("/api/knowledge/documents", { title: docTitle.slice(0, 200), content: parts[i] }, (uploadPercent) => {
-            const rowPercent = 20 + (uploadPercent / 100) * (share * 0.92);
-            row.set(parts.length > 1 ? `در حال آپلود/ایندکس بخش ${i + 1} از ${parts.length}` : "در حال آپلود و ایندکس…", "work", rowPercent);
-            const totalWithinFile = ((i * share) + (uploadPercent / 100) * share);
-            progress.set(Math.min(99, ((completedFiles * 100) / files.length) + ((20 + totalWithinFile) / files.length)), `آپلود ${file.name}`);
-          });
-          row.set(parts.length > 1 ? `ایندکس بخش ${i + 1} از ${parts.length}` : "ایندکس نهایی…", "work", 98);
+          const share = ((i + 1) / parts.length) * (100 / files.length);
+          progress.set(Math.min(99, base + share), `ایندکس ${file.name}`);
+          await apiCall("/api/knowledge/documents", { method: "POST", timeoutMs: 0, body: { title: docTitle.slice(0, 200), content: parts[i] } });
           imported += 1;
         }
-        row.done();
+        row.set(parts.length > 1 ? `✓ ${parts.length} بخش اضافه شد` : "✓ اضافه شد", "ok");
         completedFiles += 1;
         progress.set(Math.round((completedFiles / files.length) * 100), `${completedFiles} از ${files.length} فایل انجام شد`);
+        row.done();
       } catch (err) {
-        row.set(err && err.message ? err.message : "ناموفق", "error", 100);
+        row.set(err && err.message ? err.message : "ناموفق", "error");
         completedFiles += 1;
         progress.set(Math.round((completedFiles / files.length) * 100), `${completedFiles} از ${files.length} فایل`);
       }
@@ -786,22 +814,11 @@ document.querySelectorAll("#view-test-lab .tab-btn").forEach((btn) => {
 });
 
 // --- تست گفت‌وگوی RAG ---
-function renderChatMarkdown(value) {
-  const source = String(value ?? "");
-  let html = escapeHtml(source);
-  html = html.replace(/`([^`\n]+)`/g, "<code>$1</code>");
-  html = html.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/__([^_\n]+)__/g, "<strong>$1</strong>");
-  html = html.replace(/\n/g, "<br>");
-  return html;
-}
-
 function appendChatMsg(role, text) {
   const stream = document.getElementById("chatStream");
   const el = document.createElement("div");
   el.className = `chat-msg ${role === "user" ? "user" : "bot"}`;
-  if (role === "user") el.textContent = text;
-  else el.innerHTML = renderChatMarkdown(text);
+  el.textContent = text;
   stream.appendChild(el);
   stream.scrollTop = stream.scrollHeight;
   return el;
@@ -851,13 +868,13 @@ async function chatViaStream(message, selectedModel, bubble) {
   let frame = null;
   const paint = () => {
     frame = null;
-    bubble.innerHTML = renderChatMarkdown(text);
+    bubble.textContent = text;
     const stream = document.getElementById("chatStream");
     stream.scrollTop = stream.scrollHeight;
   };
   CHAT_ABORT = new AbortController();
   try {
-    const streamResult = await apiStream("/api/playground/chat/stream", {
+    await apiStream("/api/playground/chat/stream", {
       signal: CHAT_ABORT.signal,
       body: { message, session_id: CHAT_SESSION_ID, ...(selectedModel ? { model: selectedModel } : {}) },
       onMeta: (meta) => {
@@ -874,10 +891,9 @@ async function chatViaStream(message, selectedModel, bubble) {
         if (frame === null) frame = requestAnimationFrame(paint);
       },
     });
-    return streamResult;
   } finally {
     if (frame !== null) cancelAnimationFrame(frame);
-    if (text) bubble.innerHTML = renderChatMarkdown(text);
+    if (text) bubble.textContent = text;
     bubble.classList.remove("streaming");
     CHAT_ABORT = null;
   }
@@ -891,7 +907,7 @@ async function chatViaRequest(message, selectedModel, bubble) {
     body: { message, session_id: CHAT_SESSION_ID, ...(selectedModel ? { model: selectedModel } : {}) },
   });
   CHAT_SESSION_ID = res.session_id;
-  bubble.innerHTML = renderChatMarkdown(res.reply);
+  bubble.textContent = res.reply;
   bubble.classList.remove("pending");
   document.getElementById("activeChatModelBadge").textContent = res.model || selectedModel || "—";
   renderChatSources(res.sources);
@@ -913,7 +929,7 @@ async function sendChatMessage() {
   sendBtn.title = "توقف پاسخ";
   input.value = "";
   appendChatMsg("user", message);
-  const bubble = appendChatMsg("bot", "در حال آماده‌سازی پاسخ");
+  const bubble = appendChatMsg("bot", "در حال آماده‌سازی پاسخ…");
   bubble.classList.add("pending", "streaming");
 
   // همیشه مدل فعلی تنظیمات را صریحاً به backend می‌فرستیم
@@ -929,7 +945,8 @@ async function sendChatMessage() {
       }
     } catch (err) {
       if (err && err.aborted) {
-        // توقف دستی: متن فعلی را نگه می‌داریم و پیام خطا نمی‌سازیم.
+        // توقف دستی، بدون تبدیل آن به خطای قرمز.
+        if (bubble.dataset.hasText !== "1") bubble.textContent = "پاسخ متوقف شد.";
         bubble.classList.remove("pending");
       } else if (bubble.dataset.hasText !== "1" && (err?.streamError || STREAM_FALLBACK_STATUSES.includes(err?.status))) {
         // خطای خود Stream را مخفی می‌کنیم و مسیر معمولی را امتحان می‌کنیم.
@@ -1046,9 +1063,9 @@ function readWidgetForm() {
 
 function updateWidgetDirty() {
   const dirty = JSON.stringify(readWidgetForm()) !== WIDGET_BASELINE;
-  const hint = widgetEl("widgetDirtyHint");
-  hint.textContent = dirty ? "تغییرات ذخیره‌نشده" : "";
-  hint.className = "status-line" + (dirty ? " error-text" : "");
+  const btn = widgetEl("saveWidgetBtn");
+  btn.classList.toggle("has-changes", dirty);
+  btn.title = dirty ? "تغییرات ذخیره‌نشده دارید" : "";
 }
 
 // تغییرات فرم را همان لحظه (حتی بدون ذخیره) به ویجت داخل پیش‌نمایش می‌فرستیم
@@ -1142,8 +1159,10 @@ document.addEventListener("qz-theme-change", () => {
 
 function renderEmbedCode() {
   if (!EMBED_TEMPLATE) return;
+  const box = widgetEl("embedCodeBox");
+  if (!box) return;
   const code = EMBED_TEMPLATE.replaceAll("__BASE_URL__", window.location.origin).replace(/data-theme="[^"]*"/, `data-theme="${EMBED_THEME}"`);
-  widgetEl("embedCodeBox").textContent = code;
+  box.textContent = code;
 }
 
 async function loadWidgetSection() {
@@ -1152,7 +1171,7 @@ async function loadWidgetSection() {
     const [cfg, embed] = await Promise.all([
       apiCall("/api/widget/config"),
       apiCall("/api/widget/embed-code"),
-      Lazy.script("/assets/js/pets.js?v=2.6.6").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+      Lazy.script("/assets/js/pets.js?v=2.6.5").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
     ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";
@@ -1173,8 +1192,7 @@ async function loadWidgetSection() {
     WIDGET_BASELINE = JSON.stringify(readWidgetForm());
     updateWidgetDirty();
     if (cfg.extras_available === false) {
-      const hint = widgetEl("widgetDirtyHint");
-      hint.textContent = "ذخیره‌ی حیوان خانگی و پاسخ‌های سریع نیاز به یک‌بار اجرای migration شماره‌ی ۰۰۲ دارد.";
+      toast("ذخیره‌ی حیوان خانگی و پاسخ‌های سریع نیاز به یک‌بار اجرای migration شماره‌ی ۰۰۲ دارد.", "error");
     }
 
     EMBED_TEMPLATE = embed.embed_code_template;
@@ -1247,7 +1265,9 @@ widgetEl("saveWidgetBtn").addEventListener("click", async () => {
 });
 
 widgetEl("copyEmbedBtn").addEventListener("click", async () => {
-  const text = widgetEl("embedCodeBox").textContent;
+  const box = widgetEl("embedCodeBox");
+  if (!box) return toast("بخش کد امبد در دسترس نیست.", "error");
+  const text = box.textContent;
   try {
     await navigator.clipboard.writeText(text);
     toast("کد کپی شد.", "success");

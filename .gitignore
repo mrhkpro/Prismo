@@ -1,6 +1,6 @@
 # Environment
 
-.env
+
 .env.*
 !.env.example
 
@@ -69,3 +69,6 @@ Thumbs.db
 .coverage
 htmlcov/
 .vercel
+
+.vercel
+.env*

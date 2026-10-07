@@ -12,6 +12,7 @@ import json
 from typing import List, Tuple
 
 import numpy as np
+from sqlalchemy import insert
 from sqlalchemy.orm import Session
 
 from .. import config, models
@@ -28,31 +29,10 @@ def add_chunks(
     texts: List[str],
     embeddings: List[List[float]],
 ) -> List[models.Chunk]:
-
+    """ثبت تکه‌ها؛ برای سازگاری، همان ORM objects قبلی را برمی‌گرداند."""
     rows = []
-
-    for idx, (text, embedding) in enumerate(
-        zip(texts, embeddings)
-    ):
-
-        # ----------------------------------------------------
-        # PostgreSQL / pgvector
-        # ----------------------------------------------------
-
-        if config.IS_POSTGRES:
-
-            stored_embedding = embedding
-
-        # ----------------------------------------------------
-        # SQLite / JSON
-        # ----------------------------------------------------
-
-        else:
-
-            stored_embedding = json.dumps(
-                embedding
-            )
-
+    for idx, (text, embedding) in enumerate(zip(texts, embeddings)):
+        stored_embedding = embedding if config.IS_POSTGRES else json.dumps(embedding)
         row = models.Chunk(
             document_id=document_id,
             user_id=user_id,
@@ -60,14 +40,37 @@ def add_chunks(
             text=text,
             embedding=stored_embedding,
         )
-
         db.add(row)
-
         rows.append(row)
-
     db.flush()
-
     return rows
+
+
+def add_chunks_bulk(
+    db: Session,
+    user_id: int,
+    document_id: int,
+    texts: List[str],
+    embeddings: List[List[float]],
+    start_index: int = 0,
+) -> int:
+    """ثبت سریع batchها با یک INSERT executemany به‌جای ساخت ORM object برای هر chunk."""
+    if not texts:
+        return 0
+
+    rows = []
+    for offset, (text, embedding) in enumerate(zip(texts, embeddings)):
+        stored_embedding = embedding if config.IS_POSTGRES else json.dumps(embedding)
+        rows.append({
+            "document_id": document_id,
+            "user_id": user_id,
+            "chunk_index": start_index + offset,
+            "text": text,
+            "embedding": stored_embedding,
+        })
+
+    db.execute(insert(models.Chunk), rows)
+    return len(rows)
 
 
 # ============================================================

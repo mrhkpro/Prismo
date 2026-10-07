@@ -234,16 +234,34 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 
 .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); border: none; margin: 22px 0; }
 
-.toast-host { position: fixed; bottom: 24px; left: 24px; z-index: 999; display: flex; flex-direction: column; gap: 10px; }
+/* نوار اعلان: بالای صفحه، وسط‌چین، روی نوار بالایی؛ تا کاربر بدون چشم‌گردانی نتیجه‌ی «ذخیره» را ببیند */
+.toast-host {
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1000;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  width: min(560px, calc(100vw - 24px)); pointer-events: none;
+}
 .toast {
+  pointer-events: auto; display: flex; align-items: flex-start; gap: 10px;
   background: var(--bg-glass); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  padding: 12px 18px; font-size: 14px; box-shadow: var(--shadow-pop); animation: toast-in .22s ease;
-  max-width: 560px; max-height: 60vh; overflow: auto; white-space: pre-wrap; word-break: break-word;
+  padding: 12px 14px; font-size: 14px; line-height: 1.7; box-shadow: var(--shadow-pop);
+  animation: toast-in .22s ease; max-height: 60vh; overflow: auto; white-space: pre-wrap; word-break: break-word;
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
 }
-.toast.success { border-color: var(--success); }
-.toast.error { border-color: var(--danger); }
-@keyframes toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.toast .toast-msg { flex: 1; min-width: 0; }
+.toast .toast-icon { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; line-height: 1; }
+.toast .toast-close { flex-shrink: 0; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; }
+.toast .toast-close:hover { color: var(--text); }
+.toast.success { border-color: var(--success); background-image: linear-gradient(var(--success-soft), var(--success-soft)); }
+.toast.success .toast-icon { background: var(--success); color: var(--on-accent); }
+:root[data-theme="light"] .toast.success .toast-icon { color: var(--on-danger); }
+.toast.error { border-color: var(--danger); background-image: linear-gradient(var(--danger-soft), var(--danger-soft)); }
+.toast.error .toast-icon { background: var(--danger); color: var(--on-danger); }
+.toast.leaving { opacity: 0; transform: translateY(-8px); transition: opacity .2s ease, transform .2s ease; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } .toast.leaving { transition: none; } }
+/* نقطه‌ی «تغییرات ذخیره‌نشده» روی خود دکمه‌ی ذخیره (به‌جای متن کنار دکمه) */
+.btn.has-changes { position: relative; }
+.btn.has-changes::after { content: ""; position: absolute; top: -4px; inset-inline-start: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); border: 2px solid var(--bg-elevated); }
 
 /* =========================================================================
    صفحه‌ی ورود / ثبت‌نام (index.html)
@@ -551,6 +569,16 @@ tbody tr:hover { background: var(--accent-soft); }
 .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
 .modal-head h3 { font-size: 17px; }
 
+.doc-index-progress { margin-top: 14px; padding: 15px; border: 1px solid var(--accent-line); border-radius: var(--radius-md); background: linear-gradient(180deg, var(--bg-elevated), var(--bg-elevated-2)); box-shadow: 0 8px 24px rgba(20, 8, 48, .08); }
+.doc-index-progress.error { border-color: var(--danger); }
+.doc-index-progress-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.doc-index-progress-title { color: var(--text); font-size: 13px; font-weight: 700; line-height: 1.85; min-height: 24px; transition: opacity .18s ease, transform .18s ease; }
+.doc-index-progress-title.swap { opacity: .25; transform: translateY(2px); }
+.doc-index-progress-percent { min-width: 52px; text-align: center; color: var(--accent-text); font-family: var(--font-mono); font-size: 13px; font-weight: 800; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 999px; padding: 4px 9px; }
+.doc-index-progress-bar { height: 10px; overflow: hidden; border-radius: 999px; background: var(--bg-elevated-2); border: 1px solid var(--border-soft); }
+.doc-index-progress-bar > span { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--grad-brand); transition: width .32s ease; box-shadow: 0 0 12px rgba(110, 80, 220, .2); }
+
+
 .slider-row { display: flex; align-items: center; gap: 14px; }
 .slider-row input[type="range"] { flex: 1; }
 .slider-value { font-family: var(--font-mono); background: var(--accent-soft); color: var(--accent-text); padding: 5px 12px; border-radius: 8px; font-size: 13px; min-width: 44px; text-align: center; }
@@ -681,6 +709,11 @@ tbody tr:hover { background: var(--accent-soft); }
 
 /* ---------- چت استریم ---------- */
 .chat-msg { white-space: pre-wrap; }
+.chat-msg.streaming:not(.pending)::after {
+  content: ''; display: inline-block; width: 7px; height: 1.05em; margin-inline-start: 3px; vertical-align: text-bottom;
+  background: var(--accent); border-radius: 2px; animation: caret-blink .9s steps(2, start) infinite;
+}
+@keyframes caret-blink { to { visibility: hidden; } }
 .chat-note { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); color: var(--danger); font-size: 12.5px; }
 
 /* ---------- ایمپورت فایل ---------- */
@@ -705,11 +738,9 @@ tbody tr:hover { background: var(--accent-soft); }
 .import-row[data-kind="error"] { border-color: var(--danger); }
 .import-row[data-kind="error"] .import-state { color: var(--danger); white-space: normal; text-align: left; }
 
-.doc-save-progress{margin-top:2px;margin-bottom:14px}.operation-progress{margin:0 0 14px;padding:13px 15px;border:1px solid var(--border-soft);background:linear-gradient(180deg,var(--bg-elevated),var(--bg-glass));border-radius:var(--radius-md);box-shadow:var(--shadow-card)}
+.operation-progress{margin:0 0 14px;padding:12px 14px;border:1px solid var(--border-soft);background:var(--bg-elevated);border-radius:var(--radius-md)}
 .operation-progress.error{border-color:var(--danger)}
-.operation-progress-head{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:12.5px;color:var(--text-muted);margin-bottom:9px}.operation-progress-title{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.operation-progress-percent{font-variant-numeric:tabular-nums;color:var(--accent-text);font-weight:800}.operation-progress-track{height:8px;background:var(--bg-elevated-2);border-radius:999px;overflow:hidden;position:relative}.operation-progress-bar-fill{display:block;height:100%;width:0;background:var(--grad-brand);border-radius:inherit;transition:width .18s ease;box-shadow:0 0 0 1px rgba(255,255,255,.04) inset}.import-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}.import-row .import-meter{grid-column:1/-1;height:5px;border-radius:999px;overflow:hidden;background:var(--bg-elevated-2)}.import-row .import-meter>span{display:block;height:100%;width:0;background:var(--grad-brand);transition:width .18s ease;border-radius:inherit}.import-row .import-percent{min-width:42px;text-align:left;font-variant-numeric:tabular-nums;font-size:12px;color:var(--text-muted)}
-.chat-msg{white-space:normal}.chat-msg strong{font-weight:800;color:inherit}.chat-msg code{font-family:var(--font-mono);font-size:.92em;padding:2px 5px;border-radius:5px;background:var(--bg-elevated);border:1px solid var(--border-soft)}
-.chat-msg.pending{color:var(--text-faint)}
+.operation-progress-head{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:12.5px;color:var(--text-muted);margin-bottom:8px}.operation-progress-percent{font-variant-numeric:tabular-nums;color:var(--accent-text);font-weight:700}.operation-progress-bar{height:7px;background:var(--bg-elevated-2);border-radius:999px;overflow:hidden}.operation-progress-bar>span{display:block;height:100%;width:0;background:var(--grad-brand);border-radius:inherit;transition:width .2s ease}
 
 /* ---------- ویجت‌ساز ---------- */
 .widget-layout { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 20px; align-items: start; }
