@@ -3,24 +3,24 @@
 
   const STORAGE_KEY = "qz_theme";
   const root = document.documentElement;
+  const THEMES = ["light", "dark", "ocean", "forest", "sunset", "lavender", "mono"];
 
   function getInitialTheme() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved === "light" || saved === "dark" ? saved : "dark";
+      return THEMES.includes(saved) ? saved : "dark";
     } catch (_) {
       return "dark";
     }
   }
 
   function setTheme(theme, persist) {
-    const next = theme === "light" ? "light" : "dark";
+    const next = THEMES.includes(theme) ? theme : "dark";
     root.dataset.theme = next;
     document.dispatchEvent(new CustomEvent("qz-theme-change", { detail: { theme: next } }));
     if (persist) {
       try { localStorage.setItem(STORAGE_KEY, next); } catch (_) {}
     }
-
     const btn = document.getElementById("themeToggle");
     if (!btn) return;
     const isLight = next === "light";
@@ -31,7 +31,11 @@
     btn.title = btn.getAttribute("aria-label");
   }
 
+  window.QZTheme = { set: setTheme, get: () => root.dataset.theme || getInitialTheme(), themes: THEMES.slice() };
+
   function ensureToggle() {
+    // داشبورد 2.7 مدیریت تم را به «تنظیمات» منتقل کرده و نباید دکمه‌ی شناور بسازد.
+    if (document.body && document.body.hasAttribute("data-theme-settings-center")) return;
     let btn = document.getElementById("themeToggle");
     if (!btn) {
       btn = document.createElement("button");

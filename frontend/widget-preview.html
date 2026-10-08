@@ -16,13 +16,13 @@
   var widgetId = params.get("widget_id");
   if (!widgetId) return;
   var script = document.createElement("script");
-  script.src = "/widget.js?v=2.6.5";
+  script.src = "/widget.js?v=2.7.0";
   script.async = false;
   script.setAttribute("data-widget-id", widgetId);
   script.setAttribute("data-preview", "1");
   script.setAttribute("data-api-base", location.origin);
   var theme = params.get("theme");
-  script.setAttribute("data-theme", theme === "light" || theme === "dark" ? theme : "auto");
+  script.setAttribute("data-theme", theme || "auto");
   document.body.appendChild(script);
 }());
 </script>

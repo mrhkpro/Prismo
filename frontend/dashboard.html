@@ -9,9 +9,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/assets/css/style.css?v=2.6.5">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.7.0">
 </head>
-<body>
+<body data-theme-settings-center="1">
 
 <div class="app-shell">
   <!-- =================== نوار کناری =================== -->
@@ -54,6 +54,13 @@
       </div>
     </div>
 
+    <div class="nav-group">
+      <div class="nav-item" data-view="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"></path><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.05.05a2 2 0 1 1-2.83 2.83l-.05-.05a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.08A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.05.05a2 2 0 1 1-2.83-2.83l.05-.05A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.08A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.05-.05a2 2 0 1 1 2.83-2.83l.05.05A1.7 1.7 0 0 0 9 4.63 1.7 1.7 0 0 0 10.03 3.1V3a2 2 0 1 1 4 0v.08A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.05-.05a2 2 0 1 1 2.83 2.83l-.05.05A1.7 1.7 0 0 0 19.37 9c.21.62.8 1.03 1.46 1.03H21a2 2 0 1 1 0 4h-.08A1.7 1.7 0 0 0 19.4 15z"></path></svg>
+        تنظیمات
+      </div>
+    </div>
+
     <div class="nav-group" id="adminNavGroup" style="display:none;">
       <div class="nav-group-label">مدیریت</div>
       <div class="nav-item" id="goToAdminBtn">
@@ -63,10 +70,6 @@
     </div>
 
     <div class="sidebar-footer">
-      <div class="nav-item" data-view="account">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-        حساب من
-      </div>
       <div class="sidebar-user">
         <div class="avatar" id="avatarInitial">?</div>
         <div class="who">
@@ -83,7 +86,6 @@
       <button class="icon-btn topbar-menu" id="sidebarToggle" type="button" aria-label="باز و بسته‌کردن منو"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
       <nav class="breadcrumb" aria-label="مسیر صفحه"><span>کوازار</span><span class="sep">/</span><b id="crumbCurrent">خانه</b></nav>
       <div class="topbar-spacer"></div>
-      <button class="theme-toggle" id="themeToggle" type="button" aria-label="تغییر حالت نمایش"></button>
       <div class="topbar-user" id="topbarAvatar" aria-hidden="true">?</div>
     </header>
     <div class="main-body">
@@ -95,7 +97,7 @@
     <!-- ---------- خانه ---------- -->
     <section class="view active" id="view-overview">
       <div class="page-head">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span class="badge badge-accent">QUASAR 2.6.5</span><span class="badge badge-success"><span class="badge-dot"></span> سیستم آماده</span></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span class="badge badge-accent">QUASAR 2.7.0</span><span class="badge badge-success"><span class="badge-dot"></span> سیستم آماده</span></div>
         <h1>سلام 👋</h1>
         <p>یک نگاه سریع به وضعیت دستیار هوشمند و دانشنامه‌ات</p>
       </div>
@@ -173,16 +175,35 @@
                 <input type="url" id="baseUrlInput" placeholder="https://api.example.com/v1" dir="ltr" autocomplete="url">
               </div>
               <div class="field span-2">
-                <label>API Key</label>
+                <label>API Key چت</label>
                 <div class="input-action">
                   <input type="password" id="apiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
                   <button class="btn btn-soft" id="discoverModelsBtn" type="button">دریافت مدل‌ها</button>
                 </div>
                 <span class="field-hint" id="apiKeyStatusHint"></span>
-                <div class="status-line" id="modelDiscoveryStatus"></div>
               </div>
-              <div class="field"><label>مدل چت</label><select id="customChatModelSelect" disabled></select></div>
-              <div class="field"><label>مدل Embedding</label><select id="customEmbeddingModelSelect" disabled></select><span class="field-hint">فقط مدل‌هایی نمایش داده می‌شوند که واقعاً embedding بدهند و با ابعاد فعلی پروژه سازگار باشند.</span></div>
+              <div class="field span-2 model-credential-mode">
+                <label>اعتبار اتصال Embedding</label>
+                <div class="segmented" id="modelCredentialMode" role="tablist" aria-label="کلید مدل چت و embedding">
+                  <button type="button" class="seg-btn active" id="sharedModelKeyBtn">همان API Key چت</button>
+                  <button type="button" class="seg-btn" id="separateModelKeyBtn">API Key جداگانه</button>
+                </div>
+                <span class="field-hint">در حالت جدا، Base URL و API Key embedding مستقل بررسی می‌شوند.</span>
+              </div>
+              <div id="separateEmbeddingProviderPanel" class="field-grid span-2" style="display:none;">
+                <div class="field">
+                  <label>Embedding Base URL</label>
+                  <input type="url" id="embeddingBaseUrlInput" placeholder="https://embedding.example.com/v1" dir="ltr" autocomplete="url">
+                </div>
+                <div class="field">
+                  <label>Embedding API Key</label>
+                  <input type="password" id="embeddingApiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
+                  <span class="field-hint" id="embeddingApiKeyStatusHint"></span>
+                </div>
+              </div>
+              <div class="field"><label>مدل چت تأییدشده</label><select id="customChatModelSelect" disabled></select></div>
+              <div class="field"><label>مدل Embedding تأییدشده</label><select id="customEmbeddingModelSelect" disabled></select><span class="field-hint">فقط مدل‌هایی نمایش داده می‌شوند که واقعاً endpoint مربوطه را پاسخ دهند و ابعاد embedding آن‌ها با پروژه برابر باشد.</span></div>
+              <div class="field span-2"><div class="status-line" id="modelDiscoveryStatus"></div></div>
             </div>
             <div class="panel-foot">
               <button class="btn btn-primary" id="saveCustomProviderBtn">ذخیره</button>
@@ -450,18 +471,79 @@
       </div>
     </section>
 
-    <!-- ---------- حساب من ---------- -->
-    <section class="view" id="view-account">
+    <!-- ---------- تنظیمات مرکزی ---------- -->
+    <section class="view" id="view-settings">
       <div class="page-head">
-        <h1>حساب من</h1>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+          <span class="badge badge-accent">مرکز کنترل</span>
+          <span class="badge badge-muted" id="settingsSavedBadge">ذخیره محلی</span>
+        </div>
+        <h1>تنظیمات سایت</h1>
+        <p>زبان، ظاهر، رفتار پاسخ‌ها، تجربه کاربری و حساب را از یکجا کنترل کن.</p>
       </div>
-      <div class="panel" style="max-width:420px;">
-        <div class="field"><label>نام کاربری</label><input type="text" id="accUsername" disabled></div>
-        <div class="field"><label>نام سازمان</label><input type="text" id="accOrgName" disabled></div>
-        <div class="field"><label>نقش</label><input type="text" id="accRole" disabled></div>
-        <button class="btn btn-danger btn-block" id="logoutBtn">خروج از حساب</button>
+
+      <div class="settings-grid">
+        <div class="panel flat settings-card">
+          <div class="panel-head"><div><div class="panel-title">زبان و جهت صفحه</div><div class="panel-desc">با انتخاب English، رابط کاربری کاملاً چپ‌چین می‌شود.</div></div><span class="settings-icon">文</span></div>
+          <div class="language-choice" id="languageChoice" role="radiogroup" aria-label="زبان">
+            <button type="button" class="language-card active" data-language="fa"><span class="language-flag">🇮🇷</span><span><b>فارسی</b><small>راست‌چین</small></span></button>
+            <button type="button" class="language-card" data-language="en"><span class="language-flag">🇬🇧</span><span><b>English</b><small>Left to right</small></span></button>
+          </div>
+        </div>
+
+        <div class="panel flat settings-card">
+          <div class="panel-head"><div><div class="panel-title">رنگ و حال‌وهوای محیط</div><div class="panel-desc">۷ پوسته‌ی آماده با ذخیره‌سازی فوری.</div></div><span class="settings-icon">◒</span></div>
+          <div class="theme-grid" id="themePresetGrid">
+            <button class="theme-preset" type="button" data-theme-preset="light"><span class="theme-dot light"></span><span>روشن کلاسیک</span></button>
+            <button class="theme-preset" type="button" data-theme-preset="dark"><span class="theme-dot dark"></span><span>تیره کلاسیک</span></button>
+            <button class="theme-preset" type="button" data-theme-preset="ocean"><span class="theme-dot ocean"></span><span>اقیانوس</span></button>
+            <button class="theme-preset" type="button" data-theme-preset="forest"><span class="theme-dot forest"></span><span>جنگل</span></button>
+            <button class="theme-preset" type="button" data-theme-preset="sunset"><span class="theme-dot sunset"></span><span>غروب</span></button>
+            <button class="theme-preset" type="button" data-theme-preset="lavender"><span class="theme-dot lavender"></span><span>لاوندر</span></button>
+            <button class="theme-preset" type="button" data-theme-preset="mono"><span class="theme-dot mono"></span><span>مینیمال</span></button>
+          </div>
+        </div>
+
+        <div class="panel flat settings-card">
+          <div class="panel-head"><div><div class="panel-title">رفتار پاسخ</div><div class="panel-desc">این گزینه مستقیماً روی چت داخلی داشبورد اعمال می‌شود.</div></div><span class="settings-icon">⚡</span></div>
+          <div class="settings-list">
+            <label class="settings-switch-row"><span><strong>نمایش تکه‌تکه‌ی پاسخ</strong><small>پاسخ مدل هم‌زمان با رسیدن توکن‌ها نمایش داده شود.</small></span><span class="switch"><input type="checkbox" id="settingStreaming" checked><span class="switch-track"></span></span></label>
+            <label class="settings-switch-row"><span><strong>اسکرول خودکار گفتگو</strong><small>هنگام دریافت پاسخ، پایین گفتگو را دنبال کند.</small></span><span class="switch"><input type="checkbox" id="settingAutoScroll" checked><span class="switch-track"></span></span></label>
+            <label class="settings-switch-row"><span><strong>هشدار صوتی پایان پاسخ</strong><small>بعد از تمام شدن پاسخ، یک صدای کوتاه پخش شود.</small></span><span class="switch"><input type="checkbox" id="settingResponseSound"><span class="switch-track"></span></span></label>
+          </div>
+        </div>
+
+        <div class="panel flat settings-card">
+          <div class="panel-head"><div><div class="panel-title">تجربه کاربری</div><div class="panel-desc">جزئیاتی که روی سرعت حس‌شده و کار با پنل اثر می‌گذارند.</div></div><span class="settings-icon">✦</span></div>
+          <div class="settings-list">
+            <label class="settings-switch-row"><span><strong>حالت کم‌تحرک</strong><small>انیمیشن‌ها و حرکت‌های غیرضروری را کاهش می‌دهد.</small></span><span class="switch"><input type="checkbox" id="settingReducedMotion"><span class="switch-track"></span></span></label>
+            <label class="settings-switch-row"><span><strong>سایدبار فشرده</strong><small>منوی کناری را به حالت آیکونی کوچک می‌کند.</small></span><span class="switch"><input type="checkbox" id="settingCompactSidebar"><span class="switch-track"></span></span></label>
+            <label class="settings-switch-row"><span><strong>کنتراست بیشتر</strong><small>مرزها و متن‌های کم‌رنگ را خواناتر می‌کند.</small></span><span class="switch"><input type="checkbox" id="settingHighContrast"><span class="switch-track"></span></span></label>
+          </div>
+        </div>
+
+        <div class="panel flat settings-card">
+          <div class="panel-head"><div><div class="panel-title">حافظه و حریم تجربه</div><div class="panel-desc">تنظیمات شخصی این مرورگر در همین دستگاه ذخیره می‌شوند.</div></div><span class="settings-icon">⌁</span></div>
+          <div class="settings-list">
+            <label class="settings-switch-row"><span><strong>بازگردانی آخرین بخش</strong><small>پس از ورود دوباره، همان بخش قبلی باز شود.</small></span><span class="switch"><input type="checkbox" id="settingRememberView" checked><span class="switch-track"></span></span></label>
+            <label class="settings-switch-row"><span><strong>بازگردانی اندازه منو</strong><small>وضعیت باز/بسته بودن سایدبار حفظ شود.</small></span><span class="switch"><input type="checkbox" id="settingRememberRail" checked><span class="switch-track"></span></span></label>
+          </div>
+          <div class="panel-foot"><button class="btn btn-soft" id="resetSiteSettingsBtn">بازنشانی تنظیمات سایت</button></div>
+        </div>
+
+        <div class="panel flat settings-card settings-account-card">
+          <div class="panel-head"><div><div class="panel-title">حساب کاربری</div><div class="panel-desc">اطلاعات حساب همین‌جا مدیریت می‌شود؛ نام و آیکونت همچنان پایین منوی کناری است.</div></div><span class="settings-icon">◉</span></div>
+          <div class="form-grid">
+            <div class="field"><label>نام کاربری</label><input type="text" id="accUsername" disabled></div>
+            <div class="field"><label>نام سازمان</label><input type="text" id="accOrgName" disabled></div>
+            <div class="field"><label>نقش</label><input type="text" id="accRole" disabled></div>
+            <div class="field"><label>وضعیت</label><input type="text" id="accStatus" disabled value="فعال"></div>
+          </div>
+          <div class="panel-foot"><button class="btn btn-danger" id="logoutBtn">خروج از حساب</button></div>
+        </div>
       </div>
     </section>
+
 
     </div>
   </main>
@@ -495,9 +577,10 @@
   </div>
 </div>
 
-<script src="/assets/js/api.js?v=2.6.5"></script>
-<script src="/assets/js/theme.js?v=2.6.5"></script>
-<script src="/assets/js/shell.js?v=2.6.5" defer></script>
-<script src="/assets/js/dashboard.js?v=2.6.5"></script>
+<script src="/assets/js/api.js?v=2.7.0"></script>
+<script src="/assets/js/theme.js?v=2.7.0"></script>
+<script src="/assets/js/settings.js?v=2.7.0"></script>
+<script src="/assets/js/shell.js?v=2.7.0" defer></script>
+<script src="/assets/js/dashboard.js?v=2.7.0"></script>
 </body>
 </html>
