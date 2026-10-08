@@ -185,12 +185,12 @@ class AuthFlowTests(PlatformTestCase):
         self.assertEqual(self.client.get("/api/health").json(), {"status": "ok"})
         index = self.client.get("/index.html")
         self.assertEqual(index.status_code, 200)
-        self.assertIn("style.css?v=2.7.0", index.text)
+        self.assertIn("style.css?v=2.7.1", index.text)
         self.assertEqual(self.client.get("/assets/css/style.css").status_code, 200)
         self.assertEqual(self.client.get("/widget.js").status_code, 200)
 
     def test_versioned_assets_are_cached_long_but_html_and_widget_are_not(self):
-        cached = self.client.get("/assets/css/style.css?v=2.7.0")
+        cached = self.client.get("/assets/css/style.css?v=2.7.1")
         self.assertEqual(cached.status_code, 200)
         self.assertIn("immutable", cached.headers.get("cache-control", ""))
         self.assertIn("max-age=31536000", cached.headers.get("cache-control", ""))

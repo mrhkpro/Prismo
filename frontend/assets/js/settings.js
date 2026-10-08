@@ -64,7 +64,11 @@
   function textNodeReplace(text) {
     return state.language === "en" ? (dict[text] || text) : (reverseDict[text] || text);
   }
+  var translationObserver = null;
+  var isTranslating = false;
+
   function translateNode(node) {
+    if (!node) return;
     var walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
     var source = state.language === "en" ? dict : reverseDict;
     var updates = [];
@@ -74,10 +78,12 @@
       if (value && source[value]) updates.push([n, source[value]]);
     }
     updates.forEach(function (x) { x[0].nodeValue = x[1]; });
-    document.querySelectorAll("input[placeholder], textarea[placeholder], [title]").forEach(function (el) {
-      if (el.placeholder && source[el.placeholder]) el.placeholder = source[el.placeholder];
-      if (el.title && source[el.title]) el.title = source[el.title];
-    });
+    if (node === document.body || node === document.documentElement) {
+      document.querySelectorAll("input[placeholder], textarea[placeholder], [title]").forEach(function (el) {
+        if (el.placeholder && source[el.placeholder]) el.placeholder = source[el.placeholder];
+        if (el.title && source[el.title]) el.title = source[el.title];
+      });
+    }
     document.documentElement.lang = state.language === "en" ? "en" : "fa";
     document.documentElement.dir = state.language === "en" ? "ltr" : "rtl";
     body.classList.toggle("qz-ltr", state.language === "en");
@@ -86,7 +92,16 @@
   function setLanguage(lang, persist) {
     state.language = lang === "en" ? "en" : "fa";
     if (persist) { try { localStorage.setItem(LANGUAGE_KEY, state.language); } catch (_) {} save(state); }
-    translateNode(document.body);
+    // Pause DOM observation while translating. Otherwise every text mutation
+    // schedules another full-body translation and the language switch can freeze.
+    if (translationObserver) translationObserver.disconnect();
+    isTranslating = true;
+    try {
+      translateNode(document.body);
+    } finally {
+      isTranslating = false;
+      if (translationObserver) translationObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+    }
     document.querySelectorAll("[data-language]").forEach(function (el) { el.classList.toggle("active", el.dataset.language === state.language); });
     document.dispatchEvent(new CustomEvent("qz-language-change", { detail: { language: state.language } }));
   }
@@ -136,11 +151,23 @@
     });
   }
 
-  var translationObserver = new MutationObserver(function (mutations) {
-    if (!mutations || state.language === "fa") return;
+  translationObserver = new MutationObserver(function (mutations) {
+    if (isTranslating || !mutations || state.language === "fa") return;
     mutations.forEach(function (m) {
-      if (m.type === "childList") m.addedNodes.forEach(function (n) { if (n.nodeType === 1) translateNode(n); });
-      else if (m.type === "characterData" && m.target.parentElement) translateNode(m.target.parentElement);
+      if (m.type === "childList") {
+        m.addedNodes.forEach(function (n) {
+          if (n.nodeType === 1) translateNode(n);
+          else if (n.nodeType === 3 && n.nodeValue.trim()) {
+            var source = state.language === "en" ? dict : reverseDict;
+            var value = n.nodeValue.trim();
+            if (source[value]) n.nodeValue = source[value];
+          }
+        });
+      } else if (m.type === "characterData" && m.target && m.target.nodeValue) {
+        var source = state.language === "en" ? dict : reverseDict;
+        var value = m.target.nodeValue.trim();
+        if (value && source[value]) m.target.nodeValue = source[value];
+      }
     });
   });
   translationObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
