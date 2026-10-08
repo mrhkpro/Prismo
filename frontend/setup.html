@@ -69,12 +69,14 @@
       <div class="setup-foot">در Vercel این صفحه وارد چرخه اجرای برنامه نمی‌شود و انتخاب دیتابیس از طریق Environment Variables پروژه انجام می‌شود.</div>
     </section>
   </main>
+  <script src="/assets/js/settings.js?v=2.7.2"></script>
   <script>
   (async function () {
     const status = document.getElementById('setupStatus');
+    const lang = () => (localStorage.getItem('qz_language') || 'fa').startsWith('en') ? 'en' : 'fa';
     const options = document.getElementById('setupOptions');
     try {
-      const runtime = await fetch('/api/runtime', {headers:{Accept:'application/json'}}).then(r => r.ok ? r.json() : null);
+      const runtime = await fetch('/api/runtime', {headers:{Accept:'application/json','X-QZ-Language':lang()}}).then(r => r.ok ? r.json() : null);
       if (runtime && runtime.vercel) {
         document.getElementById('setupTitle').textContent = 'این نسخه روی Vercel اجرا می‌شود';
         document.getElementById('setupSub').textContent = 'انتخاب دیتابیس در Vercel از متغیرهای محیطی انجام می‌شود؛ این صفحه نباید برای اجرای عادی نمایش داده شود.';
@@ -94,7 +96,7 @@
         try {
           const response = await fetch('/__setup/choose', {
             method: 'POST',
-            headers: {'Content-Type':'application/json','Accept':'application/json'},
+            headers: {'Content-Type':'application/json','Accept':'application/json','X-QZ-Language':lang()},
             body: JSON.stringify({mode})
           });
           const data = await response.json().catch(() => ({}));
@@ -105,7 +107,7 @@
           const waitForApp = async () => {
             attempts += 1;
             try {
-              const app = await fetch('http://127.0.0.1:8000/api/runtime', { cache: 'no-store', headers: {Accept:'application/json'} });
+              const app = await fetch('http://127.0.0.1:8000/api/runtime', { cache: 'no-store', headers: {'Accept':'application/json','X-QZ-Language':lang()} });
               if (app.ok) { location.href = 'http://127.0.0.1:8000/'; return; }
             } catch (_) {}
             try {
