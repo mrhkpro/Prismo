@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
 from ..database import get_db
@@ -21,7 +21,12 @@ WIDGET_PRIVATE_HEADERS = {
 
 
 def _get_owner_by_widget(db: Session, widget_id: str) -> models.User:
-    settings = db.query(models.UserSettings).filter(models.UserSettings.widget_id == widget_id).first()
+    settings = (
+        db.query(models.UserSettings)
+        .options(joinedload(models.UserSettings.user))
+        .filter(models.UserSettings.widget_id == widget_id)
+        .first()
+    )
     if not settings:
         raise HTTPException(status_code=404, detail="ویجت یافت نشد.")
     return settings.user
