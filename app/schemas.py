@@ -65,6 +65,9 @@ class SettingsOut(BaseModel):
     use_default_provider: bool
     api_key_set: bool
     base_url: Optional[str] = None
+    separate_embedding_provider: bool = False
+    embedding_api_key_set: bool = False
+    embedding_base_url: Optional[str] = None
     chat_model: str
     embedding_model: str
     system_prompt: str
@@ -83,6 +86,9 @@ class SettingsUpdate(BaseModel):
     use_default_provider: Optional[bool] = None
     api_key: Optional[str] = None
     base_url: Optional[str] = None
+    separate_embedding_provider: Optional[bool] = None
+    embedding_api_key: Optional[str] = None
+    embedding_base_url: Optional[str] = None
     chat_model: Optional[str] = None
     embedding_model: Optional[str] = None
     system_prompt: Optional[str] = None
@@ -121,6 +127,9 @@ class DashboardSummaryOut(BaseModel):
 class DiscoverModelsRequest(BaseModel):
     base_url: str = Field(min_length=1, max_length=500)
     api_key: Optional[str] = Field(default=None, max_length=500)
+    separate_embedding_provider: bool = False
+    embedding_base_url: Optional[str] = Field(default=None, max_length=500)
+    embedding_api_key: Optional[str] = Field(default=None, max_length=500)
 
     @field_validator("base_url")
     @classmethod
@@ -130,13 +139,27 @@ class DiscoverModelsRequest(BaseModel):
             raise ValueError("Base URL باید با http:// یا https:// شروع شود.")
         return value
 
+    @field_validator("embedding_base_url")
+    @classmethod
+    def validate_embedding_base_url(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        value = value.strip().rstrip("/")
+        if not value:
+            return None
+        if not value.startswith(("http://", "https://")):
+            raise ValueError("Embedding Base URL باید با http:// یا https:// شروع شود.")
+        return value
+
 
 class DiscoverModelsResponse(BaseModel):
     models: List[str]
     chat_models: List[str] = Field(default_factory=list)
     embedding_models: List[str] = Field(default_factory=list)
     unknown_models: List[str] = Field(default_factory=list)
-    embedding_probe_ok: bool = True
+    chat_probe_ok: bool = False
+    embedding_probe_ok: bool = False
+    dual_capable_models: List[str] = Field(default_factory=list)
 
 
 class CustomConnectionTestRequest(BaseModel):
@@ -296,6 +319,9 @@ class AdminUserDetailOut(AdminUserOut):
     use_default_provider: bool
     api_key_set: bool
     base_url: Optional[str] = None
+    separate_embedding_provider: bool = False
+    embedding_api_key_set: bool = False
+    embedding_base_url: Optional[str] = None
     chat_model: str
     embedding_model: str
     system_prompt: str
