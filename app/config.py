@@ -39,6 +39,12 @@ IS_VERCEL = bool(os.getenv("VERCEL"))
 
 APP_TITLE = "پلتفرم ویجت هوشمند RAG"
 
+# Logging is intentionally quiet by default in local development.
+# This prevents high-frequency request logs from consuming CPU/disk while the UI boots.
+LOG_LEVEL = os.getenv("QUASAR_LOG_LEVEL", "WARNING").strip().upper()
+REQUEST_LOGGING = os.getenv("QUASAR_REQUEST_LOGGING", "0").strip().lower() in {"1", "true", "yes", "on"}
+SLOW_REQUEST_MS = int(os.getenv("QUASAR_SLOW_REQUEST_MS", "800"))
+
 FRONTEND_DIR = BASE_DIR / "frontend"
 
 
