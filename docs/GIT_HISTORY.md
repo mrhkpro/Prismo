@@ -96,3 +96,10 @@ Baseline first, then the redesign, then tests and the fixes they uncovered. Ever
 - `docs/release-2.7.0` → release notes, asset version sweep and test/smoke verification.
 
 All branches in the release line are merged into `main` with `--no-ff` to preserve the graph.
+
+## v2.7.2
+
+- `fix/supabase-compat-2.7.2` — Supabase/user-settings compatibility and admin safety.
+- `feature/global-i18n-2.7.2` — global locale propagation and settings UI.
+- `test/release-2.7.2` — regression tests and release verification.
+- Release merged into `main` with `--no-ff` and tagged `v2.7.2`.

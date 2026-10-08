@@ -185,12 +185,12 @@ class AuthFlowTests(PlatformTestCase):
         self.assertEqual(self.client.get("/api/health").json(), {"status": "ok"})
         index = self.client.get("/index.html")
         self.assertEqual(index.status_code, 200)
-        self.assertIn("style.css?v=2.7.1", index.text)
+        self.assertIn("style.css?v=2.7.2", index.text)
         self.assertEqual(self.client.get("/assets/css/style.css").status_code, 200)
         self.assertEqual(self.client.get("/widget.js").status_code, 200)
 
     def test_versioned_assets_are_cached_long_but_html_and_widget_are_not(self):
-        cached = self.client.get("/assets/css/style.css?v=2.7.1")
+        cached = self.client.get("/assets/css/style.css?v=2.7.2")
         self.assertEqual(cached.status_code, 200)
         self.assertIn("immutable", cached.headers.get("cache-control", ""))
         self.assertIn("max-age=31536000", cached.headers.get("cache-control", ""))
@@ -258,6 +258,25 @@ class SettingsFlowTests(PlatformTestCase):
         self.assertEqual(s["default_chat_models"], config.DEFAULT_CHAT_MODELS)
         self.assertEqual(s["widget_color"].lower(), "#7c5cff")  # مقدار پیش‌فرض ستون در مدل
         self.assertTrue(s["widget_id"])
+
+    def test_english_locale_covers_settings_widget_and_fast_chat_response(self):
+        token = self.register("roya")
+        english_headers = {**h(token), "X-QZ-Language": "en"}
+        settings = self.client.get("/api/settings", headers=english_headers).json()
+        self.assertEqual(settings["system_prompt"], config.DEFAULT_SYSTEM_PROMPT_EN)
+
+        wid = self.widget_id(token)
+        public_headers = {"X-QZ-Language": "en"}
+        auth_widget = self.client.get("/api/widget/config", headers={**h(token), "X-QZ-Language": "en"}).json()
+        self.assertEqual(auth_widget["widget_welcome_message"], config.DEFAULT_WIDGET_WELCOME_EN)
+        cfg = self.client.get(f"/public/widget/{wid}/config", headers=public_headers).json()
+        self.assertEqual(cfg["title"], config.DEFAULT_WIDGET_TITLE_EN)
+        self.assertEqual(cfg["welcome_message"], config.DEFAULT_WIDGET_WELCOME_EN)
+
+        chat = self.client.post(f"/public/widget/{wid}/chat", headers=public_headers, json={"message": "سلام"})
+        self.assertEqual(chat.status_code, 200, chat.text)
+        self.assertEqual(chat.json()["reply"], "Hello! 👋 Nice to see you. How can I help?")
+        self.assertEqual(len(self.chat_calls), 0)
 
     def test_change_every_tunable(self):
         token = self.register("roya")
@@ -359,7 +378,7 @@ class WidgetFlowTests(PlatformTestCase):
         self.assertEqual(embed["widget_id"], wid)
         code = embed["embed_code_template"]
         self.assertIn(f'data-widget-id="{wid}"', code)
-        self.assertIn("__BASE_URL__/widget.js?v=2.7.0", code)
+        self.assertIn("__BASE_URL__/widget.js?v=2.7.2", code)
         self.assertIn('data-theme="auto"', code)
 
     def test_unknown_widget_is_404(self):
