@@ -9,6 +9,8 @@ from fastapi import (
     Request,
 )
 
+from sqlalchemy import inspect, text
+
 from fastapi.middleware.cors import (
     CORSMiddleware,
 )
@@ -65,6 +67,17 @@ async def lifespan(app: FastAPI):
         Base.metadata.create_all(
             bind=engine
         )
+
+        # Local SQLite databases created before 2.7 need the new provider
+        # columns added without requiring the user to delete their database.
+        with engine.begin() as connection:
+            columns = {col["name"] for col in inspect(connection).get_columns("user_settings")}
+            if "separate_embedding_provider" not in columns:
+                connection.execute(text("ALTER TABLE user_settings ADD COLUMN separate_embedding_provider BOOLEAN NOT NULL DEFAULT 0"))
+            if "embedding_api_key" not in columns:
+                connection.execute(text("ALTER TABLE user_settings ADD COLUMN embedding_api_key VARCHAR(255)"))
+            if "embedding_base_url" not in columns:
+                connection.execute(text("ALTER TABLE user_settings ADD COLUMN embedding_base_url VARCHAR(255)"))
 
     # --------------------------------------------------------
     # Seed admin user

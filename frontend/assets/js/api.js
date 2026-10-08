@@ -79,15 +79,38 @@ async function apiCallRaw(path, { method = "GET", body = null, auth = true, time
 // سرعت و رفتار کلیک: ادغام درخواست‌های GET هم‌زمان، قفل اجرای تکراری، لود تنبل اسکریپت
 // ---------------------------------------------------------------------------
 const _inflightGets = new Map();
+const _getCache = new Map();
 const _cloneJson = (v) => (typeof structuredClone === "function" ? structuredClone(v) : JSON.parse(JSON.stringify(v)));
+const GET_CACHE_TTL = {
+  "/api/auth/me": 8000,
+  "/api/settings": 15000,
+  "/api/dashboard/summary": 12000,
+};
 
-// چند بخشِ صفحه که هم‌زمان یک آدرس GET را بخواهند، فقط یک درخواست شبکه می‌سازند.
+function clearApiCache(pathPrefix = null) {
+  if (!pathPrefix) { _getCache.clear(); return; }
+  for (const key of _getCache.keys()) if (key.startsWith(pathPrefix)) _getCache.delete(key);
+}
+
+// چند بخشِ صفحه که هم‌زمان یک آدرس GET را بخواهند، فقط یک درخواست شبکه می‌سازند؛
+// برای endpointهای read-only پرتکرار، TTL کوتاه داریم تا جابه‌جایی بین بخش‌ها دوباره شبکه را درگیر نکند.
 function apiCall(path, options = {}) {
   const method = String(options.method || "GET").toUpperCase();
-  if (method !== "GET") return apiCallRaw(path, options);
+  if (method !== "GET") {
+    return apiCallRaw(path, options).then((value) => { clearApiCache(); return value; });
+  }
+  const ttl = GET_CACHE_TTL[path] || 0;
+  const cached = _getCache.get(path);
+  if (cached && (Date.now() - cached.at) < ttl) return Promise.resolve(_cloneJson(cached.value));
+
   let pending = _inflightGets.get(path);
   if (!pending) {
-    pending = apiCallRaw(path, options).finally(() => _inflightGets.delete(path));
+    pending = apiCallRaw(path, options)
+      .then((value) => {
+        if (ttl > 0) _getCache.set(path, { at: Date.now(), value });
+        return value;
+      })
+      .finally(() => _inflightGets.delete(path));
     _inflightGets.set(path, pending);
   }
   return pending.then(_cloneJson);

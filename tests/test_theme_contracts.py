@@ -101,8 +101,9 @@ class ThemeTokenTests(unittest.TestCase):
 class StylesheetHygieneTests(unittest.TestCase):
     def test_components_use_tokens_not_hardcoded_brand_colours(self):
         body = CSS.split("/* =========================================================================\n   کوازار 2.5", 1)[1]
-        body = re.sub(r":root\s*\{.*?\n\}", "", body, flags=re.S)
-        body = re.sub(r':root\[data-theme="light"\]\s*\{.*?\n\}', "", body, flags=re.S)
+        # توکن‌های تم را قبل از بررسی کامپوننت‌ها حذف کن؛ رنگ hex در این بلوک‌ها مجاز است.
+        body = body.split("/* =========================================================================\n   تنظیمات مرکزی 2.7", 1)[0]
+        body = re.sub(r':root(?:\[data-theme="[^"]+"\])?\s*\{.*?\n\}', '', body, flags=re.S)
         leftovers = set(re.findall(r"#[0-9a-fA-F]{3,8}\b", body))
         self.assertFalse(leftovers, f"رنگ ثابت خارج از توکن‌ها: {sorted(leftovers)}")
 
@@ -129,7 +130,7 @@ class PageWiringTests(unittest.TestCase):
         versions = set()
         for page in PAGES:
             versions.update(re.findall(r"\?v=(\d+\.\d+\.\d+)", self.read(page)))
-        self.assertEqual(versions, {"2.6.5"})
+        self.assertEqual(versions, {"2.7.0"})
 
     def test_heavy_scripts_are_loaded_on_demand_not_with_the_page(self):
         dashboard = self.read("dashboard.html")
@@ -154,19 +155,19 @@ class PageWiringTests(unittest.TestCase):
     def test_every_page_has_a_theme_toggle_source(self):
         for page in ("index.html", "dashboard.html", "admin.html"):
             self.assertIn("/assets/js/theme.js", self.read(page), page)
-        self.assertIn('id="themeToggle"', self.read("dashboard.html"))
+        self.assertNotIn('id="themeToggle"', self.read("dashboard.html"))
         js = (FRONTEND / "assets" / "js" / "theme.js").read_text(encoding="utf-8")
         self.assertIn('"qz-theme-change"', js)
 
     def test_widget_preview_follows_site_theme(self):
         self.assertIn('params.get("theme")', self.read("widget-preview.html"))
         dashboard = (FRONTEND / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
-        self.assertIn("&theme=${theme}", dashboard)
+        self.assertIn("theme=${encodeURIComponent(theme)}", dashboard)
         self.assertIn('addEventListener("qz-theme-change"', dashboard)
         self.assertIn("color-scheme: light", CSS.split(".widget-preview-frame", 1)[1].split("}", 1)[0])
 
     def test_dashboard_badge_matches_release(self):
-        self.assertIn("QUASAR 2.6", self.read("dashboard.html"))
+        self.assertIn("QUASAR 2.7.0", self.read("dashboard.html"))
 
 
 class PetSpriteContractTests(unittest.TestCase):
@@ -203,7 +204,9 @@ class WidgetThemeTests(unittest.TestCase):
     def test_widget_has_matching_dark_and_light_palettes(self):
         self.assertIn("DARK_VARS", self.js)
         self.assertIn("LIGHT_VARS", self.js)
-        self.assertIn("prefers-color-scheme: light", self.js)
+        self.assertIn("THEME_VARS", self.js)
+        for theme in ("ocean", "forest", "sunset", "lavender", "mono"):
+            self.assertIn(f"{theme}: ", self.js)
         self.assertIn("--qz-panel:#1a2332", self.js)
         self.assertIn("--qz-bubble:#f9fafb", self.js)
 

@@ -122,11 +122,16 @@
       if (controller) request.signal = controller.signal;
 
       return fetch(url, request).then(function (response) {
-        return response.json().catch(function () { return {}; }).then(function (data) {
+        return response.text().catch(function () { return ""; }).then(function (raw) {
+          var data = {};
+          try { data = raw ? JSON.parse(raw) : {}; } catch (_) {
+            data = raw ? { detail: raw.slice(0, 400) } : {};
+          }
           if (!response.ok) {
-            var message = data && data.detail ? data.detail : "خطایی در سرویس رخ داد.";
+            var message = data && (data.detail || data.message) ? (data.detail || data.message) : "خطایی در سرویس رخ داد.";
             var err = new Error(message);
             err.status = response.status;
+            err.responseText = raw || "";
             throw err;
           }
           return data;
@@ -225,11 +230,17 @@
     host.setAttribute("data-side", POSITION === "bottom-right" ? "right" : "left");
     var LIGHT_VARS = "--qz-panel:#ffffff;--qz-stream:#f5f7fb;--qz-border:#e6e7eb;--qz-text:#1e2633;--qz-muted:#7e8896;--qz-bubble:#f9fafb;";
     var DARK_VARS = "--qz-panel:#1a2332;--qz-stream:#0f1623;--qz-border:rgba(255,255,255,.08);--qz-text:#e6ebf2;--qz-muted:#8a93a3;--qz-bubble:#141d2b;";
-    var themeRule = THEME === "light"
-      ? ".qz-panel{" + LIGHT_VARS + "}"
-      : THEME === "dark"
-        ? ".qz-panel{" + DARK_VARS + "}"
-        : "@media (prefers-color-scheme: light){.qz-panel{" + LIGHT_VARS + "}}";
+    var THEME_VARS = {
+      light: LIGHT_VARS,
+      dark: DARK_VARS,
+      ocean: "--qz-panel:#082032;--qz-stream:#061725;--qz-border:rgba(94,234,212,.18);--qz-text:#e6fffb;--qz-muted:#8fb4b3;--qz-bubble:#0b2d3f;",
+      forest: "--qz-panel:#12231a;--qz-stream:#0b1811;--qz-border:rgba(134,239,172,.16);--qz-text:#e7f8ec;--qz-muted:#9db7a5;--qz-bubble:#183021;",
+      sunset: "--qz-panel:#2b1720;--qz-stream:#1c1015;--qz-border:rgba(253,186,116,.18);--qz-text:#fff0e4;--qz-muted:#cdb1a4;--qz-bubble:#3a202a;",
+      lavender: "--qz-panel:#211b35;--qz-stream:#141023;--qz-border:rgba(216,180,254,.18);--qz-text:#f5efff;--qz-muted:#b9aeca;--qz-bubble:#2b2247;",
+      mono: "--qz-panel:#171717;--qz-stream:#101010;--qz-border:#303030;--qz-text:#f1f1f1;--qz-muted:#a0a0a0;--qz-bubble:#202020;"
+    };
+    var themeVars = THEME_VARS[THEME] || THEME_VARS.dark;
+    var themeRule = ".qz-panel{" + themeVars + "}";
 
     var style = document.createElement("style");
     style.textContent =
@@ -690,8 +701,19 @@ var PET_SPRITES = {"dog":{"body":["................","...........KK...","..K....
         applyExtras(cfg.extras || {});
       })
       .catch(function (err) {
-        bubble.style.display = "none";
-        panel.remove();
+        // خطای config نباید ویجت را از DOM حذف کند؛ کاربر باید علت را ببیند و
+        // بتواند دوباره تلاش کند. این مسیر همچنین مانع خطاهای مبهم «text content
+        // در دسترس نیست» در iframe/preview می‌شود.
+        titleEl.textContent = "خطا در بارگذاری ویجت";
+        addMessage("error", (err && err.message) || "تنظیمات ویجت دریافت نشد. اتصال سرور را بررسی کنید.");
+        input.disabled = true;
+        sendBtn.disabled = true;
+        var retry = document.createElement("button");
+        retry.type = "button";
+        retry.textContent = "تلاش دوباره";
+        retry.style.cssText = "margin:0 14px 12px;padding:8px 12px;border:1px solid var(--qz-border,#e6e7eb);border-radius:12px;background:transparent;color:var(--qz-text,#e6ebf2);cursor:pointer;";
+        retry.addEventListener("click", function () { location.reload(); });
+        panel.appendChild(retry);
         console.error("[کوازار ویجت] بارگذاری تنظیمات ناموفق بود:", err);
       });
   }
