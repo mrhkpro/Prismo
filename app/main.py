@@ -57,19 +57,17 @@ from .routers import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Fast startup lifecycle.
 
-    # --------------------------------------------------------
-    # Local development
-    # --------------------------------------------------------
-
+    Supabase/Postgres is treated as an already-initialized database: the app does
+    not run create_all, schema inspection, ALTER TABLE, or seed queries on boot.
+    This removes the network round-trips that previously made local+Supabase startup
+    appear frozen. SQLite keeps its local-only bootstrap/migration behavior.
+    """
     if not config.IS_POSTGRES:
+        Base.metadata.create_all(bind=engine)
 
-        Base.metadata.create_all(
-            bind=engine
-        )
-
-        # Local SQLite databases created before 2.7 need the new provider
-        # columns added without requiring the user to delete their database.
+        # Local SQLite databases created before 2.7 need the new provider columns.
         with engine.begin() as connection:
             columns = {col["name"] for col in inspect(connection).get_columns("user_settings")}
             if "separate_embedding_provider" not in columns:
@@ -79,19 +77,12 @@ async def lifespan(app: FastAPI):
             if "embedding_base_url" not in columns:
                 connection.execute(text("ALTER TABLE user_settings ADD COLUMN embedding_base_url VARCHAR(255)"))
 
-    # --------------------------------------------------------
-    # Seed admin user
-    # --------------------------------------------------------
-
-    db = SessionLocal()
-
-    try:
-
-        seed_admin(db)
-
-    finally:
-
-        db.close()
+        # Only local SQLite needs the bootstrap admin on every fresh project.
+        db = SessionLocal()
+        try:
+            seed_admin(db)
+        finally:
+            db.close()
 
     yield
 
@@ -125,7 +116,7 @@ logger = logging.getLogger(
 )
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, config.LOG_LEVEL, logging.WARNING),
     format=(
         "%(asctime)s "
         "%(levelname)s "
@@ -198,19 +189,14 @@ async def request_logging_middleware(
                 "Cache-Control"
             ] = "public, max-age=31536000, immutable"
 
-        logger.info(
-            "request_id=%s "
-            "method=%s "
-            "path=%s "
-            "status=%s "
-            "duration_ms=%s",
-
-            request_id,
-            request.method,
-            request.url.path,
-            response.status_code,
-            elapsed_ms,
-        )
+        # Do not log every static asset/request by default. Logging is opt-in
+        # or automatically enabled for slow requests, which keeps local startup
+        # and busy dashboards quiet.
+        if config.REQUEST_LOGGING or elapsed_ms >= config.SLOW_REQUEST_MS:
+            logger.info(
+                "request_id=%s method=%s path=%s status=%s duration_ms=%s",
+                request_id, request.method, request.url.path, response.status_code, elapsed_ms,
+            )
 
         return response
 

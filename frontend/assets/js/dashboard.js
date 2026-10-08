@@ -72,11 +72,14 @@ async function init() {
       `⚠️ شما در حالت جانمایی، به‌جای کاربر «${CURRENT_USER.username}» وارد شده‌اید.`;
   }
 
-  await loadOverview();
+  // Do not load every dashboard section on boot. Open only the remembered section;
+  // this keeps Supabase startup to one authenticated request plus one section request.
+  let initialView = "overview";
   try {
     const remembered = window.QZSettings && window.QZSettings.get("rememberView") ? sessionStorage.getItem("qz_last_view") : null;
-    if (remembered && remembered !== "overview" && document.getElementById(`view-${remembered}`)) Nav.go(remembered);
+    if (remembered && document.getElementById(`view-${remembered}`)) initialView = remembered;
   } catch (_) {}
+  Nav.go(initialView);
 }
 
 document.getElementById("goToAdminBtn").addEventListener("click", () => (location.href = "/admin.html"));
@@ -97,10 +100,7 @@ async function loadOverview() {
   const overviewValues = document.querySelectorAll("#view-overview .stat-card .value");
   Skel.toggle(overviewValues, true);
   try {
-    const [summary, settings] = await Promise.all([
-      apiCall("/api/dashboard/summary"),
-      apiCall("/api/settings"),
-    ]);
+    const summary = await apiCall("/api/dashboard/summary");
     document.getElementById("ovDocCount").textContent = summary.document_count;
     document.getElementById("ovChunkCount").textContent = summary.chunk_count;
     document.getElementById("ovMessageCount").textContent = summary.message_count;
@@ -112,7 +112,6 @@ async function loadOverview() {
     widgetStatus.innerHTML = summary.widget_online
       ? '<span class="badge-dot"></span> فعال'
       : 'غیرفعال';
-    CURRENT_SETTINGS = settings;
   } catch (err) {
     toastError(err);
   } finally {

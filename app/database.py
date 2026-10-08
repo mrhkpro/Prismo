@@ -12,8 +12,12 @@ from . import config
 if config.IS_POSTGRES:
 
     connect_args = {
+        # Supabase transaction-pooler (6543) should not receive a large local pool.
+        # A small warm pool reduces connection churn without creating CPU spikes.
         "prepare_threshold": None,
         "sslmode": "require",
+        "connect_timeout": 5,
+        "application_name": "quasar-local",
     }
 
     if "sslmode=" not in config.DATABASE_URL:
@@ -22,12 +26,12 @@ if config.IS_POSTGRES:
 
     engine = create_engine(
         config.DATABASE_URL,
-        # Pool بزرگ‌تر باعث می‌شود هم‌زمانی embedding/درخواست‌های API
-        # برای Local + Supabase پشت صف یک connection نماند.
-        pool_size=6,
-        max_overflow=4,
-        pool_timeout=10,
-        pool_recycle=1800,
+        # Keep a few warm connections. Large pools are counterproductive for a
+        # local app talking to Supabase and can trigger unnecessary CPU/network work.
+        pool_size=3,
+        max_overflow=2,
+        pool_timeout=5,
+        pool_recycle=900,
         pool_pre_ping=False,
         pool_use_lifo=True,
         connect_args=connect_args,
@@ -55,6 +59,7 @@ else:
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
+    expire_on_commit=False,
     bind=engine,
 )
 
