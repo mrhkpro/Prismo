@@ -45,4 +45,4 @@ if [ "$OPEN_BROWSER" = "true" ] && [ "$HOST" = "127.0.0.1" ]; then
     ( sleep 3 && (command -v open >/dev/null && open "http://127.0.0.1:${PORT}/" || command -v xdg-open >/dev/null && xdg-open "http://127.0.0.1:${PORT}/" || true) ) &
 fi
 
-"$VENV_PY" -m uvicorn app.main:app --host "$HOST" --port "$PORT"
+"$VENV_PY" -m uvicorn app.main:app --host "$HOST" --port "$PORT" --no-access-log

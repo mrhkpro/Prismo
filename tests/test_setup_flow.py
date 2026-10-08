@@ -44,3 +44,4 @@ def test_setup_choice_starts_main_app_on_8000_without_duplicate_response():
     assert 'self._json(200, {"ok": True, "mode": mode, "app_port": APP_PORT})' in bootstrap
     assert 'self._json(200, {"ok": True, "mode": mode})' not in bootstrap
     assert "_close_when_ready" in bootstrap
+    assert "--no-access-log" in bootstrap

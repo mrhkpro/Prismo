@@ -100,7 +100,7 @@ class SetupHandler(BaseHTTPRequestHandler):
             log_path = BASE_DIR / "data" / "quasar-startup.log"
             log_path.parent.mkdir(parents=True, exist_ok=True)
             log_handle = open(log_path, "w", encoding="utf-8")
-            cmd = [sys.executable, "-m", "uvicorn", "app.main:app", "--host", HOST, "--port", str(APP_PORT)]
+            cmd = [sys.executable, "-m", "uvicorn", "app.main:app", "--host", HOST, "--port", str(APP_PORT), "--no-access-log"]
             creationflags = 0
             if os.name == "nt":
                 creationflags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
