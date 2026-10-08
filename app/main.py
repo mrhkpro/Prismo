@@ -6,10 +6,12 @@ import uuid
 
 from fastapi import (
     FastAPI,
+    HTTPException,
     Request,
 )
 
 from sqlalchemy import inspect, text
+from sqlalchemy.exc import OperationalError
 
 from fastapi.middleware.cors import (
     CORSMiddleware,
@@ -23,7 +25,7 @@ from fastapi.staticfiles import (
     StaticFiles,
 )
 
-from . import config
+from . import config, i18n
 
 from .database import (
     Base,
@@ -129,6 +131,21 @@ logging.basicConfig(
 # ============================================================
 # REQUEST LOGGING
 # ============================================================
+
+@app.middleware("http")
+async def database_error_middleware(request: Request, call_next):
+    """Fail fast and localize unreachable PostgreSQL/Supabase connections."""
+    try:
+        return await call_next(request)
+    except OperationalError:
+        language = i18n.get_language(request)
+        detail = i18n.localize_message("پایگاه‌داده موقتاً در دسترس نیست.", language)
+        return JSONResponse(
+            status_code=503,
+            content={"detail": detail},
+            headers={"Cache-Control": "no-store"},
+        )
+
 
 @app.middleware("http")
 async def request_logging_middleware(
@@ -283,6 +300,24 @@ app.include_router(
 # APPLICATION ERROR HANDLER
 # ============================================================
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    language = i18n.get_language(request)
+    detail = exc.detail
+    if isinstance(detail, str):
+        detail = i18n.localize_message(detail, language)
+    elif isinstance(detail, list):
+        detail = [
+            i18n.localize_message(item, language) if isinstance(item, str) else item
+            for item in detail
+        ]
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": detail},
+        headers=dict(exc.headers or {}),
+    )
+
+
 @app.exception_handler(
     AppError
 )
@@ -294,7 +329,7 @@ async def app_error_handler(
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "detail": str(exc)
+            "detail": i18n.localize_message(str(exc), i18n.get_language(request))
         },
     )
 
@@ -325,7 +360,7 @@ async def unhandled_exception_handler(
     return JSONResponse(
         status_code=500,
         content={
-            "detail": "سرویس موقتاً در دسترس نیست.",
+            "detail": i18n.localize_message("سرویس موقتاً در دسترس نیست.", i18n.get_language(request)),
             "request_id": request_id,
         },
         headers=(

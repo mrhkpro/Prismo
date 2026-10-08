@@ -13,7 +13,7 @@ from typing import Optional
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from . import config
 from .database import get_db
@@ -95,12 +95,10 @@ def get_current_user(
         parsed_user_id = int(user_id)
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=401, detail="توکن نامعتبر است.") from exc
-    user = (
-        db.query(models.User)
-        .options(joinedload(models.User.settings))
-        .filter(models.User.id == parsed_user_id)
-        .first()
-    )
+    # Keep auth independent from the optional/new UserSettings columns.
+    # This is important for older Supabase schemas where login must continue to
+    # work even before optional provider columns exist.
+    user = db.query(models.User).filter(models.User.id == parsed_user_id).first()
     if user is None:
         raise HTTPException(status_code=401, detail="کاربر یافت نشد.")
     if not user.is_active:

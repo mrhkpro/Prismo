@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from .. import config, models, schemas
 from ..database import get_db
 from ..security import get_current_user
-from ..services import llm_client, rag_store, text_split, streaming
+from ..services import llm_client, rag_store, text_split, streaming, user_settings_compat
 
 router = APIRouter(prefix="/api/knowledge", tags=["دانشنامه"])
 
@@ -55,7 +55,7 @@ def _embed_chunks_fast(pieces: list[str], provider: llm_client.ProviderConfig):
 
 def _index_document(db: Session, user: models.User, doc: models.Document) -> None:
     """ایندکس سریع سند با embedding هم‌زمان و ثبت bulk در دیتابیس."""
-    provider = llm_client.resolve_provider(user.settings)
+    provider = llm_client.resolve_provider(user_settings_compat.get(db, user.id))
     pieces = text_split.split_text(doc.content)
     if not pieces:
         return
@@ -106,7 +106,7 @@ def create_document_stream(
                     raise ValueError("محتوای سند خالی است.")
 
                 total = len(pieces)
-                provider = llm_client.resolve_provider(user.settings)
+                provider = llm_client.resolve_provider(user_settings_compat.get(work_db, user.id))
                 yield streaming.sse(
                     "meta",
                     {

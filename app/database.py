@@ -16,7 +16,7 @@ if config.IS_POSTGRES:
         # A small warm pool reduces connection churn without creating CPU spikes.
         "prepare_threshold": None,
         "sslmode": "require",
-        "connect_timeout": 5,
+        "connect_timeout": 3,
         "application_name": "quasar-local",
     }
 
@@ -30,7 +30,7 @@ if config.IS_POSTGRES:
         # local app talking to Supabase and can trigger unnecessary CPU/network work.
         pool_size=3,
         max_overflow=2,
-        pool_timeout=5,
+        pool_timeout=3,
         pool_recycle=900,
         pool_pre_ping=False,
         pool_use_lifo=True,

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..security import get_current_user
+from ..services import user_settings_compat
 
 router = APIRouter(prefix="/api/dashboard", tags=["داشبورد"])
 
@@ -36,7 +37,7 @@ def summary(current_user: models.User = Depends(get_current_user), db: Session =
         message_count.label("message_count"),
     ).one()
 
-    settings = current_user.settings
+    settings = user_settings_compat.get(db, current_user.id)
     provider_label = "مدل رایگان آماده" if settings.use_default_provider else "اتصال اختصاصی"
     return schemas.DashboardSummaryOut(
         document_count=int(row.document_count or 0),

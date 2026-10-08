@@ -229,12 +229,12 @@ class UserSettings(Base):
 
     widget_title = Column(
         String(120),
-        default="دستیار هوشمند",
+        default=config.DEFAULT_WIDGET_TITLE,
     )
 
     widget_welcome_message = Column(
         Text,
-        default="سلام! چطور می‌تونم کمکتون کنم؟",
+        default=config.DEFAULT_WIDGET_WELCOME,
     )
 
     widget_color = Column(
