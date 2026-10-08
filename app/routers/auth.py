@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas, security, config
 from ..database import get_db
+from ..services import user_settings_compat
 
 router = APIRouter(prefix="/api/auth", tags=["احراز هویت"])
 
@@ -29,20 +30,17 @@ def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
     )
     db.add(user)
     db.flush()  # برای گرفتن user.id قبل از commit
+    user_id = user.id
 
-    user_settings = models.UserSettings(
-        user_id=user.id,
-        widget_title=payload.org_name or "دستیار هوشمند",
-    )
-    db.add(user_settings)
+    # Insert only legacy/core settings columns so registration works on an
+    # older Supabase schema without requiring an ALTER TABLE migration.
+    user_settings_compat.ensure_settings(db, user.id, payload.org_name or "دستیار هوشمند")
     try:
         db.commit()
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail="این نام کاربری قبلاً ثبت شده است.") from exc
-    db.refresh(user)
-
-    token = security.create_access_token(user.id)
+    token = security.create_access_token(user_id)
     return schemas.TokenResponse(access_token=token)
 
 

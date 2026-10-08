@@ -233,6 +233,18 @@ DEFAULT_SYSTEM_PROMPT = (
     "پاسخ‌ها را کوتاه، دقیق و به زبان فارسی روان بنویس."
 )
 
+DEFAULT_SYSTEM_PROMPT_EN = (
+    "You are a helpful and polite AI assistant. Answer only from the knowledge base "
+    "provided to the user. If the answer is not in the knowledge base, say that you "
+    "do not have enough information and do not guess. Keep answers concise, accurate, "
+    "and natural in English."
+)
+
+DEFAULT_WIDGET_TITLE = "دستیار هوشمند"
+DEFAULT_WIDGET_TITLE_EN = "Smart Assistant"
+DEFAULT_WIDGET_WELCOME = "سلام! چطور می‌تونم کمکتون کنم؟"
+DEFAULT_WIDGET_WELCOME_EN = "Hello! How can I help you?"
+
 DEFAULT_TEMPERATURE = 0.7
 
 DEFAULT_TOP_K = 4

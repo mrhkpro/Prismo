@@ -2,11 +2,13 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
-from .. import models, schemas
+from .. import models, schemas, i18n
 from ..database import get_db
+from ..services import user_settings_compat
 from ..services import llm_client, rag_pipeline, rate_limit, streaming, widget_extras
+
 
 logger = logging.getLogger("quasar.public_widget")
 
@@ -21,25 +23,27 @@ WIDGET_PRIVATE_HEADERS = {
 
 
 def _get_owner_by_widget(db: Session, widget_id: str) -> models.User:
-    settings = (
-        db.query(models.UserSettings)
-        .options(joinedload(models.UserSettings.user))
+    """Find owner without loading the whole UserSettings ORM row."""
+    owner = (
+        db.query(models.User)
+        .join(models.UserSettings, models.UserSettings.user_id == models.User.id)
         .filter(models.UserSettings.widget_id == widget_id)
         .first()
     )
-    if not settings:
+    if not owner:
         raise HTTPException(status_code=404, detail="ویجت یافت نشد.")
-    return settings.user
+    return owner
 
 
 @router.get("/{widget_id}/config", response_model=schemas.WidgetPublicConfig)
-def widget_public_config(widget_id: str, db: Session = Depends(get_db)):
+def widget_public_config(widget_id: str, request: Request, db: Session = Depends(get_db)):
     owner = _get_owner_by_widget(db, widget_id)
-    s = owner.settings
+    s = user_settings_compat.get(db, owner.id)
+    language = i18n.get_language(request)
     payload = schemas.WidgetPublicConfig(
         widget_id=s.widget_id,
-        title=s.widget_title,
-        welcome_message=s.widget_welcome_message,
+        title=i18n.localize_widget_title(s.widget_title, language),
+        welcome_message=i18n.localize_widget_welcome(s.widget_welcome_message, language),
         color=s.widget_color,
         org_name=owner.org_name,
         online=owner.is_active,
@@ -56,7 +60,6 @@ def widget_chat(widget_id: str, payload: schemas.WidgetChatRequest, request: Req
         raise HTTPException(status_code=429, detail="تعداد درخواست‌ها زیاد است. چند لحظه بعد دوباره تلاش کنید.")
 
     if not owner.is_active:
-        # مسدودشدن کاربر باید بلافاصله عملکرد ویجت روی سایت‌های دیگر را هم متوقف کند
         raise HTTPException(status_code=403, detail="این سرویس موقتاً در دسترس نیست.")
 
     session = None
@@ -78,19 +81,17 @@ def widget_chat(widget_id: str, payload: schemas.WidgetChatRequest, request: Req
         db.flush()
 
     try:
-        reply, _matches = rag_pipeline.run_rag_chat(db, owner, session, payload.message)
+        reply, _matches = rag_pipeline.run_rag_chat(db, owner, session, payload.message, language=i18n.get_language(request))
     except llm_client.LLMError:
         db.commit()
         raise
 
     rag_pipeline.save_turn(db, session, payload.message, reply)
-
     return JSONResponse(content=schemas.WidgetChatResponse(session_id=session.id, reply=reply).model_dump(), headers=WIDGET_PRIVATE_HEADERS)
 
 
 @router.post("/{widget_id}/chat/stream")
 def widget_chat_stream(widget_id: str, payload: schemas.WidgetChatRequest, request: Request, db: Session = Depends(get_db)):
-    """نسخه‌ی استریم چت ویجت عمومی (SSE). قوانین rate-limit و مسدودسازی با نسخه‌ی عادی یکی است."""
     owner = _get_owner_by_widget(db, widget_id)
     client_ip = request.client.host if request.client else "unknown"
     if not rate_limit.public_widget_limiter.allow(f"{widget_id}:{client_ip}"):
@@ -116,22 +117,21 @@ def widget_chat_stream(widget_id: str, payload: schemas.WidgetChatRequest, reque
         db.add(session)
         db.flush()
     session_id, owner_id, message = session.id, owner.id, payload.message
+    language = i18n.get_language(request)
     db.commit()
-    # نشست درخواست (db) پیش از شروع استریم بسته می‌شود؛ generator با نشست‌های کوتاه‌مدت خودش کار می‌کند.
     bind = db.get_bind()
 
     def event_stream():
         collected: list[str] = []
-        # هدر/اولین بایت خیلی زود ارسال می‌شود؛ embedding و مدل بعد از آن اجرا می‌شوند.
         yield ": qz-ready\n\n"
         plan = None
         try:
-            with Session(bind=bind, autoflush=False) as work_db:
+            from sqlalchemy.orm import Session as DBSession
+            with DBSession(bind=bind, autoflush=False) as work_db:
                 chat_owner = work_db.get(models.User, owner_id)
                 chat_session = work_db.get(models.ChatSession, session_id)
-                plan = rag_pipeline.prepare_rag_chat(work_db, chat_owner, chat_session, message)
+                plan = rag_pipeline.prepare_rag_chat(work_db, chat_owner, chat_session, message, language=language)
                 meta = {"session_id": session_id, "sources": streaming.sources_payload(plan.matches)}
-            # اتصال دیتابیس پیش از تماس طولانی با مدل آزاد شد.
             yield streaming.sse("meta", meta)
             if plan.instant_reply or plan.no_answer:
                 reply = plan.instant_reply or plan.no_answer
@@ -146,14 +146,14 @@ def widget_chat_stream(widget_id: str, payload: schemas.WidgetChatRequest, reque
         except llm_client.LLMError:
             yield streaming.sse("error", {"message": "", "retry": True, "partial": bool(collected)})
         except Exception:  # noqa: BLE001
-            # خطاهای غیرقابل پیش‌بینی نباید در UI به «500 + شناسه درخواست» تبدیل شوند.
             logger.exception("public widget stream failed")
             yield streaming.sse("error", {"message": "", "retry": True, "partial": bool(collected)})
         finally:
             text = "".join(collected)
             if text:
                 try:
-                    with Session(bind=bind, autoflush=False) as save_db:
+                    from sqlalchemy.orm import Session as DBSession
+                    with DBSession(bind=bind, autoflush=False) as save_db:
                         rag_pipeline.save_turn(save_db, session_id, message, text)
                 except Exception:  # noqa: BLE001
                     logger.exception("could not save streamed widget turn")

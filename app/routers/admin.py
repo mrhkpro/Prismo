@@ -8,6 +8,7 @@ from .. import config, models, schemas
 from ..database import get_db
 from ..services import injection_scanner
 from ..security import create_impersonation_token, require_admin
+from ..services import user_settings_compat
 
 router = APIRouter(prefix="/api/admin", tags=["پنل مدیریت (ادمین)"])
 
@@ -131,20 +132,22 @@ def _get_user_or_404(db: Session, user_id: int) -> models.User:
 def get_user_detail(user_id: int, db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
     user = _get_user_or_404(db, user_id)
     base = _user_to_admin_out(db, user)
-    s = user.settings
-    g = lambda name, default: (getattr(s, name, None) if s is not None and getattr(s, name, None) is not None else default)
+    s = user_settings_compat.get(db, user.id)
     return schemas.AdminUserDetailOut(
         **base.model_dump(),
-        use_default_provider=bool(g("use_default_provider", True)),
-        api_key_set=bool(g("api_key", "")),
-        base_url=g("base_url", None),
-        chat_model=g("chat_model", config.DEFAULT_CHAT_MODEL),
-        embedding_model=g("embedding_model", config.DEFAULT_EMBEDDING_MODEL),
-        system_prompt=g("system_prompt", config.DEFAULT_SYSTEM_PROMPT),
-        temperature=g("temperature", config.DEFAULT_TEMPERATURE),
-        top_k=g("top_k", config.DEFAULT_TOP_K),
-        similarity_threshold=g("similarity_threshold", config.DEFAULT_SIMILARITY_THRESHOLD),
-        widget_id=g("widget_id", ""),
+        use_default_provider=bool(s.use_default_provider),
+        api_key_set=bool(s.api_key),
+        base_url=s.base_url,
+        separate_embedding_provider=bool(s.separate_embedding_provider),
+        embedding_api_key_set=bool(s.embedding_api_key) if s.separate_embedding_provider else bool(s.api_key),
+        embedding_base_url=s.embedding_base_url if s.separate_embedding_provider else s.base_url,
+        chat_model=s.chat_model,
+        embedding_model=s.embedding_model,
+        system_prompt=s.system_prompt,
+        temperature=s.temperature,
+        top_k=s.top_k,
+        similarity_threshold=s.similarity_threshold,
+        widget_id=s.widget_id,
     )
 
 

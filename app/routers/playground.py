@@ -2,14 +2,14 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from .. import config, models, schemas
 from ..database import get_db
 from ..security import get_current_user
-from ..services import llm_client, rag_pipeline, rag_store, streaming
+from ..services import llm_client, rag_pipeline, rag_store, streaming, user_settings_compat
 
 logger = logging.getLogger("quasar.playground")
 
@@ -67,14 +67,16 @@ def delete_session(
 @router.post("/chat", response_model=schemas.ChatTestResponse)
 def chat_test(
     payload: schemas.ChatTestRequest,
+    request: Request,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     session = _get_or_create_session(db, current_user, payload.session_id)
     try:
-        selected_model = payload.model or current_user.settings.chat_model
+        selected_model = payload.model or user_settings_compat.get(db, current_user.id).chat_model
         reply, matches = rag_pipeline.run_rag_chat(
-            db, current_user, session, payload.message, model=selected_model
+            db, current_user, session, payload.message, model=selected_model,
+            language=request.headers.get("X-QZ-Language", "fa"),
         )
     except llm_client.LLMError:
         db.commit()  # نشست را حتی در صورت خطا نگه می‌داریم
@@ -97,13 +99,15 @@ def chat_test(
 @router.post("/chat/stream")
 def chat_test_stream(
     payload: schemas.ChatTestRequest,
+    request: Request,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """نسخه‌ی استریم چت آزمایشگاه (SSE): meta → delta... → done (یا error)."""
     session = _get_or_create_session(db, current_user, payload.session_id)
-    selected_model = payload.model or current_user.settings.chat_model
+    selected_model = payload.model or user_settings_compat.get(db, current_user.id).chat_model
     session_id, owner_id, message = session.id, current_user.id, payload.message
+    language = request.headers.get("X-QZ-Language", "fa")
     db.commit()  # نشست حتی اگر مدل خطا بدهد حفظ می‌شود
     # نشست درخواست (db) پیش از شروع استریم بسته می‌شود؛ generator با نشست‌های کوتاه‌مدت خودش کار می‌کند.
     bind = db.get_bind()
@@ -117,7 +121,7 @@ def chat_test_stream(
             with Session(bind=bind, autoflush=False) as work_db:
                 owner = work_db.get(models.User, owner_id)
                 chat_session = work_db.get(models.ChatSession, session_id)
-                plan = rag_pipeline.prepare_rag_chat(work_db, owner, chat_session, message, model=selected_model)
+                plan = rag_pipeline.prepare_rag_chat(work_db, owner, chat_session, message, model=selected_model, language=language)
                 meta = {"session_id": session_id, "model": selected_model, "sources": streaming.sources_payload(plan.matches)}
             # اتصال دیتابیس پیش از تماس طولانی با مدل آزاد شد.
             yield streaming.sse("meta", meta)
@@ -156,9 +160,10 @@ def semantic_search(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    provider = llm_client.resolve_provider(current_user.settings)
+    provider = llm_client.resolve_provider(user_settings_compat.get(db, current_user.id))
     query_embedding = llm_client.embed_text(payload.query, provider)
-    matches = rag_store.search(db, current_user.id, query_embedding, top_k=payload.top_k, similarity_threshold=current_user.settings.similarity_threshold or 0.0)
+    settings = user_settings_compat.get(db, current_user.id)
+    matches = rag_store.search(db, current_user.id, query_embedding, top_k=payload.top_k, similarity_threshold=settings.similarity_threshold or 0.0)
     return [
         schemas.SemanticSearchResult(
             document_title=chunk.document.title,

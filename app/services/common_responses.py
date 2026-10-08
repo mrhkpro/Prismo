@@ -49,12 +49,23 @@ def _normalize(text: str) -> str:
     return text
 
 
-def get_common_response(text: str) -> Optional[str]:
-    """پاسخ آماده را برگردان؛ برای پیام‌های طولانی وارد این مسیر نمی‌شویم."""
+_RESPONSES_EN = (
+    (re.compile(r"^(?:سلام|سلاممم+|درود|hi|hello|hey)(?:\s*[!؟?،.]*)$", re.I), "Hello! 👋 Nice to see you. How can I help?"),
+    (re.compile(r"^(?:خوبی|خوبی؟|حالت چطوره|حالت خوبه|چطوری|چه خبر)(?:\s*[!؟?،.]*)$", re.I), "Thanks for asking 😊 I’m doing well and ready to help. How are you?"),
+    (re.compile(r"^(?:ممنون|مرسی|متشکرم|خیلی ممنون|دمت گرم)(?:\s*[!؟?،.]*)$", re.I), "You’re welcome 🌱"),
+    (re.compile(r"^(?:خداحافظ|فعلا|فعلاً|بای|bye)(?:\s*[!؟?،.]*)$", re.I), "Goodbye! 👋 I’ll be here whenever you need me."),
+    (re.compile(r"^(?:تو کی هستی|اسمت چیه|چه کاره‌ای|چی هستی)(?:\s*[!؟?،.]*)$", re.I), "I’m the smart assistant for this widget. I’m here to answer questions and help you."),
+    (re.compile(r"^(?:چی کار می‌کنی|چه کمکی می‌تونی بکنی|چه کارهایی بلدی|چیکار می‌تونی بکنی)(?:\s*[!؟?،.]*)$", re.I), "I can answer questions from your knowledge base and guide you through the information in your documents."),
+)
+
+
+def get_common_response(text: str, language: str = "fa") -> Optional[str]:
+    """Return a fast canned response; long messages skip this path."""
     normalized = _normalize(text)
     if not normalized or len(normalized) > 64:
         return None
-    for pattern, reply in _RESPONSES:
+    response_set = _RESPONSES_EN if language == "en" else _RESPONSES
+    for pattern, reply in response_set:
         if pattern.fullmatch(normalized):
             return reply
     return None
