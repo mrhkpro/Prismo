@@ -33,6 +33,9 @@ class FakeSettings:
     base_url = "https://saved.example/v1"
     chat_model = "chat-old"
     embedding_model = "embed-old"
+    separate_embedding_provider = False
+    embedding_api_key = None
+    embedding_base_url = None
 
 
 class FakeUser:
@@ -69,7 +72,9 @@ class AIProviderTests(unittest.TestCase):
             "chat_models": ["chat-1"],
             "embedding_models": ["embed-1"],
             "unknown_models": [],
+            "chat_probe_ok": True,
             "embedding_probe_ok": True,
+            "dual_capable_models": [],
         }):
             response = settings_router.discover_models(payload, FakeUser())
         self.assertEqual(response.models, ["chat-1", "embed-1"])
@@ -141,6 +146,21 @@ class AIProviderTests(unittest.TestCase):
     def test_list_models_requires_key(self):
         with self.assertRaises(llm_client.LLMError):
             llm_client.list_models("https://example.com/v1", "")
+
+
+    def test_resolve_provider_supports_separate_embedding_credentials(self):
+        fake = FakeSettings()
+        fake.use_default_provider = False
+        fake.api_key = "chat-key"
+        fake.base_url = "https://chat.example/v1"
+        fake.separate_embedding_provider = True
+        fake.embedding_api_key = "embed-key"
+        fake.embedding_base_url = "https://embed.example/v1"
+        provider = llm_client.resolve_provider(fake)
+        self.assertEqual(provider.base_url, "https://chat.example/v1")
+        self.assertEqual(provider.api_key, "chat-key")
+        self.assertEqual(provider.embedding_base_url, "https://embed.example/v1")
+        self.assertEqual(provider.embedding_api_key, "embed-key")
 
 
 if __name__ == "__main__":
@@ -216,9 +236,11 @@ class ProviderCapabilityTests(unittest.TestCase):
                 data=[SimpleNamespace(embedding=[0.0] * llm_client.config.EMBEDDING_DIMENSIONS)]
                 if kwargs["model"] == "qwen3-embedding-4b" else []
             )),
+            chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kwargs: SimpleNamespace(choices=[SimpleNamespace()]))),
         )
         with patch("app.services.llm_client._client", return_value=fake_client):
             result = llm_client.discover_model_capabilities("https://example.com/v1", "secret")
-        self.assertEqual(result["chat_models"], ["chat-alpha", "qwen3-embedding-4b"])
+        self.assertEqual(result["chat_models"], ["chat-alpha"])
         self.assertEqual(result["embedding_models"], ["qwen3-embedding-4b"])
+        self.assertEqual(result["dual_capable_models"], [])
 

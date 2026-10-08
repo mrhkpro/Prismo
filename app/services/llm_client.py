@@ -31,6 +31,8 @@ class ProviderConfig:
     chat_model: str
     embedding_model: str
     is_default: bool
+    embedding_base_url: Optional[str] = None
+    embedding_api_key: Optional[str] = None
 
 
 def resolve_provider(settings: models.UserSettings) -> ProviderConfig:
@@ -43,6 +45,8 @@ def resolve_provider(settings: models.UserSettings) -> ProviderConfig:
             chat_model=settings.chat_model or config.DEFAULT_CHAT_MODEL,
             embedding_model=settings.embedding_model or config.DEFAULT_EMBEDDING_MODEL,
             is_default=False,
+            embedding_base_url=(settings.embedding_base_url or settings.base_url) if settings.separate_embedding_provider else settings.base_url,
+            embedding_api_key=(settings.embedding_api_key or "") if settings.separate_embedding_provider else settings.api_key,
         )
     return ProviderConfig(
         base_url=config.AI_PROXY_BASE_URL or config.DEFAULT_PROVIDER_BASE_URL,
@@ -50,6 +54,8 @@ def resolve_provider(settings: models.UserSettings) -> ProviderConfig:
         chat_model=settings.chat_model or config.DEFAULT_CHAT_MODEL,
         embedding_model=settings.embedding_model or config.DEFAULT_EMBEDDING_MODEL,
         is_default=True,
+        embedding_base_url=config.AI_PROXY_BASE_URL or config.DEFAULT_PROVIDER_BASE_URL,
+        embedding_api_key=config.AI_PROXY_API_KEY or config.DEFAULT_PROVIDER_API_KEY,
     )
 
 
@@ -105,56 +111,84 @@ def _probe_embedding_model(client: OpenAI, model_id: str) -> tuple[bool, int | N
     return True, len(data[0].embedding)
 
 
-def discover_model_capabilities(base_url: str, api_key: str) -> dict:
-    """Discover chat/embedding-capable models without persisting the API key.
+def _probe_chat_model(client: OpenAI, model_id: str) -> bool:
+    """Verify that a model accepts a minimal chat-completion request."""
+    response = client.chat.completions.create(
+        model=model_id,
+        messages=[{"role": "user", "content": "ping"}],
+        max_tokens=1,
+        temperature=0,
+    )
+    return bool(list(getattr(response, "choices", []) or []))
 
-    OpenAI-compatible /models responses generally do not expose a portable
-    'supports embeddings' capability flag, so embedding candidates are verified
-    with a tiny real embedding request. The probe is limited to likely embedding
-    names first, then a small fallback sample of otherwise-unknown models.
-    """
-    models_list = list_models(base_url, api_key)
-    client = _client(base_url, api_key)
 
-    chat_models = list(models_list)
-    embedding_models: list[str] = []
-    unknown_models: list[str] = []
+def discover_model_capabilities(
+    base_url: str,
+    api_key: str,
+    embedding_base_url: Optional[str] = None,
+    embedding_api_key: Optional[str] = None,
+) -> dict:
+    """Discover only verified chat/embedding models with bounded concurrent probes."""
+    chat_base = normalize_base_url(base_url)
+    chat_key = (api_key or "").strip()
+    if not chat_base or not chat_key:
+        raise LLMError("Base URL و API Key سرویس چت را وارد کنید.")
 
-    likely = [m for m in models_list if _looks_like_embedding_model(m)]
-    fallback = [m for m in models_list if m not in likely][:12]
-    candidates = likely + fallback
+    models_list = list_models(chat_base, chat_key)
+    chat_client = _client(chat_base, chat_key)
+    emb_base = normalize_base_url(embedding_base_url or chat_base)
+    emb_key = (embedding_api_key or chat_key).strip()
+
+    likely_embeddings = [m for m in models_list if _looks_like_embedding_model(m)]
+    unknown = [m for m in models_list if m not in likely_embeddings]
+    chat_candidates = unknown[:16] if unknown else models_list[:4]
+    embedding_candidates = (likely_embeddings + unknown[:12])[:20]
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    def probe(model_id: str):
+    chat_verified: list[str] = []
+    embedding_verified: list[str] = []
+
+    def probe_chat(model_id: str):
         try:
-            ok, dim = _probe_embedding_model(client, model_id)
-            if ok and dim == config.EMBEDDING_DIMENSIONS:
-                return model_id, True, dim
-            return model_id, False, dim
+            return model_id, _probe_chat_model(chat_client, model_id)
+        except Exception:
+            return model_id, False
+
+    def probe_embedding(model_id: str):
+        try:
+            emb_client = _client(emb_base, emb_key)
+            ok, dim = _probe_embedding_model(emb_client, model_id)
+            return model_id, bool(ok and dim == config.EMBEDDING_DIMENSIONS), dim
         except Exception:
             return model_id, False, None
 
-    if candidates:
-        with ThreadPoolExecutor(max_workers=min(6, len(candidates))) as pool:
-            futures = [pool.submit(probe, model_id) for model_id in candidates]
-            for future in as_completed(futures):
+    task_count = max(len(chat_candidates), len(embedding_candidates), 1)
+    with ThreadPoolExecutor(max_workers=min(6, task_count)) as pool:
+        futures = [("chat", pool.submit(probe_chat, model_id)) for model_id in chat_candidates]
+        futures += [("embedding", pool.submit(probe_embedding, model_id)) for model_id in embedding_candidates]
+        for kind, future in futures:
+            if kind == "chat":
+                model_id, ok = future.result()
+                if ok:
+                    chat_verified.append(model_id)
+            else:
                 model_id, ok, _dim = future.result()
                 if ok:
-                    embedding_models.append(model_id)
+                    embedding_verified.append(model_id)
 
-    embedding_models = sorted(set(embedding_models), key=str.casefold)
-    unknown_models = sorted([m for m in models_list if m not in set(likely)], key=str.casefold)
-
-    # A provider may expose only one model which is not conventionally named;
-    # the limited fallback above still gives it a chance without probing an
-    # unbounded catalogue.
+    chat_verified = sorted(set(chat_verified), key=str.casefold)
+    embedding_verified = sorted(set(embedding_verified), key=str.casefold)
+    chat_set = set(chat_verified)
+    embedding_set = set(embedding_verified)
     return {
         "models": models_list,
-        "chat_models": chat_models,
-        "embedding_models": embedding_models,
-        "unknown_models": unknown_models,
-        "embedding_probe_ok": bool(embedding_models),
+        "chat_models": chat_verified,
+        "embedding_models": embedding_verified,
+        "unknown_models": sorted([m for m in models_list if m not in chat_set and m not in embedding_set], key=str.casefold),
+        "chat_probe_ok": bool(chat_verified),
+        "embedding_probe_ok": bool(embedding_verified),
+        "dual_capable_models": sorted(chat_set & embedding_set, key=str.casefold),
     }
 
 def list_models(base_url: str, api_key: str) -> List[str]:
@@ -437,8 +471,8 @@ def embed_texts(
         return []
 
     client = _client(
-        provider.base_url,
-        provider.api_key,
+        provider.embedding_base_url or provider.base_url,
+        provider.embedding_api_key or provider.api_key,
     )
 
     try:
@@ -450,7 +484,7 @@ def embed_texts(
 
     except Exception as exc:  # noqa: BLE001
         if isinstance(exc, APIConnectionError):
-            _log_connection_error(provider.base_url, exc)
+            _log_connection_error(provider.embedding_base_url or provider.base_url, exc)
         raise LLMError(format_provider_error(exc, provider, operation="embedding")) from exc
 
     # --------------------------------------------------------

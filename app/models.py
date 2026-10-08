@@ -173,6 +173,23 @@ class UserSettings(Base):
         nullable=True,
     )
 
+    # اگر True باشد، provider مربوط به embedding می‌تواند Base URL و API Key مستقل داشته باشد.
+    separate_embedding_provider = Column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
+    embedding_api_key = Column(
+        String(255),
+        nullable=True,
+    )
+
+    embedding_base_url = Column(
+        String(255),
+        nullable=True,
+    )
+
     chat_model = Column(
         String(120),
         default=config.DEFAULT_CHAT_MODEL,

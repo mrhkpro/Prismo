@@ -14,6 +14,9 @@ def _to_out(settings: models.UserSettings) -> schemas.SettingsOut:
         use_default_provider=settings.use_default_provider,
         api_key_set=bool(settings.api_key),
         base_url=settings.base_url,
+        separate_embedding_provider=bool(settings.separate_embedding_provider),
+        embedding_api_key_set=bool(settings.embedding_api_key) if settings.separate_embedding_provider else bool(settings.api_key),
+        embedding_base_url=settings.embedding_base_url if settings.separate_embedding_provider else settings.base_url,
         chat_model=settings.chat_model,
         embedding_model=settings.embedding_model,
         system_prompt=settings.system_prompt,
@@ -44,7 +47,8 @@ def update_settings(
     data = payload.model_dump(exclude_unset=True)
 
     for field in ("use_default_provider", "chat_model", "embedding_model",
-                  "system_prompt", "temperature", "top_k", "similarity_threshold"):
+                  "system_prompt", "temperature", "top_k", "similarity_threshold",
+                  "separate_embedding_provider"):
         if field in data and data[field] is not None:
             setattr(settings, field, data[field])
 
@@ -53,6 +57,16 @@ def update_settings(
         settings.base_url = data["base_url"] or None
     if "api_key" in data:
         settings.api_key = data["api_key"] or None
+    if "embedding_api_key" in data:
+        settings.embedding_api_key = data["embedding_api_key"] or None
+    if "embedding_base_url" in data:
+        settings.embedding_base_url = data["embedding_base_url"] or None
+
+    # در حالت کلید مشترک، مقادیر قدیمی کلید/URL embedding را کنار می‌گذاریم تا
+    # provider بعداً ناخواسته از credential قدیمی استفاده نکند.
+    if data.get("separate_embedding_provider") is False:
+        settings.embedding_api_key = None
+        settings.embedding_base_url = None
 
     db.commit()
     db.refresh(settings)
@@ -68,7 +82,24 @@ def discover_models(
     settings = current_user.settings
     api_key = (payload.api_key or settings.api_key or "").strip()
     base_url = (payload.base_url or settings.base_url or "").strip()
-    result = llm_client.discover_model_capabilities(base_url, api_key)
+    embedding_api_key = (payload.embedding_api_key or getattr(settings, "embedding_api_key", None) or "").strip()
+    embedding_base_url = (payload.embedding_base_url or getattr(settings, "embedding_base_url", None) or "").strip()
+    discover_kwargs = {}
+    if payload.separate_embedding_provider:
+        discover_kwargs = {
+            "embedding_base_url": embedding_base_url or None,
+            "embedding_api_key": embedding_api_key or None,
+        }
+    result = llm_client.discover_model_capabilities(base_url, api_key, **discover_kwargs)
+    if "chat_probe_ok" not in result:
+        result["chat_probe_ok"] = bool(result.get("chat_models"))
+    if "embedding_probe_ok" not in result:
+        result["embedding_probe_ok"] = bool(result.get("embedding_models"))
+    if "dual_capable_models" not in result:
+        result["dual_capable_models"] = sorted(
+            set(result.get("chat_models", [])) & set(result.get("embedding_models", [])),
+            key=str.casefold,
+        )
     return schemas.DiscoverModelsResponse(**result)
 
 
