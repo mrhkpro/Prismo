@@ -1,5 +1,37 @@
 # Changelog
 
+## v2.7.0 — 2026-10-08 — Settings center, multi-theme UI, provider capability detection, widget resilience and request speed
+
+### UI / Settings
+- Replaced the dashboard top Light Mode button with a centralized **Settings** section.
+- Added Persian/English switching with immediate RTL/LTR layout and dynamic translation of newly-rendered UI.
+- Added seven themes: Light, Dark, Ocean, Forest, Sunset, Lavender and Mono.
+- Added response streaming on/off, auto-scroll, response sound, reduced motion, high contrast, compact sidebar, remembered last view and reset-to-default settings.
+- Moved account details and logout into Settings while keeping the user identity in the bottom sidebar.
+
+### AI provider
+- Custom provider can now use one shared API key for chat + embeddings or separate credentials.
+- Model discovery now verifies chat and embedding capability with bounded probes instead of trusting model names alone.
+- Only verified chat models are offered to chat and verified embedding models to embeddings; the UI also reports models verified for both roles.
+
+### Performance / Widget
+- Added short TTL caching for hot read-only API endpoints plus in-flight GET de-duplication and write-triggered invalidation.
+- Dashboard overview loads summary/settings in parallel.
+- Public widget config no longer removes the widget on bootstrap failure; a readable error and retry action remain visible.
+- Widget config now handles non-JSON error bodies and keeps the panel usable during recovery.
+- Public widget owner lookup uses eager loading to avoid an extra query.
+
+### Compatibility / Migration
+- Local SQLite automatically adds the new provider credential columns for existing databases.
+- Added `supabase/migrations/003_dual_provider_credentials.sql`.
+- Asset/embed version bumped to `2.7.0`.
+
+### Tests
+- Full suite: **188 passed**.
+- JavaScript syntax check passed for dashboard, settings, theme, API and widget scripts.
+- HTTP smoke test passed for health, dashboard/static assets, registration, auth/me, settings, dashboard summary and public widget config using a local SQLite instance.
+
+
 ## v2.6.5 — 2026-10-07 — Save no longer hangs on PostgreSQL, top notification bar, streaming fix
 
 > Entries for 2.6.0–2.6.4 were never written; this file resumes from the 2.5.0 notes below.

@@ -87,3 +87,12 @@ Baseline first, then the redesign, then tests and the fixes they uncovered. Ever
 - `docs/release-2.6.5` → changelog and this history
 
 `.env` stays untracked (see `.gitignore`).
+
+## v2.7.0 release chain
+
+- `feature/settings-center-2.7` → centralized settings, seven themes, language/RTL-LTR switching, response preferences and in-settings account.
+- `feature/provider-dual-credentials-2.7` → separate chat/embedding credentials, verified capability probing and migration 003.
+- `perf/request-widget-fix-2.7` → GET TTL cache, request de-duplication/invalidation, streaming preference wiring and widget bootstrap resilience.
+- `docs/release-2.7.0` → release notes, asset version sweep and test/smoke verification.
+
+All branches in the release line are merged into `main` with `--no-ff` to preserve the graph.
