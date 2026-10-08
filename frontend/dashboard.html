@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"></noscript>
-<link rel="stylesheet" href="/assets/css/style.css?v=2.7.1">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.7.2">
 </head>
 <body data-theme-settings-center="1">
 
@@ -97,7 +97,7 @@
     <!-- ---------- خانه ---------- -->
     <section class="view active" id="view-overview">
       <div class="page-head">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span class="badge badge-accent">QUASAR 2.7.0</span><span class="badge badge-success"><span class="badge-dot"></span> سیستم آماده</span></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span class="badge badge-accent">QUASAR 2.7.2</span><span class="badge badge-success"><span class="badge-dot"></span> سیستم آماده</span></div>
         <h1>سلام 👋</h1>
         <p>یک نگاه سریع به وضعیت دستیار هوشمند و دانشنامه‌ات</p>
       </div>
@@ -479,71 +479,85 @@
           <span class="badge badge-muted" id="settingsSavedBadge">ذخیره محلی</span>
         </div>
         <h1>تنظیمات سایت</h1>
-        <p>زبان، ظاهر، رفتار پاسخ‌ها، تجربه کاربری و حساب را از یکجا کنترل کن.</p>
+        <p>زبان، ظاهر، چت، میانبرها و حساب را از یک مرکز کنترل سریع مدیریت کن.</p>
       </div>
 
-      <div class="settings-grid">
-        <div class="panel flat settings-card">
-          <div class="panel-head"><div><div class="panel-title">زبان و جهت صفحه</div><div class="panel-desc">با انتخاب English، رابط کاربری کاملاً چپ‌چین می‌شود.</div></div><span class="settings-icon">文</span></div>
-          <div class="language-choice" id="languageChoice" role="radiogroup" aria-label="زبان">
-            <button type="button" class="language-card active" data-language="fa"><span class="language-flag">🇮🇷</span><span><b>فارسی</b><small>راست‌چین</small></span></button>
-            <button type="button" class="language-card" data-language="en"><span class="language-flag">🇬🇧</span><span><b>English</b><small>Left to right</small></span></button>
-          </div>
-        </div>
+      <div class="settings-console">
+        <nav class="settings-tabbar" role="tablist" aria-label="Settings">
+          <button class="settings-tab active" type="button" data-settings-tab="appearance" aria-selected="true">◒ <span>ظاهر</span></button>
+          <button class="settings-tab" type="button" data-settings-tab="chat" aria-selected="false">✦ <span>چت</span></button>
+          <button class="settings-tab" type="button" data-settings-tab="workspace" aria-selected="false">⌘ <span>فضای کاری</span></button>
+          <button class="settings-tab" type="button" data-settings-tab="account" aria-selected="false">◉ <span>حساب</span></button>
+        </nav>
 
-        <div class="panel flat settings-card">
-          <div class="panel-head"><div><div class="panel-title">رنگ و حال‌وهوای محیط</div><div class="panel-desc">۷ پوسته‌ی آماده با ذخیره‌سازی فوری.</div></div><span class="settings-icon">◒</span></div>
-          <div class="theme-grid" id="themePresetGrid">
-            <button class="theme-preset" type="button" data-theme-preset="light"><span class="theme-dot light"></span><span>روشن کلاسیک</span></button>
-            <button class="theme-preset" type="button" data-theme-preset="dark"><span class="theme-dot dark"></span><span>تیره کلاسیک</span></button>
-            <button class="theme-preset" type="button" data-theme-preset="ocean"><span class="theme-dot ocean"></span><span>اقیانوس</span></button>
-            <button class="theme-preset" type="button" data-theme-preset="forest"><span class="theme-dot forest"></span><span>جنگل</span></button>
-            <button class="theme-preset" type="button" data-theme-preset="sunset"><span class="theme-dot sunset"></span><span>غروب</span></button>
-            <button class="theme-preset" type="button" data-theme-preset="lavender"><span class="theme-dot lavender"></span><span>لاوندر</span></button>
-            <button class="theme-preset" type="button" data-theme-preset="mono"><span class="theme-dot mono"></span><span>مینیمال</span></button>
+        <div class="settings-tabpanes">
+          <div class="settings-pane" data-settings-pane="appearance">
+            <div class="settings-pane-head"><div><div class="panel-title">ظاهر و زبان</div><div class="panel-desc">تغییرات این بخش فوری ذخیره می‌شوند و روی تمام صفحات سایت اعمال می‌شوند.</div></div><span class="settings-icon">◒</span></div>
+            <div class="settings-section-block">
+              <div class="settings-subtitle">زبان و جهت صفحه</div>
+              <div class="settings-subdesc">با انتخاب English، متن‌های ثابت داشبورد، ادمین، تست‌لب و ویجت همگی انگلیسی و LTR می‌شوند.</div>
+              <div class="language-choice" id="languageChoice" role="radiogroup" aria-label="زبان">
+                <button type="button" class="language-card active" data-language="fa"><span class="language-flag">🇮🇷</span><span><b>فارسی</b><small>راست‌چین</small></span></button>
+                <button type="button" class="language-card" data-language="en"><span class="language-flag">🇬🇧</span><span><b>English</b><small>Left to right</small></span></button>
+              </div>
+            </div>
+            <div class="settings-section-block">
+              <div class="settings-subtitle">رنگ و حال‌وهوای محیط</div>
+              <div class="settings-subdesc">هفت پوسته‌ی دست‌ساز با کنتراست، کارت و glow متفاوت برای کار طولانی.</div>
+              <div class="theme-grid settings-theme-grid" id="themePresetGrid">
+                <button class="theme-preset" type="button" data-theme-preset="light"><span class="theme-preview theme-preview-light"></span><b>روشن کلاسیک</b><small>Clean & bright</small></button>
+                <button class="theme-preset" type="button" data-theme-preset="dark"><span class="theme-preview theme-preview-dark"></span><b>تیره کلاسیک</b><small>Deep & focused</small></button>
+                <button class="theme-preset" type="button" data-theme-preset="ocean"><span class="theme-preview theme-preview-ocean"></span><b>اقیانوس</b><small>Cool & calm</small></button>
+                <button class="theme-preset" type="button" data-theme-preset="forest"><span class="theme-preview theme-preview-forest"></span><b>جنگل</b><small>Natural & soft</small></button>
+                <button class="theme-preset" type="button" data-theme-preset="sunset"><span class="theme-preview theme-preview-sunset"></span><b>غروب</b><small>Warm & vivid</small></button>
+                <button class="theme-preset" type="button" data-theme-preset="lavender"><span class="theme-preview theme-preview-lavender"></span><b>لاوندر</b><small>Soft & creative</small></button>
+                <button class="theme-preset" type="button" data-theme-preset="mono"><span class="theme-preview theme-preview-mono"></span><b>مینیمال</b><small>Monochrome</small></button>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div class="panel flat settings-card">
-          <div class="panel-head"><div><div class="panel-title">رفتار پاسخ</div><div class="panel-desc">این گزینه مستقیماً روی چت داخلی داشبورد اعمال می‌شود.</div></div><span class="settings-icon">⚡</span></div>
-          <div class="settings-list">
-            <label class="settings-switch-row"><span><strong>نمایش تکه‌تکه‌ی پاسخ</strong><small>پاسخ مدل هم‌زمان با رسیدن توکن‌ها نمایش داده شود.</small></span><span class="switch"><input type="checkbox" id="settingStreaming" checked><span class="switch-track"></span></span></label>
-            <label class="settings-switch-row"><span><strong>اسکرول خودکار گفتگو</strong><small>هنگام دریافت پاسخ، پایین گفتگو را دنبال کند.</small></span><span class="switch"><input type="checkbox" id="settingAutoScroll" checked><span class="switch-track"></span></span></label>
-            <label class="settings-switch-row"><span><strong>هشدار صوتی پایان پاسخ</strong><small>بعد از تمام شدن پاسخ، یک صدای کوتاه پخش شود.</small></span><span class="switch"><input type="checkbox" id="settingResponseSound"><span class="switch-track"></span></span></label>
+          <div class="settings-pane" data-settings-pane="chat" hidden>
+            <div class="settings-pane-head"><div><div class="panel-title">رفتار چت</div><div class="panel-desc">این گزینه‌ها واقعاً روی Test Lab و گفت‌وگوی اصلی اثر می‌گذارند.</div></div><span class="settings-icon">⚡</span></div>
+            <div class="settings-list settings-list-wide">
+              <label class="settings-switch-row"><span><strong>نمایش تکه‌تکه‌ی پاسخ</strong><small>پاسخ مدل هم‌زمان با رسیدن tokenها نمایش داده شود؛ خاموش باشد پاسخ یک‌جا می‌آید.</small></span><span class="switch"><input type="checkbox" id="settingStreaming" checked><span class="switch-track"></span></span></label>
+              <label class="settings-switch-row"><span><strong>اسکرول خودکار گفتگو</strong><small>هنگام دریافت پاسخ، پایین گفتگو را دنبال کند.</small></span><span class="switch"><input type="checkbox" id="settingAutoScroll" checked><span class="switch-track"></span></span></label>
+              <label class="settings-switch-row"><span><strong>ارسال با Enter</strong><small>Enter ارسال کند و Shift+Enter خط جدید بسازد.</small></span><span class="switch"><input type="checkbox" id="settingChatEnterSend" checked><span class="switch-track"></span></span></label>
+              <label class="settings-switch-row"><span><strong>نمایش نشان مدل</strong><small>مدل فعال کنار پاسخ نمایش داده شود.</small></span><span class="switch"><input type="checkbox" id="settingShowModelBadge" checked><span class="switch-track"></span></span></label>
+              <label class="settings-switch-row"><span><strong>چیدمان فشرده چت</strong><small>فاصله‌ی حباب‌ها و عناصر چت کمی کمتر شود.</small></span><span class="switch"><input type="checkbox" id="settingCompactChat"><span class="switch-track"></span></span></label>
+              <label class="settings-switch-row"><span><strong>هشدار صوتی پایان پاسخ</strong><small>پس از اتمام پاسخ، یک صدای کوتاه پخش شود.</small></span><span class="switch"><input type="checkbox" id="settingResponseSound"><span class="switch-track"></span></span></label>
+              <label class="settings-switch-row"><span><strong>تأیید پاک‌کردن گفتگو</strong><small>قبل از ساخت چت تازه با میانبر، تأیید بگیر.</small></span><span class="switch"><input type="checkbox" id="settingConfirmClearChat" checked><span class="switch-track"></span></span></label>
+            </div>
           </div>
-        </div>
 
-        <div class="panel flat settings-card">
-          <div class="panel-head"><div><div class="panel-title">تجربه کاربری</div><div class="panel-desc">جزئیاتی که روی سرعت حس‌شده و کار با پنل اثر می‌گذارند.</div></div><span class="settings-icon">✦</span></div>
-          <div class="settings-list">
-            <label class="settings-switch-row"><span><strong>حالت کم‌تحرک</strong><small>انیمیشن‌ها و حرکت‌های غیرضروری را کاهش می‌دهد.</small></span><span class="switch"><input type="checkbox" id="settingReducedMotion"><span class="switch-track"></span></span></label>
-            <label class="settings-switch-row"><span><strong>سایدبار فشرده</strong><small>منوی کناری را به حالت آیکونی کوچک می‌کند.</small></span><span class="switch"><input type="checkbox" id="settingCompactSidebar"><span class="switch-track"></span></span></label>
-            <label class="settings-switch-row"><span><strong>کنتراست بیشتر</strong><small>مرزها و متن‌های کم‌رنگ را خواناتر می‌کند.</small></span><span class="switch"><input type="checkbox" id="settingHighContrast"><span class="switch-track"></span></span></label>
+          <div class="settings-pane" data-settings-pane="workspace" hidden>
+            <div class="settings-pane-head"><div><div class="panel-title">فضای کاری و میانبرها</div><div class="panel-desc">کنترل‌هایی برای کاهش کلیک، حرکت و شلوغی محیط.</div></div><span class="settings-icon">⌘</span></div>
+            <div class="settings-list settings-list-wide">
+              <label class="settings-switch-row"><span><strong>حالت کم‌تحرک</strong><small>انیمیشن‌ها و حرکت‌های غیرضروری را کاهش می‌دهد.</small></span><span class="switch"><input type="checkbox" id="settingReducedMotion"><span class="switch-track"></span></span></label>
+              <label class="settings-switch-row"><span><strong>سایدبار فشرده</strong><small>منوی کناری را به حالت آیکونی کوچک می‌کند.</small></span><span class="switch"><input type="checkbox" id="settingCompactSidebar"><span class="switch-track"></span></span></label>
+              <label class="settings-switch-row"><span><strong>کنتراست بیشتر</strong><small>مرزها و متن‌های کم‌رنگ را خواناتر می‌کند.</small></span><span class="switch"><input type="checkbox" id="settingHighContrast"><span class="switch-track"></span></span></label>
+              <label class="settings-switch-row"><span><strong>بازگردانی آخرین بخش</strong><small>بعد از ورود دوباره همان بخش قبلی باز شود.</small></span><span class="switch"><input type="checkbox" id="settingRememberView" checked><span class="switch-track"></span></span></label>
+              <label class="settings-switch-row"><span><strong>حفظ وضعیت سایدبار</strong><small>باز یا بسته بودن منوی کناری به خاطر سپرده شود.</small></span><span class="switch"><input type="checkbox" id="settingRememberRail" checked><span class="switch-track"></span></span></label>
+              <label class="settings-switch-row"><span><strong>آخرین تب تنظیمات</strong><small>آخرین تب انتخاب‌شده در دفعه بعد باز شود.</small></span><span class="switch"><input type="checkbox" id="settingRememberTab" checked><span class="switch-track"></span></span></label>
+              <label class="settings-switch-row"><span><strong>فعال‌سازی میانبرها</strong><small>میانبرهای آماده برای چت، تنظیمات و بستن پنجره‌ها.</small></span><span class="switch"><input type="checkbox" id="settingKeyboardShortcuts" checked><span class="switch-track"></span></span></label>
+            </div>
+            <div class="shortcut-card"><div class="settings-subtitle">میانبرهای آماده</div><div class="settings-subdesc" id="shortcutHelpText"></div></div>
+            <div class="panel-foot"><button class="btn btn-soft" id="resetSiteSettingsBtn">بازنشانی تنظیمات سایت</button></div>
           </div>
-        </div>
 
-        <div class="panel flat settings-card">
-          <div class="panel-head"><div><div class="panel-title">حافظه و حریم تجربه</div><div class="panel-desc">تنظیمات شخصی این مرورگر در همین دستگاه ذخیره می‌شوند.</div></div><span class="settings-icon">⌁</span></div>
-          <div class="settings-list">
-            <label class="settings-switch-row"><span><strong>بازگردانی آخرین بخش</strong><small>پس از ورود دوباره، همان بخش قبلی باز شود.</small></span><span class="switch"><input type="checkbox" id="settingRememberView" checked><span class="switch-track"></span></span></label>
-            <label class="settings-switch-row"><span><strong>بازگردانی اندازه منو</strong><small>وضعیت باز/بسته بودن سایدبار حفظ شود.</small></span><span class="switch"><input type="checkbox" id="settingRememberRail" checked><span class="switch-track"></span></span></label>
+          <div class="settings-pane" data-settings-pane="account" hidden>
+            <div class="settings-pane-head"><div><div class="panel-title">حساب کاربری</div><div class="panel-desc">اطلاعات حساب همین‌جا دیده می‌شود؛ نام و آیکون همچنان پایین سایدبار باقی می‌ماند.</div></div><span class="settings-icon">◉</span></div>
+            <div class="account-summary-card"><div class="account-avatar-large" id="accAvatar">Q</div><div><strong id="accDisplayName">—</strong><small id="accDisplayRole">—</small></div></div>
+            <div class="form-grid">
+              <div class="field"><label>نام کاربری</label><input type="text" id="accUsername" disabled></div>
+              <div class="field"><label>نام سازمان</label><input type="text" id="accOrgName" disabled></div>
+              <div class="field"><label>نقش</label><input type="text" id="accRole" disabled></div>
+              <div class="field"><label>وضعیت</label><input type="text" id="accStatus" disabled value="فعال"></div>
+            </div>
+            <div class="panel-foot account-actions"><button class="btn btn-danger" id="logoutBtn">خروج از حساب</button><a class="btn btn-soft" href="/admin.html" id="openAdminLink">پنل ادمین</a></div>
           </div>
-          <div class="panel-foot"><button class="btn btn-soft" id="resetSiteSettingsBtn">بازنشانی تنظیمات سایت</button></div>
-        </div>
-
-        <div class="panel flat settings-card settings-account-card">
-          <div class="panel-head"><div><div class="panel-title">حساب کاربری</div><div class="panel-desc">اطلاعات حساب همین‌جا مدیریت می‌شود؛ نام و آیکونت همچنان پایین منوی کناری است.</div></div><span class="settings-icon">◉</span></div>
-          <div class="form-grid">
-            <div class="field"><label>نام کاربری</label><input type="text" id="accUsername" disabled></div>
-            <div class="field"><label>نام سازمان</label><input type="text" id="accOrgName" disabled></div>
-            <div class="field"><label>نقش</label><input type="text" id="accRole" disabled></div>
-            <div class="field"><label>وضعیت</label><input type="text" id="accStatus" disabled value="فعال"></div>
-          </div>
-          <div class="panel-foot"><button class="btn btn-danger" id="logoutBtn">خروج از حساب</button></div>
         </div>
       </div>
     </section>
-
 
     </div>
   </main>
@@ -577,10 +591,10 @@
   </div>
 </div>
 
-<script src="/assets/js/api.js?v=2.7.1"></script>
-<script src="/assets/js/theme.js?v=2.7.1"></script>
-<script src="/assets/js/settings.js?v=2.7.1"></script>
-<script src="/assets/js/shell.js?v=2.7.1" defer></script>
-<script src="/assets/js/dashboard.js?v=2.7.1"></script>
+<script src="/assets/js/api.js?v=2.7.2"></script>
+<script src="/assets/js/theme.js?v=2.7.2"></script>
+<script src="/assets/js/settings.js?v=2.7.2"></script>
+<script src="/assets/js/shell.js?v=2.7.2" defer></script>
+<script src="/assets/js/dashboard.js?v=2.7.2"></script>
 </body>
 </html>

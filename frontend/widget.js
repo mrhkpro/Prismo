@@ -38,7 +38,7 @@
       })();
 
     if (!thisScript) {
-      console.error("[کوازار ویجت] تگ اسکریپت پیدا نشد.");
+      console.error("[Quasar widget] Widget script tag not found.");
       return;
     }
 
@@ -49,9 +49,15 @@
     ).replace(/\/+$/, "");
     var POSITION = thisScript.getAttribute("data-position") || "bottom-left";
     var THEME = thisScript.getAttribute("data-theme") || "auto";
+    var LANGUAGE = (thisScript.getAttribute("data-language") || "fa").toLowerCase().indexOf("en") === 0 ? "en" : "fa";
+    var I18N = {
+      fa: { open: "باز کردن گفتگو", close: "بستن", input: "پیامت رو بنویس…", send: "ارسال", footer: "ساخته‌شده با کوازار", pending: "در حال پاسخ…", stopped: "پاسخ متوقف شد.", noReply: "پاسخی دریافت نشد.", serviceError: "این سرویس در حال حاضر موقتاً در دسترس نیست.", loadError: "خطا در بارگذاری ویجت", retry: "تلاش دوباره", serverError: "خطایی در سرویس رخ داد.", offline: "ارتباط با سرویس برقرار نشد.", petLabel: "حیوان خانگی ویجت — برای محبت کلیک کن", settingsUnavailable: "تنظیمات ویجت دریافت نشد. اتصال سرور را بررسی کنید.", title: "دستیار هوشمند", welcome: "سلام! چطور می‌تونم کمکتون کنم؟" },
+      en: { open: "Open chat", close: "Close", input: "Type your message…", send: "Send", footer: "Powered by Quasar", pending: "Responding…", stopped: "Response stopped.", noReply: "No response received.", serviceError: "This service is temporarily unavailable.", loadError: "Widget loading error", retry: "Retry", serverError: "A service error occurred.", offline: "Could not connect to the service.", petLabel: "Widget pet — click to show some love", settingsUnavailable: "Widget settings could not be loaded. Check the server connection.", title: "Smart Assistant", welcome: "Hello! How can I help you?" }
+    };
+    var T = function (key) { return I18N[LANGUAGE][key] || key; };
 
     if (!WIDGET_ID) {
-      console.error("[کوازار ویجت] data-widget-id تنظیم نشده است.");
+      console.error("[Quasar widget] data-widget-id is missing.");
       return;
     }
 
@@ -93,26 +99,18 @@
         .replace(/\s+/g, " ").trim();
     }
 
-    var QUICK_RESPONSES = {
-      "سلام": "سلام! خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
-      "درود": "سلام! خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
-      "hi": "سلام! خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
-      "hello": "سلام! خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
-      "خوبی": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
-      "حالت چطوره": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
-      "حالت خوبه": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
-      "چطوری": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
-      "چه خبر": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟",
-      "ممنون": "خواهش می‌کنم 🌱",
-      "مرسی": "خواهش می‌کنم 🌱",
-      "متشکرم": "خواهش می‌کنم 🌱",
-      "خداحافظ": "خداحافظ! هر وقت خواستی من اینجام.",
-      "فعلا": "خداحافظ! هر وقت خواستی من اینجام.",
-      "بای": "خداحافظ! هر وقت خواستی من اینجام."
+    var QUICK_RESPONSES_FA = {
+      "سلام": "سلام! خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟", "درود": "سلام! خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟", "hi": "سلام! خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟", "hello": "سلام! خوشحالم می‌بینمت. چه کمکی از دستم برمیاد؟",
+      "خوبی": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟", "حالت چطوره": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟", "حالت خوبه": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟", "چطوری": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟", "چه خبر": "مرسی که پرسیدی 😊 خوبم و آماده‌ام کمکت کنم. تو چطوری؟", "ممنون": "خواهش می‌کنم 🌱", "مرسی": "خواهش می‌کنم 🌱", "متشکرم": "خواهش می‌کنم 🌱", "خداحافظ": "خداحافظ! هر وقت خواستی من اینجام.", "فعلا": "خداحافظ! هر وقت خواستی من اینجام.", "بای": "خداحافظ! هر وقت خواستی من اینجام."
+    };
+    var QUICK_RESPONSES_EN = {
+      "سلام": "Hello! 👋 Nice to see you. How can I help?", "درود": "Hello! 👋 Nice to see you. How can I help?", "hi": "Hello! 👋 Nice to see you. How can I help?", "hello": "Hello! 👋 Nice to see you. How can I help?",
+      "خوبی": "Thanks for asking 😊 I’m doing well and ready to help. How are you?", "حالت چطوره": "Thanks for asking 😊 I’m doing well and ready to help. How are you?", "حالت خوبه": "Thanks for asking 😊 I’m doing well and ready to help. How are you?", "چطوری": "Thanks for asking 😊 I’m doing well and ready to help. How are you?", "چه خبر": "Thanks for asking 😊 I’m doing well and ready to help. How are you?", "ممنون": "You’re welcome 🌱", "مرسی": "You’re welcome 🌱", "متشکرم": "You’re welcome 🌱", "خداحافظ": "Goodbye! 👋 I’ll be here whenever you need me.", "فعلا": "Goodbye! 👋 I’ll be here whenever you need me.", "بای": "Goodbye! 👋 I’ll be here whenever you need me.", "bye": "Goodbye! 👋 I’ll be here whenever you need me."
     };
 
     function getQuickReply(text) {
-      return QUICK_RESPONSES[normalizeQuickText(text)] || null;
+      var source = LANGUAGE === "en" ? QUICK_RESPONSES_EN : QUICK_RESPONSES_FA;
+      return source[normalizeQuickText(text)] || null;
     }
 
     function fetchJson(url, options, timeoutMs) {
@@ -128,7 +126,7 @@
             data = raw ? { detail: raw.slice(0, 400) } : {};
           }
           if (!response.ok) {
-            var message = data && (data.detail || data.message) ? (data.detail || data.message) : "خطایی در سرویس رخ داد.";
+            var message = data && (data.detail || data.message) ? (data.detail || data.message) : T("serverError");
             var err = new Error(message);
             err.status = response.status;
             err.responseText = raw || "";
@@ -159,14 +157,14 @@
       arm();
       return fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+        headers: { "Content-Type": "application/json", "Accept": "text/event-stream", "X-QZ-Language": LANGUAGE },
         body: JSON.stringify(payload),
         signal: controller.signal
       }).then(function (res) {
         var type = res.headers.get("Content-Type") || "";
         if (!res.ok || type.indexOf("text/event-stream") === -1 || !res.body) {
           return res.json().catch(function () { return {}; }).then(function (data) {
-            var err = new Error(data && data.detail ? data.detail : "خطایی در سرویس رخ داد.");
+            var err = new Error(data && data.detail ? data.detail : T("serverError"));
             err.status = res.ok ? 415 : res.status;
             throw err;
           });
@@ -251,7 +249,7 @@
       ".qz-bubble{color:var(--qz-on-accent,#ffffff);}.qz-bubble svg{width:26px;height:26px;}" +
       ".qz-panel{position:fixed;bottom:96px;" + sideRule + "width:370px;max-width:calc(100vw - 24px);height:min(540px,calc(100vh - 170px));max-height:none;" +
       "background:var(--qz-panel,#1a2332);border:1px solid var(--qz-border,#e6e7eb);border-radius:22px;box-shadow:0 28px 80px rgba(20,8,48,.38);" +
-      "display:none;flex-direction:column;overflow:hidden;z-index:2147483000;direction:rtl;color:var(--qz-text,#e6ebf2);" +
+      "display:none;flex-direction:column;overflow:hidden;z-index:2147483000;direction:" + (LANGUAGE === "en" ? "ltr" : "rtl") + ";color:var(--qz-text,#e6ebf2);" +
       "}.qz-panel.open{display:flex;}" +
       ".qz-head{padding:15px 17px;display:flex;align-items:center;justify-content:space-between;color:var(--qz-on-accent,#ffffff);flex-shrink:0;}" +
       ".qz-head-title{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14.5px;}" +
@@ -277,7 +275,7 @@
       ".qz-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;}" +
       ".qz-chip{border:1px solid var(--qz-accent,#1ABB9C);background:transparent;color:var(--qz-text,#e6ebf2);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;transition:background .15s;}" +
       ".qz-chip:hover{background:var(--qz-accent,#1ABB9C);color:var(--qz-on-accent,#ffffff);}" +
-      ".qz-teaser{position:fixed;bottom:92px;left:22px;max-width:230px;padding:10px 14px;border-radius:16px 16px 16px 4px;font-size:13px;line-height:1.7;cursor:pointer;direction:rtl;" +
+      ".qz-teaser{position:fixed;bottom:92px;left:22px;max-width:230px;padding:10px 14px;border-radius:16px 16px 16px 4px;font-size:13px;line-height:1.7;cursor:pointer;direction:" + (LANGUAGE === "en" ? "ltr" : "rtl") + ";" +
       "background:var(--qz-panel,#1a2332);color:var(--qz-text,#e6ebf2);border:1px solid var(--qz-border,#e6e7eb);box-shadow:0 14px 40px rgba(20,8,48,.3);z-index:2147483000;display:none;animation:qzpop .3s ease;}" +
       ".qz-teaser.show{display:block;}.qz-teaser.high{bottom:140px;}" +
       "@keyframes qzpop{from{opacity:0;transform:translateY(8px) scale(.96);}to{opacity:1;transform:none;}}" +
@@ -297,7 +295,7 @@
     var bubble = document.createElement("button");
     bubble.className = "qz-bubble";
     bubble.type = "button";
-    bubble.setAttribute("aria-label", "باز کردن گفتگو");
+    bubble.setAttribute("aria-label", T("open"));
     bubble.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
     root.appendChild(bubble);
 
@@ -305,10 +303,10 @@
     panel.className = "qz-panel";
     panel.setAttribute("aria-hidden", "true");
     panel.innerHTML =
-      '<div class="qz-head"><div class="qz-head-title"><span class="qz-head-dot"></span><span class="qz-title-text">دستیار هوشمند</span></div><button class="qz-close" type="button" aria-label="بستن">✕</button></div>' +
+      '<div class="qz-head"><div class="qz-head-title"><span class="qz-head-dot"></span><span class="qz-title-text">' + T("title") + '</span></div><button class="qz-close" type="button" aria-label="' + T("close") + '">✕</button></div>' +
       '<div class="qz-stream" role="log" aria-live="polite"></div>' +
-      '<div class="qz-foot"><textarea class="qz-input" rows="1" placeholder="پیامت رو بنویس…"></textarea><button class="qz-send" type="button" aria-label="ارسال"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button></div>' +
-      '<div class="qz-footer-tag">ساخته‌شده با کوازار</div>';
+      '<div class="qz-foot"><textarea class="qz-input" rows="1" placeholder="' + T("input") + '"></textarea><button class="qz-send" type="button" aria-label="' + T("send") + '"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button></div>' +
+      '<div class="qz-footer-tag">' + T("footer") + '</div>';
     root.appendChild(panel);
 
     var stream = panel.querySelector(".qz-stream");
@@ -367,7 +365,7 @@
       hideQuickReplies();
       addMessage("user", text);
       var chatUrl = API_BASE + "/public/widget/" + encodeURIComponent(WIDGET_ID) + "/chat";
-      var pending = addMessage("bot", "در حال پاسخ…");
+      var pending = addMessage("bot", T("pending"));
       pending.classList.add("pending");
       isSending = true;
 
@@ -415,7 +413,7 @@
           payload.session_id = getSessionId();
           return fetchJson(chatUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
+            headers: { "Content-Type": "application/json", "Cache-Control": "no-cache", "X-QZ-Language": LANGUAGE },
             body: JSON.stringify(payload),
             cache: "no-store"
           }, 0).then(function (data) {
@@ -427,13 +425,13 @@
       }).then(function () {
         if (raf !== null) cancelAnimationFrame(raf);
         pending.classList.remove("pending", "streaming");
-        pending.textContent = fullText || "پاسخی دریافت نشد.";
+        pending.textContent = fullText || T("noReply");
       }).catch(function (err) {
         if (raf !== null) cancelAnimationFrame(raf);
         pending.classList.remove("streaming");
         // متن‌های داخلی Abort/SSE هرگز مستقیم به کاربر نمایش داده نمی‌شوند.
         var internal = err && (err.message === "متوقف شد." || err.message === "STREAM_RETRY" || err.name === "AbortError");
-        var message = internal ? "" : (err && err.message ? err.message : "ارتباط با سرویس برقرار نشد.");
+        var message = internal ? "" : (err && err.message ? err.message : T("offline"));
         if (fullText) {
           pending.textContent = fullText;
         } else if (message) {
@@ -490,7 +488,8 @@ var PET_SPRITES = {"dog":{"body":["................","...........KK...","..K....
     var extras = { pet_enabled: false, pet: "dog", pet_color: "#C98A4B", teaser_enabled: false, quick_replies: [] };
     var lane = document.createElement("div");
     lane.className = "qz-petlane";
-    lane.innerHTML = '<button class="qz-pet" type="button" aria-label="حیوان خانگی ویجت — برای محبت کلیک کن"></button>';
+    lane.innerHTML = '<button class="qz-pet" type="button"></button>';
+    lane.querySelector('.qz-pet').setAttribute('aria-label', T('petLabel'));
     root.appendChild(lane);
     var petEl = lane.querySelector(".qz-pet");
 
@@ -603,7 +602,7 @@ var PET_SPRITES = {"dog":{"body":["................","...........KK...","..K....
       hideQuickReplies();
       var list = extras.quick_replies && extras.quick_replies.length
         ? extras.quick_replies
-        : ["سلام 👋", "حالت چطوره؟", "چه کمکی می‌تونی بکنی؟"];
+        : (LANGUAGE === "en" ? ["Hello 👋", "How are you?", "How can you help?"] : ["سلام 👋", "حالت چطوره؟", "چه کمکی می‌تونی بکنی؟"]);
       if (!list.length || stream.querySelectorAll(".qz-msg.user").length) return;
       chipsEl = document.createElement("div");
       chipsEl.className = "qz-chips";
@@ -686,17 +685,17 @@ var PET_SPRITES = {"dog":{"body":["................","...........KK...","..K....
 
     applyColor(widgetColor);
 
-    fetchJson(API_BASE + "/public/widget/" + encodeURIComponent(WIDGET_ID) + "/config", {}, 12000)
+    fetchJson(API_BASE + "/public/widget/" + encodeURIComponent(WIDGET_ID) + "/config?lang=" + LANGUAGE, { headers: { "X-QZ-Language": LANGUAGE } }, 12000)
       .then(function (cfg) {
-        titleEl.textContent = cfg.title || "دستیار هوشمند";
+        titleEl.textContent = cfg.title || T("title");
         applyColor(cfg.color);
         if (!cfg.online) {
-          addMessage("error", "این سرویس در حال حاضر موقتاً در دسترس نیست.");
+          addMessage("error", T("serviceError"));
           input.disabled = true;
           sendBtn.disabled = true;
           return;
         }
-        welcomeText = cfg.welcome_message || "سلام! چطور می‌تونم کمکتون کنم؟";
+        welcomeText = cfg.welcome_message || T("welcome");
         welcomeEl = addMessage("bot", welcomeText);
         applyExtras(cfg.extras || {});
       })
@@ -704,17 +703,17 @@ var PET_SPRITES = {"dog":{"body":["................","...........KK...","..K....
         // خطای config نباید ویجت را از DOM حذف کند؛ کاربر باید علت را ببیند و
         // بتواند دوباره تلاش کند. این مسیر همچنین مانع خطاهای مبهم «text content
         // در دسترس نیست» در iframe/preview می‌شود.
-        titleEl.textContent = "خطا در بارگذاری ویجت";
+        titleEl.textContent = T("loadError");
         addMessage("error", (err && err.message) || "تنظیمات ویجت دریافت نشد. اتصال سرور را بررسی کنید.");
         input.disabled = true;
         sendBtn.disabled = true;
         var retry = document.createElement("button");
         retry.type = "button";
-        retry.textContent = "تلاش دوباره";
+        retry.textContent = T("retry");
         retry.style.cssText = "margin:0 14px 12px;padding:8px 12px;border:1px solid var(--qz-border,#e6e7eb);border-radius:12px;background:transparent;color:var(--qz-text,#e6ebf2);cursor:pointer;";
         retry.addEventListener("click", function () { location.reload(); });
         panel.appendChild(retry);
-        console.error("[کوازار ویجت] بارگذاری تنظیمات ناموفق بود:", err);
+        console.error("[Quasar widget] Failed to load widget settings:", err);
       });
   }
 

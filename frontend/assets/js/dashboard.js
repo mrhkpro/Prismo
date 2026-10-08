@@ -52,14 +52,17 @@ async function init() {
   Skel.toggle(identity, false);
 
   document.getElementById("sidebarUserName").textContent = CURRENT_USER.org_name || CURRENT_USER.username;
-  document.getElementById("sidebarUserRole").textContent = CURRENT_USER.role === "admin" ? "مدیر سیستم" : "کاربر";
+  document.getElementById("sidebarUserRole").textContent = window.QZI18n ? window.QZI18n.t(CURRENT_USER.role === "admin" ? "مدیر سیستم" : "کاربر") : (CURRENT_USER.role === "admin" ? "مدیر سیستم" : "کاربر");
   document.getElementById("avatarInitial").textContent = (CURRENT_USER.org_name || CURRENT_USER.username)[0].toUpperCase();
   const topAvatar = document.getElementById("topbarAvatar");
   if (topAvatar) topAvatar.textContent = document.getElementById("avatarInitial").textContent;
 
   document.getElementById("accUsername").value = CURRENT_USER.username;
   document.getElementById("accOrgName").value = CURRENT_USER.org_name || "—";
-  document.getElementById("accRole").value = CURRENT_USER.role === "admin" ? "مدیر سیستم" : "کاربر عادی";
+  document.getElementById("accRole").value = window.QZI18n ? window.QZI18n.t(CURRENT_USER.role === "admin" ? "مدیر سیستم" : "کاربر عادی") : (CURRENT_USER.role === "admin" ? "مدیر سیستم" : "کاربر عادی");
+  document.getElementById("accDisplayName").textContent = CURRENT_USER.org_name || CURRENT_USER.username;
+  document.getElementById("accDisplayRole").textContent = window.QZI18n ? window.QZI18n.t(CURRENT_USER.role === "admin" ? "مدیر سیستم" : "کاربر") : CURRENT_USER.role;
+  document.getElementById("accAvatar").textContent = (CURRENT_USER.org_name || CURRENT_USER.username)[0].toUpperCase();
 
   if (CURRENT_USER.role === "admin") {
     document.getElementById("adminNavGroup").style.display = "block";
@@ -728,7 +731,7 @@ async function importFiles(fileList) {
   let completedFiles = 0;
   try {
     try {
-      await Lazy.script("/assets/js/extract.js?v=2.7.0");
+      await Lazy.script("/assets/js/extract.js?v=2.7.2");
     } catch (err) {
       return toastError(err);
     }
@@ -931,7 +934,7 @@ async function chatViaStream(message, selectedModel, bubble) {
       body: { message, session_id: CHAT_SESSION_ID, ...(selectedModel ? { model: selectedModel } : {}) },
       onMeta: (meta) => {
         CHAT_SESSION_ID = meta.session_id;
-        document.getElementById("activeChatModelBadge").textContent = meta.model || selectedModel || "—";
+        const badge = document.getElementById("activeChatModelBadge"); if (badge) { badge.textContent = meta.model || selectedModel || "—"; badge.hidden = !!(window.QZSettings && window.QZSettings.get("showModelBadge") === false); }
         renderChatSources(meta.sources);
       },
       onDelta: (piece) => {
@@ -963,7 +966,7 @@ async function chatViaRequest(message, selectedModel, bubble) {
   CHAT_SESSION_ID = res.session_id;
   bubble.textContent = res.reply;
   bubble.classList.remove("pending");
-  document.getElementById("activeChatModelBadge").textContent = res.model || selectedModel || "—";
+  const badge = document.getElementById("activeChatModelBadge"); if (badge) { badge.textContent = res.model || selectedModel || "—"; badge.hidden = !!(window.QZSettings && window.QZSettings.get("showModelBadge") === false); }
   renderChatSources(res.sources);
 }
 
@@ -1032,7 +1035,7 @@ async function sendChatMessage() {
 }
 document.getElementById("sendChatBtn").addEventListener("click", sendChatMessage);
 document.getElementById("chatInput").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
+  if (e.key === "Enter" && !e.shiftKey && (!window.QZSettings || window.QZSettings.get("chatEnterSend") !== false)) {
     e.preventDefault();
     sendChatMessage();
   }
@@ -1205,7 +1208,8 @@ function renderWidgetPreview(widgetId) {
   if (!frame) return;
   LAST_WIDGET_ID = widgetId;
   const theme = document.documentElement.dataset.theme || "dark";
-  frame.src = `/widget-preview.html?widget_id=${encodeURIComponent(widgetId)}&theme=${encodeURIComponent(theme)}&v=${Date.now()}`;
+  const language = window.QZSettings && window.QZSettings.isEnglish && window.QZSettings.isEnglish() ? "en" : "fa";
+  frame.src = `/widget-preview.html?widget_id=${encodeURIComponent(widgetId)}&theme=${encodeURIComponent(theme)}&language=${language}&v=${Date.now()}`;
 }
 
 // پیش‌نمایش بعد از هر بار لود، آخرین مقدارهای فرم را (حتی ذخیره‌نشده) دوباره می‌گیرد
@@ -1219,11 +1223,23 @@ document.addEventListener("qz-theme-change", () => {
   if (LAST_WIDGET_ID) renderWidgetPreview(LAST_WIDGET_ID);
 });
 
+document.addEventListener("qz-language-change", () => {
+  if (CURRENT_SETTINGS) {
+    const prompt = document.getElementById("systemPromptInput");
+    if (prompt && (prompt.value === "تو یک دستیار هوشمند و مؤدب هستی. پاسخ‌ها را فقط بر اساس دانشنامه ارائه‌شده به کاربر بده. اگر پاسخ در دانشنامه نیست، صادقانه بگو اطلاعات کافی نداری و حدس نزن. پاسخ‌ها را کوتاه، دقیق و به زبان فارسی روان بنویس." || prompt.value === "You are a helpful and polite AI assistant. Answer only from the knowledge base provided to the user. If the answer is not in the knowledge base, say that you do not have enough information and do not guess. Keep answers concise, accurate, and natural in English.")) {
+      prompt.value = window.QZSettings && window.QZSettings.isEnglish() ? "You are a helpful and polite AI assistant. Answer only from the knowledge base provided to the user. If the answer is not in the knowledge base, say that you do not have enough information and do not guess. Keep answers concise, accurate, and natural in English." : "تو یک دستیار هوشمند و مؤدب هستی. پاسخ‌ها را فقط بر اساس دانشنامه ارائه‌شده به کاربر بده. اگر پاسخ در دانشنامه نیست، صادقانه بگو اطلاعات کافی نداری و حدس نزن. پاسخ‌ها را کوتاه، دقیق و به زبان فارسی روان بنویس.";
+    }
+  }
+  if (LAST_WIDGET_ID) renderWidgetPreview(LAST_WIDGET_ID);
+  renderEmbedCode();
+});
+
 function renderEmbedCode() {
   if (!EMBED_TEMPLATE) return;
   const box = widgetEl("embedCodeBox");
   if (!box) return;
-  const code = EMBED_TEMPLATE.replaceAll("__BASE_URL__", window.location.origin).replace(/data-theme="[^"]*"/, `data-theme="${EMBED_THEME}"`);
+  const language = window.QZSettings && window.QZSettings.isEnglish && window.QZSettings.isEnglish() ? "en" : "fa";
+  const code = EMBED_TEMPLATE.replaceAll("__BASE_URL__", window.location.origin).replaceAll("__LANGUAGE__", language).replace(/data-theme="[^"]*"/, `data-theme="${EMBED_THEME}"`);
   box.textContent = code;
 }
 
@@ -1233,12 +1249,15 @@ async function loadWidgetSection() {
     const [cfg, embed] = await Promise.all([
       apiCall("/api/widget/config"),
       apiCall("/api/widget/embed-code"),
-      Lazy.script("/assets/js/pets.js?v=2.7.0").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+      Lazy.script("/assets/js/pets.js?v=2.7.2").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
     ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";
-    widgetEl("widgetTitleInput").value = cfg.widget_title;
-    widgetEl("widgetWelcomeInput").value = cfg.widget_welcome_message;
+    const isEn = window.QZSettings && window.QZSettings.isEnglish && window.QZSettings.isEnglish();
+    const defaultTitleFa = "دستیار هوشمند", defaultTitleEn = "Smart Assistant";
+    const defaultWelcomeFa = "سلام! چطور می‌تونم کمکتون کنم؟", defaultWelcomeEn = "Hello! How can I help you?";
+    widgetEl("widgetTitleInput").value = (cfg.widget_title === defaultTitleFa || cfg.widget_title === defaultTitleEn) ? (isEn ? defaultTitleEn : defaultTitleFa) : cfg.widget_title;
+    widgetEl("widgetWelcomeInput").value = (cfg.widget_welcome_message === defaultWelcomeFa || cfg.widget_welcome_message === defaultWelcomeEn) ? (isEn ? defaultWelcomeEn : defaultWelcomeFa) : cfg.widget_welcome_message;
     widgetEl("widgetColorInput").value = cfg.widget_color;
     renderSwatches("widgetSwatches", WIDGET_SWATCHES, "widgetColorInput");
     setWidgetPosition(ex.position || "bottom-left");

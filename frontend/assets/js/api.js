@@ -26,7 +26,8 @@ const Auth = {
 };
 
 async function apiCallRaw(path, { method = "GET", body = null, auth = true, timeoutMs = 30000 } = {}) {
-  const headers = { "Content-Type": "application/json" };
+  const lang = (localStorage.getItem("qz_language") || "fa").startsWith("en") ? "en" : "fa";
+  const headers = { "Content-Type": "application/json", "X-QZ-Language": lang };
   if (auth) {
     const token = Auth.getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -44,9 +45,9 @@ async function apiCallRaw(path, { method = "GET", body = null, auth = true, time
     });
   } catch (networkErr) {
     if (networkErr && networkErr.name === "AbortError") {
-      throw new Error("ارتباط با سرویس قطع شد.");
+      throw new Error(lang === "en" ? "The connection to the service was interrupted." : "ارتباط با سرویس قطع شد.");
     }
-    throw new Error("ارتباط با سرور برقرار نشد. مطمئن شوید بک‌اند در حال اجراست.");
+    throw new Error(lang === "en" ? "Could not connect to the server. Make sure the backend is running." : "ارتباط با سرور برقرار نشد. مطمئن شوید بک‌اند در حال اجراست.");
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }
@@ -56,7 +57,7 @@ async function apiCallRaw(path, { method = "GET", body = null, auth = true, time
     if (!location.pathname.endsWith("index.html") && location.pathname !== "/") {
       location.href = "/index.html";
     }
-    throw new Error("نشست شما منقضی شده؛ دوباره وارد شوید.");
+    throw new Error(lang === "en" ? "Your session has expired. Please sign in again." : "نشست شما منقضی شده؛ دوباره وارد شوید.");
   }
 
   if (res.status === 204) return null;
@@ -195,7 +196,8 @@ const Skel = {
 const STREAM_FALLBACK_STATUSES = [404, 405, 415, 501];
 
 async function apiStream(path, { body, onMeta, onDelta, signal, auth = true, idleTimeoutMs = 0 } = {}) {
-  const headers = { "Content-Type": "application/json", Accept: "text/event-stream" };
+  const lang = (localStorage.getItem("qz_language") || "fa").startsWith("en") ? "en" : "fa";
+  const headers = { "Content-Type": "application/json", Accept: "text/event-stream", "X-QZ-Language": lang };
   if (auth) {
     const token = Auth.getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
