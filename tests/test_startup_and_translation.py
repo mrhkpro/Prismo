@@ -22,3 +22,22 @@ def test_language_switch_pauses_observer_and_does_not_translate_parent_for_each_
     # Regression guard for the old O(n^2) observer behavior that re-translated the whole parent.
     assert "translateNode(m.target.parentElement)" not in js
     assert "isTranslating" in js
+
+
+def test_postgres_lifespan_does_not_touch_schema_or_seed(monkeypatch):
+    import asyncio
+    from app import config, main
+
+    monkeypatch.setattr(config, "IS_POSTGRES", True)
+
+    def fail(*_args, **_kwargs):
+        raise AssertionError("Supabase startup must not mutate or inspect the schema")
+
+    monkeypatch.setattr(main.Base.metadata, "create_all", fail)
+    monkeypatch.setattr(main, "seed_admin", fail)
+
+    async def run_lifespan():
+        async with main.lifespan(None):
+            return
+
+    asyncio.run(run_lifespan())
