@@ -25,7 +25,7 @@ from sqlalchemy.pool import StaticPool
 
 from app import models
 from app.database import Base
-from app.routers.knowledge import reindex_document
+from app.routers.knowledge import _embed_chunks_fast, reindex_document
 
 
 class KnowledgeReindexTests(unittest.TestCase):
@@ -59,6 +59,23 @@ class KnowledgeReindexTests(unittest.TestCase):
         self.assertEqual(result.chunk_count, 1)
         texts = [c.text for c in self.db.query(models.Chunk).filter(models.Chunk.document_id == self.doc.id).all()]
         self.assertEqual(texts, ["new"])
+
+
+    def test_embedding_batches_reduce_request_count_and_preserve_chunk_order(self):
+        pieces = [f"piece-{index}" for index in range(95)]
+        provider = object()
+
+        def fake_embed(batch, _provider):
+            return [[piece] for piece in batch]
+
+        with patch("app.routers.knowledge.config.EMBEDDING_BATCH_SIZE", 40), patch(
+            "app.routers.knowledge.config.EMBEDDING_CONCURRENCY", 4
+        ), patch("app.routers.knowledge.llm_client.embed_texts", side_effect=fake_embed) as embed:
+            embeddings = _embed_chunks_fast(pieces, provider)
+
+        self.assertEqual(embed.call_count, 3)
+        self.assertEqual(sorted(len(call.args[0]) for call in embed.call_args_list), [15, 40, 40])
+        self.assertEqual(embeddings, [[piece] for piece in pieces])
 
     def test_reindex_does_not_access_another_users_document(self):
         other = models.User(username="other", password_hash="hash")
