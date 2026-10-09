@@ -22,6 +22,11 @@ const Nav = {
 document.querySelectorAll(".nav-item[data-view]").forEach((item) => {
   item.addEventListener("click", () => Nav.go(item.dataset.view));
 });
+document.addEventListener("qz-language-change", () => {
+  if (!ADMIN_USER) return;
+  const active = document.querySelector(".nav-item[data-view].active");
+  if (active) Nav.go(active.dataset.view);
+});
 document.getElementById("backToDashboardBtn").addEventListener("click", () => (location.href = "/dashboard.html"));
 
 async function init() {
@@ -500,10 +505,20 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 function formatDateTime(iso) {
-  try { return new Date(iso).toLocaleString("fa-IR", { dateStyle: "short", timeStyle: "short" }); } catch (_) { return iso; }
+  try {
+    const locale = window.QZSettings && window.QZSettings.isEnglish()
+      ? "en-US-u-ca-gregory-nu-latn"
+      : "fa-IR";
+    return new Date(iso).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
+  } catch (_) { return iso; }
 }
 function formatDate(iso) {
-  try { return new Date(iso).toLocaleDateString("fa-IR"); } catch (_) { return iso; }
+  try {
+    const locale = window.QZSettings && window.QZSettings.isEnglish()
+      ? "en-US-u-ca-gregory-nu-latn"
+      : "fa-IR";
+    return new Date(iso).toLocaleDateString(locale);
+  } catch (_) { return iso; }
 }
 
 init();

@@ -1,4 +1,4 @@
-/* Quasar Settings + global i18n layer — v2.7.2 */
+/* Quasar Settings + global i18n layer — v2.7.3 */
 (function () {
   "use strict";
 
@@ -216,6 +216,32 @@
   "مثلاً: فروشگاه آنلاین رویا": "e.g. Online Roya Store",
   "فعال‌کردن حالت تیره": "Enable dark mode",
   "فعال‌کردن حالت روشن": "Enable light mode",
+  "پنل مدیریت": "Admin panel",
+  "پنل ادمین": "Admin panel",
+  "این کد را پیش از </body> هر صفحه‌ی وب‌سایتت بگذار.": "Add this code before </body> on every page of your website.",
+  "این کد را پیش از": "Add this code before",
+  "هر صفحه‌ی وب‌سایتت بگذار.": "on every page of your website.",
+  "قبل از انتشار ویجت، رفتار دستیار را همین‌جا امتحان کن.": "Test the assistant’s behavior here before publishing the widget.",
+  "هنوز Documentی اضافه نکرده‌ای": "No document has been added yet.",
+  "هنوز سندی اضافه نکرده‌ای": "No document has been added yet.",
+  "این پروژه سه بخش اصلی داره — All رو از منوی کناری در دسترس داری.": "This project has three main sections — you can access them all from the sidebar.",
+  "این پروژه سه بخش اصلی داره — همه رو از منوی کناری در دسترس داری.": "This project has three main sections — you can access them all from the sidebar.",
+  "پنل مدیریت — کوازار": "Admin panel — Quasar",
+  "در حال دریافت پاسخ…": "Receiving responses…",
+  "مدل انتخاب‌شده در لیست مدل‌های رایگان آماده نیست.": "The selected model is not in the ready-to-use model list.",
+  "کل کاربران": "Total users",
+  "کاربران فعال": "Active users",
+  "کاربران مسدود": "Blocked users",
+  "مدیران سیستم": "System administrators",
+  "اسناد دانشنامه": "Knowledge base documents",
+  "تکه‌های ایندکس‌شده": "Indexed chunks",
+  "کل نشست‌های گفت‌وگو": "Total chat sessions",
+  "کل پیام‌ها": "Total messages",
+  "گزارش مکالمات": "Conversation reports",
+  "آمار کلان": "Overview",
+  "مدیریت کاربران": "User management",
+  "نظارت امنیتی": "Security monitoring",
+  "هنوز سندی ثبت نشده است.": "No documents have been added yet.",
   "سند": "Document"
 });
 
