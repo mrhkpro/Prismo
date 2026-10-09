@@ -186,23 +186,15 @@ def free_models(current_user: models.User = Depends(get_current_user)):
 def battle(
     payload: schemas.BattleRequest,
     current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """یک پرامپت را هم‌زمان به دو مدل رایگان می‌فرستد تا پاسخ‌ها کنار هم مقایسه شوند."""
-    if payload.model_a not in config.DEFAULT_CHAT_MODELS or payload.model_b not in config.DEFAULT_CHAT_MODELS:
-        raise HTTPException(status_code=400, detail="مدل انتخاب‌شده در لیست مدل‌های رایگان آماده نیست.")
-
-    provider = llm_client.ProviderConfig(
-        base_url=config.DEFAULT_PROVIDER_BASE_URL,
-        api_key=config.DEFAULT_PROVIDER_API_KEY,
-        chat_model=payload.model_a,
-        embedding_model=config.DEFAULT_EMBEDDING_MODEL,
-        is_default=True,
-    )
+    """Compare built-in models and the user's saved custom chat model."""
+    provider_a, provider_b = _battle_providers(payload, current_user, db)
     messages = [{"role": "user", "content": payload.prompt}]
 
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="battle") as executor:
-        future_a = executor.submit(llm_client.timed_chat_completion, messages, provider, payload.model_a)
-        future_b = executor.submit(llm_client.timed_chat_completion, messages, provider, payload.model_b)
+        future_a = executor.submit(llm_client.timed_chat_completion, messages, provider_a, payload.model_a)
+        future_b = executor.submit(llm_client.timed_chat_completion, messages, provider_b, payload.model_b)
         reply_a, ms_a, err_a = future_a.result()
         reply_b, ms_b, err_b = future_b.result()
 
@@ -216,24 +208,16 @@ def battle(
 def battle_stream(
     payload: schemas.BattleRequest,
     current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Stream two model answers concurrently as side-tagged SSE events."""
-    if payload.model_a not in config.DEFAULT_CHAT_MODELS or payload.model_b not in config.DEFAULT_CHAT_MODELS:
-        raise HTTPException(status_code=400, detail="مدل انتخاب‌شده در لیست مدل‌های رایگان آماده نیست.")
-
-    provider = llm_client.ProviderConfig(
-        base_url=config.DEFAULT_PROVIDER_BASE_URL,
-        api_key=config.DEFAULT_PROVIDER_API_KEY,
-        chat_model=payload.model_a,
-        embedding_model=config.DEFAULT_EMBEDDING_MODEL,
-        is_default=True,
-    )
+    """Stream two built-in/custom model answers concurrently as SSE events."""
+    provider_a, provider_b = _battle_providers(payload, current_user, db)
     messages = [{"role": "user", "content": payload.prompt}]
 
     def event_stream():
         events: Queue[tuple[str, dict]] = Queue()
 
-        def run_side(side: str, model: str) -> None:
+        def run_side(side: str, model: str, provider: llm_client.ProviderConfig) -> None:
             started = time.perf_counter()
             try:
                 for piece in llm_client.stream_chat_completion(messages, provider, model=model):
@@ -252,8 +236,8 @@ def battle_stream(
         yield ": qz-ready\n\n"
         yield streaming.sse("meta", {"model_a": payload.model_a, "model_b": payload.model_b})
         with ThreadPoolExecutor(max_workers=2, thread_name_prefix="battle-stream") as executor:
-            executor.submit(run_side, "a", payload.model_a)
-            executor.submit(run_side, "b", payload.model_b)
+            executor.submit(run_side, "a", payload.model_a, provider_a)
+            executor.submit(run_side, "b", payload.model_b, provider_b)
             remaining = 2
             while remaining:
                 try:
@@ -270,4 +254,47 @@ def battle_stream(
         event_stream(),
         media_type="text/event-stream",
         headers=streaming.SSE_HEADERS,
+    )
+
+
+def _battle_provider_for_model(model_id: str, settings=None) -> llm_client.ProviderConfig:
+    """Resolve a model only when it is built-in or the user's saved custom model."""
+    if model_id in config.DEFAULT_CHAT_MODELS:
+        return llm_client.ProviderConfig(
+            base_url=config.DEFAULT_PROVIDER_BASE_URL,
+            api_key=config.DEFAULT_PROVIDER_API_KEY,
+            chat_model=model_id,
+            embedding_model=config.DEFAULT_EMBEDDING_MODEL,
+            is_default=True,
+        )
+
+    is_saved_custom_model = (
+        settings is not None
+        and not settings.use_default_provider
+        and bool(settings.base_url)
+        and bool(settings.api_key)
+        and settings.chat_model == model_id
+    )
+    if is_saved_custom_model:
+        # resolve_provider carries the saved Base URL/API key for this user;
+        # model IDs submitted by the browser are never used to select arbitrary
+        # provider credentials.
+        return llm_client.resolve_provider(settings)
+
+    raise HTTPException(status_code=400, detail="مدل باید یکی از مدل‌های آماده یا مدل اختصاصی ذخیره‌شده‌ی همین حساب باشد.")
+
+
+def _battle_providers(payload: schemas.BattleRequest, current_user: models.User, db) -> tuple[llm_client.ProviderConfig, llm_client.ProviderConfig]:
+    """Build one provider per side, allowing a saved custom model beside a default model."""
+    requested_models = (payload.model_a, payload.model_b)
+    settings = None
+    if any(model_id not in config.DEFAULT_CHAT_MODELS for model_id in requested_models):
+        # Direct function calls in legacy tests don't inject FastAPI's DB
+        # dependency; they're still valid for built-in models. Real requests
+        # always receive a Session and can validate a saved custom model.
+        if hasattr(db, "execute"):
+            settings = user_settings_compat.get(db, current_user.id)
+    return (
+        _battle_provider_for_model(payload.model_a, settings),
+        _battle_provider_for_model(payload.model_b, settings),
     )

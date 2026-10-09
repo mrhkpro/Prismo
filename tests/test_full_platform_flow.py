@@ -185,12 +185,12 @@ class AuthFlowTests(PlatformTestCase):
         self.assertEqual(self.client.get("/api/health").json(), {"status": "ok"})
         index = self.client.get("/index.html")
         self.assertEqual(index.status_code, 200)
-        self.assertIn("style.css?v=2.7.4", index.text)
+        self.assertIn("style.css?v=2.7.5", index.text)
         self.assertEqual(self.client.get("/assets/css/style.css").status_code, 200)
         self.assertEqual(self.client.get("/widget.js").status_code, 200)
 
     def test_versioned_assets_are_cached_long_but_html_and_widget_are_not(self):
-        cached = self.client.get("/assets/css/style.css?v=2.7.4")
+        cached = self.client.get("/assets/css/style.css?v=2.7.5")
         self.assertEqual(cached.status_code, 200)
         self.assertIn("immutable", cached.headers.get("cache-control", ""))
         self.assertIn("max-age=31536000", cached.headers.get("cache-control", ""))
@@ -311,6 +311,23 @@ class SettingsFlowTests(PlatformTestCase):
         self.assertFalse(self.chat_calls[-1]["provider"].is_default)
         self.assertEqual(self.chat_calls[-1]["provider"].base_url, "https://api.example.com/v1")
 
+        # A saved custom model must be accepted in Battle and use its own
+        # saved provider while the built-in model uses the ready provider.
+        battle_calls = {}
+
+        def fake_battle(messages, provider, model, temperature=0.7):
+            battle_calls[model] = provider
+            return f"reply-{model}", 8, None
+
+        with patch.object(llm_client, "timed_chat_completion", side_effect=fake_battle):
+            battle = self.client.post("/api/playground/battle", headers=h(token), json={
+                "prompt": "hello", "model_a": "my-model", "model_b": "qwen-35b-a3b-instruct",
+            })
+        self.assertEqual(battle.status_code, 200, battle.text)
+        self.assertFalse(battle_calls["my-model"].is_default)
+        self.assertEqual(battle_calls["my-model"].base_url, "https://api.example.com/v1")
+        self.assertTrue(battle_calls["qwen-35b-a3b-instruct"].is_default)
+
         # پاک‌کردن کلید ⇒ برگشت خودکار به مدل رایگان آماده
         cleared = self.client.put("/api/settings", headers=h(token), json={"api_key": ""}).json()
         self.assertFalse(cleared["api_key_set"])
@@ -378,7 +395,7 @@ class WidgetFlowTests(PlatformTestCase):
         self.assertEqual(embed["widget_id"], wid)
         code = embed["embed_code_template"]
         self.assertIn(f'data-widget-id="{wid}"', code)
-        self.assertIn("__BASE_URL__/widget.js?v=2.7.4", code)
+        self.assertIn("__BASE_URL__/widget.js?v=2.7.5", code)
         self.assertIn('data-theme="auto"', code)
 
     def test_unknown_widget_is_404(self):
