@@ -75,3 +75,6 @@ htmlcov/
 
 # Local credentials
 .env
+
+.vercel
+.env*
