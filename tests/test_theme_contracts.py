@@ -100,7 +100,7 @@ class ThemeTokenTests(unittest.TestCase):
 
 class StylesheetHygieneTests(unittest.TestCase):
     def test_components_use_tokens_not_hardcoded_brand_colours(self):
-        body = CSS.split("/* =========================================================================\n   کوازار 2.5", 1)[1]
+        body = CSS.split("/* =========================================================================\n   Prismo 2.5", 1)[1]
         # توکن‌های تم را قبل از بررسی کامپوننت‌ها حذف کن؛ رنگ hex در این بلوک‌ها مجاز است.
         body = body.split("/* =========================================================================\n   تنظیمات مرکزی 2.7", 1)[0]
         body = re.sub(r':root(?:\[data-theme="[^"]+"\])?\s*\{.*?\n\}', '', body, flags=re.S)
@@ -130,7 +130,7 @@ class PageWiringTests(unittest.TestCase):
         versions = set()
         for page in PAGES:
             versions.update(re.findall(r"\?v=(\d+\.\d+\.\d+)", self.read(page)))
-        self.assertEqual(versions, {"2.7.3"})
+        self.assertEqual(versions, {"2.7.4"})
 
     def test_heavy_scripts_are_loaded_on_demand_not_with_the_page(self):
         dashboard = self.read("dashboard.html")
@@ -167,7 +167,7 @@ class PageWiringTests(unittest.TestCase):
         self.assertIn("color-scheme: light", CSS.split(".widget-preview-frame", 1)[1].split("}", 1)[0])
 
     def test_dashboard_badge_matches_release(self):
-        self.assertIn("QUASAR 2.7.3", self.read("dashboard.html"))
+        self.assertIn("PRISMO 2.7.4", self.read("dashboard.html"))
 
 
 class PetSpriteContractTests(unittest.TestCase):

@@ -17,7 +17,7 @@ if config.IS_POSTGRES:
         "prepare_threshold": None,
         "sslmode": "require",
         "connect_timeout": 3,
-        "application_name": "quasar-local",
+        "application_name": "prismo-local",
     }
 
     if "sslmode=" not in config.DATABASE_URL:

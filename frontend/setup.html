@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, noarchive, nosnippet, noimageindex">
-  <title>راه‌اندازی کوازار</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/prismo-icon.svg?v=2.7.4">
+  <title>راه‌اندازی Prismo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap">
@@ -44,10 +45,10 @@
   <main class="setup-wrap">
     <section class="setup-card" aria-labelledby="setupTitle">
       <div class="setup-head">
-        <div class="setup-mark">Q</div>
+        <div class="setup-mark prismo-setup-mark"><img src="/assets/prismo-icon.svg?v=2.7.4" alt="" aria-hidden="true"></div>
         <div>
-          <div class="eyebrow">QUASAR • SETUP</div>
-      <h1 class="setup-title" id="setupTitle">کوازار را چطور اجرا کنیم؟</h1>
+          <div class="eyebrow">PRISMO • SETUP</div>
+      <h1 class="setup-title" id="setupTitle">Prismo را چطور اجرا کنیم؟</h1>
       <p class="setup-sub" id="setupSub">برای این اجرا یکی را انتخاب کن. این صفحه فقط از طریق <b>setup.bat</b> نمایش داده می‌شود و اجرای عادی سایت دیگر این سؤال را نشان نمی‌دهد.</p>
         </div>
       </div>
@@ -69,7 +70,7 @@
       <div class="setup-foot">در Vercel این صفحه وارد چرخه اجرای برنامه نمی‌شود و انتخاب دیتابیس از طریق Environment Variables پروژه انجام می‌شود.</div>
     </section>
   </main>
-  <script src="/assets/js/settings.js?v=2.7.3"></script>
+  <script src="/assets/js/settings.js?v=2.7.4"></script>
   <script>
   (async function () {
     const status = document.getElementById('setupStatus');
@@ -102,7 +103,7 @@
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.detail || 'تنظیمات ذخیره نشد.');
           status.className = 'setup-status ok';
-          status.textContent = mode === 'supabase' ? 'Supabase انتخاب شد. در حال بررسی آماده‌شدن سرور…' : 'حالت لوکال انتخاب شد. در حال اجرای کوازار…';
+          status.textContent = mode === 'supabase' ? 'Supabase انتخاب شد. در حال بررسی آماده‌شدن سرور…' : 'حالت لوکال انتخاب شد. در حال اجرای Prismo…';
           let attempts = 0;
           const waitForApp = async () => {
             attempts += 1;
@@ -126,7 +127,7 @@
             if (attempts < 40) setTimeout(waitForApp, 500);
             else {
               status.className = 'setup-status error';
-              status.textContent = 'راه‌اندازی بیشتر از حد معمول طول کشید. فایل data/quasar-startup.log را بررسی کن.';
+              status.textContent = 'راه‌اندازی بیشتر از حد معمول طول کشید. فایل data/prismo-startup.log را بررسی کن.';
               options.querySelectorAll('button').forEach(b => b.disabled = false);
             }
           };

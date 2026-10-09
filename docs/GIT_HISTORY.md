@@ -115,3 +115,12 @@ All branches in the release line are merged into `main` with `--no-ff` to preser
 - Release line is merged with `--no-ff`; `main` is tagged `v2.7.3`.
 
 - `fix/english-progress-polish-2.7.3` — translate mixed admin labels and fallback/upload success strings, and use Latin percent symbols for English file-import progress. Regression test added; final suite: 204 passed.
+
+
+## v2.7.4 — Prismo rebrand and complete English UI polish
+
+- `feature/prismo-brand-i18n-2.7.4` — complete English translations for Settings and Test Lab, add the FA/EN login switch, remove the login-page floating theme toggle, and prevent runtime chat/user content from being accidentally translated.
+- `feature/prismo-identity-2.7.4` — update public brand text, page titles, SVG favicon/mark, setup page, widget credit, and project documentation to Prismo.
+- `fix/settings-testlab-i18n-2.7.4` — close missing Settings strings, translate the built-in Test Lab greeting, localize the disabled account status value, and maintain consistent 2.7.4 asset cache keys.
+- New environment variable names use the `PRISMO_` prefix while legacy `QUASAR_` settings remain accepted for upgrades.
+- Release branch is merged with `--no-ff`; `main` is tagged `v2.7.4`.

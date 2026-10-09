@@ -1,4 +1,4 @@
-/* Quasar Settings + global i18n layer — v2.7.3 */
+/* Prismo Settings + global i18n layer — v2.7.4 */
 (function () {
   "use strict";
 
@@ -49,13 +49,13 @@
     "کل کاربران":"Total users", "کاربران فعال":"Active users", "کاربران مسدود":"Blocked users", "مدیران سیستم":"System admins", "کل نشست‌های گفت‌وگو":"Total chat sessions", "کل پیام‌ها":"Total messages", "نشست‌های ویجت عمومی":"Public widget sessions", "نشست‌های آزمایشگاه تست":"Test lab sessions", "پیام‌های علامت‌گذاری‌شده":"Flagged messages", "مواردِ بررسی‌نشده":"Unresolved items", "مسدودسازی":"Block", "رفع مسدودیت":"Unblock", "ورود به‌جای کاربر":"Sign in as user", "بازرسی":"Inspect", "تنزل به کاربر عادی":"Downgrade to user", "ارتقا به ادمین":"Promote to admin", "مدل رایگان آماده":"Ready free model", "کلید ثبت‌شده":"Key configured", "بدون کلید":"No key", "دستیار هوشمند":"Smart Assistant", "سلام! چطور می‌تونم کمکتون کنم؟":"Hello! How can I help you?",
     "سندی ثبت نشده.":"No documents yet.", "نشستی ثبت نشده.":"No sessions yet.", "هنوز مکالمه‌ای ثبت نشده.":"No conversations yet.", "موردی برای بررسی نیست":"Nothing to review", "بستن":"Close", "هشدار بحرانی":"Critical alert", "هشدار با شدت بالا":"High severity alerts", "شدت متوسط":"Medium severity", "تلاش برای گرفتن سیستم‌پرامپت":"Prompt extraction attempts", "ویجت عمومی":"Public widget", "آزمایشگاه":"Test lab", "آزمایشگاه تست":"Test lab", "مشکوک":"Flagged", "بررسی‌شده":"Resolved", "مشاهده‌ی گفت‌وگو":"View conversation", "مسدودکردن کاربر":"Block user", "بررسی شد":"Mark reviewed", "بازرسی کاربر":"Inspect user", "پیام‌های نشست":"Session messages", "نام کاربری":"Username", "نقش فعلی":"Current role", "ارائه‌دهنده‌ی مدل":"Model provider", "مدل چت / امبدینگ":"Chat / embedding model", "پرامپت سیستمی اختصاصی کاربر":"User system prompt", "تنزل به کاربر عادی":"Demote to user", "ارتقا به ادمین":"Promote to admin",
     "سرویس موقتاً در دسترس نیست.":"The service is temporarily unavailable.", "سرویس موقتاً در دسترس نیست":"The service is temporarily unavailable.", "ارتباط با سرویس قطع شد.":"The connection to the service was interrupted.", "ارتباط با سرور برقرار نشد. مطمئن شوید بک‌اند در حال اجراست.":"Could not connect to the server. Make sure the backend is running.", "نشست شما منقضی شده؛ دوباره وارد شوید.":"Your session has expired. Please sign in again.", "کاربر یافت نشد.":"User not found.", "این بخش فقط برای مدیر سیستم در دسترس است.":"This section is available only to system administrators.", "این نام کاربری قبلاً ثبت شده است.":"This username is already registered.", "نام کاربری یا رمز عبور اشتباه است.":"Incorrect username or password.", "حساب کاربری شما مسدود شده است.":"Your account is blocked.", "ویجت یافت نشد.":"Widget not found.", "تعداد درخواست‌ها زیاد است. چند لحظه بعد دوباره تلاش کنید.":"Too many requests. Please try again in a moment.",
-    "ایجاد حساب":"Create account", "ورود":"Sign in", "رمز عبور":"Password", "حداقل ۶ کاراکتر":"At least 6 characters", "ساخت حساب و شروع":"Create account and start", "ورود به حساب":"Sign in", "نام سازمان / برند شما (اختیاری)":"Organization / brand name (optional)", "هر کاربر، دانشنامه و ویجتِ کاملاً مجزا و اختصاصیِ خودش را دارد.":"Each user has an isolated knowledge base and widget.", "کوازار را چطور اجرا کنیم؟":"How should Quasar run?", "برای این اجرا یکی را انتخاب کن.":"Choose how to run this instance.", "کاملاً لوکال":"Fully local", "سریع‌ترین حالت":"Fastest", "Supabase":"Supabase", "ابری":"Cloud", "در حال تنظیم اجرای کاملاً لوکال…":"Configuring local mode…", "در حال تنظیم اتصال Supabase…":"Configuring Supabase…",
+    "ایجاد حساب":"Create account", "ورود":"Sign in", "رمز عبور":"Password", "حداقل ۶ کاراکتر":"At least 6 characters", "ساخت حساب و شروع":"Create account and start", "ورود به حساب":"Sign in", "نام سازمان / برند شما (اختیاری)":"Organization / brand name (optional)", "هر کاربر، دانشنامه و ویجتِ کاملاً مجزا و اختصاصیِ خودش را دارد.":"Each user has an isolated knowledge base and widget.", "Prismo را چطور اجرا کنیم؟":"How should Prismo run?", "برای این اجرا یکی را انتخاب کن.":"Choose how to run this instance.", "کاملاً لوکال":"Fully local", "سریع‌ترین حالت":"Fastest", "Supabase":"Supabase", "ابری":"Cloud", "در حال تنظیم اجرای کاملاً لوکال…":"Configuring local mode…", "در حال تنظیم اتصال Supabase…":"Configuring Supabase…",
   };
 
   // Additional static/admin/dashboard phrases. Keeping them in the same dictionary
   // makes dynamic HTML generated after page load obey the exact same locale.
   Object.assign(dict, {
-    "پنل مدیریت — کوازار":"Admin panel — Quasar", "آمار کلان":"Overview", "مدیریت کاربران":"User management", "گزارش مکالمات":"Conversation reports", "نظارت امنیتی":"Security monitoring", "بازگشت به داشبورد کاربری":"Back to user dashboard", "مدیر سیستم":"System admin", "باز و بسته‌کردن منو":"Toggle menu", "مسیر صفحه":"Breadcrumb", "تغییر حالت نمایش":"Toggle appearance",
+    "پنل مدیریت — Prismo":"Prismo — Admin panel", "آمار کلان":"Overview", "مدیریت کاربران":"User management", "گزارش مکالمات":"Conversation reports", "نظارت امنیتی":"Security monitoring", "بازگشت به داشبورد کاربری":"Back to user dashboard", "مدیر سیستم":"System admin", "باز و بسته‌کردن منو":"Toggle menu", "مسیر صفحه":"Breadcrumb", "تغییر حالت نمایش":"Toggle appearance",
     "آمار کلان و تله‌متری سیستم":"System overview & telemetry", "یک نگاه کلی به وضعیت پلتفرم در سطح تمام کاربران.":"A platform-wide view across all users.", "مدیریت و پایش کاربران":"User management & monitoring", "لیست تمام کاربران ثبت‌نام‌شده، مسدودسازی، تغییر نقش و بازرسی حساب.":"All registered users, blocking, role changes, and account inspection.", "جست‌وجو بر اساس نام کاربری یا سازمان…":"Search by username or organization…", "کاربر":"User", "اسناد":"Documents", "نشست‌ها":"Sessions", "ثبت‌نام":"Registered", "عملیات":"Actions",
     "گزارش جامع مکالمات":"Conversation reports", "مکالمات کاربران (چه از آزمایشگاه تست، چه از ویجت عمومی) را برای نظارت بر کیفیت پاسخ‌ها بررسی کن.":"Review user conversations from the test lab and public widget to monitor response quality.", "همه":"All", "بازدیدکننده":"Visitor", "تعداد پیام":"Messages", "تاریخ":"Date", "منبع":"Source", "فیلتر شدت":"Severity filter", "همه شدت‌ها":"All severities", "بحرانی":"Critical", "بالا":"High", "متوسط":"Medium", "بررسی‌نشده":"Unresolved",
     "نظارت امنیتی":"Security monitoring", "تلاش برای گرفتن سیستم‌پرامپت، نادیده‌گرفتن دستورها و دورزدن محدودیت‌ها همین‌جا و به‌صورت زنده نشان داده می‌شود.":"Prompt extraction attempts, instruction bypassing, and other security signals appear here in real time.", "بررسی‌نشده":"Unresolved", "بازرسی کاربر":"Inspect user", "پیام‌های نشست":"Session messages",
@@ -67,8 +67,8 @@
     "مدل هوش مصنوعی":"AI models", "یک اتصال انتخاب کن و مدل‌ها را تنظیم کن.":"Choose a connection and configure your models.", "اتصال":"Connection", "مقایسه‌ی مدل‌ها":"Model battle", "منبع مدل":"Model source", "مدل‌های آماده":"Ready models", "رایگان آماده":"Ready-to-use", "API اختصاصی":"Custom API", "کلید مدل چت و embedding":"Shared chat + embedding API key", "همان API Key چت":"Use the same chat API key", "API Key جداگانه":"Separate API keys", "اعتبار اتصال Embedding":"Embedding connection", "در حالت جدا، Base URL و API Key embedding مستقل بررسی می‌شوند.":"Separate mode checks the embedding Base URL and API key independently.", "مدل چت تأییدشده":"Verified chat model", "مدل Embedding تأییدشده":"Verified embedding model", "فقط مدل‌هایی نمایش داده می‌شوند که واقعاً endpoint مربوطه را پاسخ دهند و ابعاد embedding آن‌ها با پروژه برابر باشد.":"Only models that actually answer the relevant endpoint and match the project embedding dimensions are shown.", "مقایسه‌ی مدل‌های آماده":"Ready-model comparison", "یک پرامپت را هم‌زمان به دو مدل رایگان بفرست.":"Send the same prompt to two ready models at once.", "مدل اول":"First model", "مدل دوم":"Second model", "پرامپت آزمایشی":"Test prompt", "شروع مقایسه":"Start comparison",
     "آپلود فایل":"Upload file", "انتخاب یا رها کردن فایل":"Choose or drop a file", "فایل‌ها را اینجا رها کن یا کلیک کن":"Drop files here or click", "افزودن سند جدید":"Add document", "ذخیره و ایندکس‌کردن":"Save & index", "در حال آماده‌سازی سند…":"Preparing document…", "افزودن سند جدید بزن تا اولین سندت را وارد کنی.":"Add a new document to get started.", "حذف کامل دانشنامه":"Clear knowledge base", "در حال بارگذاری…":"Loading…", "پیش‌نمایش ویجت":"Widget preview", "رنگ اصلی ویجت":"Widget primary color", "رنگ‌های آماده":"Presets", "انتخاب حیوان":"Choose a pet", "مثلاً: ساعت کاری؟":"e.g. What are your opening hours?", "مثلاً: هزینه ارسال":"e.g. What is the shipping cost?", "اختیاری":"Optional", "این‌ها به‌شکل دکمه زیر پیام خوش‌آمدگویی دیده می‌شوند و بعد از اولین پیام مخفی می‌شوند.":"These appear as buttons below the welcome message and hide after the first message.", "در حال بارگذاری…":"Loading…", "کد کپی شد.":"Code copied.", "بخش کد امبد در دسترس نیست.":"Embed code is unavailable.", "کد جاسازی":"Embed code", "این کد را پیش از <span class=":"Place this code before <span class=", "تم ویجت در سایت شما":"Widget theme on your site", "«خودکار» تم ویجت را با تم دستگاه بازدیدکننده هماهنگ می‌کند.":"Auto matches the widget theme to the visitor’s device.",
     "سلام! برای تست، یک سؤال درباره‌ی دانشنامه‌ات بپرس.":"Hello! Ask a question about your knowledge base to test the assistant.", "پیامت را بنویس…":"Type your message…", "مدل فعال":"Active model", "هنوز سؤالی پرسیده نشده.":"No question asked yet.", "شروع گفت‌وگوی جدید":"Start a new chat", "عبارت جست‌وجو":"Search query", "مثلاً: هزینه ارسال چقدره؟":"e.g. What is the shipping cost?", "رفتار دستیار ذخیره شد.":"Assistant behavior saved.", "عنوان و پیام خوش‌آمدگویی نمی‌توانند خالی باشند.":"Widget title and welcome message cannot be empty.", "تنظیمات ویجت ذخیره شد.":"Widget settings saved.", "ذخیره‌ی حیوان خانگی و پاسخ‌های سریع نیاز به یک‌بار اجرای migration شماره‌ی ۰۰۲ دارد.":"Saving pets and quick replies requires migration 002 to exist.",
-    "برای این اجرا یکی را انتخاب کن.":"Choose how to run this instance.", "کوازار را چطور اجرا کنیم؟":"How should Quasar run?", "سریع‌ترین حالت":"Fastest", "کاملاً لوکال":"Fully local", "ابری":"Cloud", "در حال تنظیم اجرای کاملاً لوکال…":"Configuring local mode…", "در حال تنظیم اتصال Supabase…":"Configuring Supabase…",
-    "کوازار — ویجت هوشمند دانش‌محور":"Quasar — Knowledge-powered AI widget", "دانشنامه‌ی خودت را بده، یک ویجت چت هوشمند تحویل بگیر":"Give your knowledge base and get an AI chat widget", "هر داده و مستندی که وارد می‌کنی، به یک دستیار گفت‌وگوی هوشمند تبدیل می‌شود که می‌تونی با یک خط کد داخل هر وب‌سایتی جاسازی‌اش کنی؛ کاملاً شخصی‌سازی‌شده و مخصوص خودت.":"Turn your data and documents into a smart assistant that you can embed into any website with one line of code.", "ثبت‌نام کن و مدل هوش مصنوعی موردنظرت را وصل کن (یا از مدل‌های رایگان آماده استفاده کن)":"Sign up and connect your preferred AI model (or use ready free models)", "اسناد و اطلاعاتت را به دانشنامه اضافه کن و رفتار دستیار را شخصی‌سازی کن":"Add your documents and customize the assistant behavior", "کد ویجت را کپی و داخل وب‌سایتت جاسازی کن":"Copy the widget code and embed it on your website", "دستیار هوشمند شما":"Your smart assistant", "سلام!":"Hello!", "هر سوالی درباره‌ی دانشنامه‌ات داری بپرس":"Ask anything about your knowledge base", "ساعت کاری پشتیبانی چیه؟":"What are support hours?", "طبق سندی که آپلود کردی، پشتیبانی هر روز ۹ تا ۱۸ فعاله.":"According to your uploaded document, support is available daily from 9 AM to 6 PM.", "پیامت رو بنویس…":"Type your message…", "برای ساخت و مدیریت ویجت‌هایت وارد شو":"Sign in to build and manage your widgets", "ساخت حساب جدید":"Create a new account", "چند ثانیه طول می‌کشد؛ همین حالا شروع کن":"It only takes a few seconds; start now", "ثبت‌نام":"Sign up", "ورود به حساب":"Sign in", "کوازار":"Quasar",
+    "برای این اجرا یکی را انتخاب کن.":"Choose how to run this instance.", "Prismo را چطور اجرا کنیم؟":"How should Prismo run?", "سریع‌ترین حالت":"Fastest", "کاملاً لوکال":"Fully local", "ابری":"Cloud", "در حال تنظیم اجرای کاملاً لوکال…":"Configuring local mode…", "در حال تنظیم اتصال Supabase…":"Configuring Supabase…",
+    "Prismo — ویجت هوشمند دانش‌محور":"Prismo — Knowledge-powered AI widget", "دانشنامه‌ی خودت را بده، یک ویجت چت هوشمند تحویل بگیر":"Give your knowledge base and get an AI chat widget", "هر داده و مستندی که وارد می‌کنی، به یک دستیار گفت‌وگوی هوشمند تبدیل می‌شود که می‌تونی با یک خط کد داخل هر وب‌سایتی جاسازی‌اش کنی؛ کاملاً شخصی‌سازی‌شده و مخصوص خودت.":"Turn your data and documents into a smart assistant that you can embed into any website with one line of code.", "ثبت‌نام کن و مدل هوش مصنوعی موردنظرت را وصل کن (یا از مدل‌های رایگان آماده استفاده کن)":"Sign up and connect your preferred AI model (or use ready free models)", "اسناد و اطلاعاتت را به دانشنامه اضافه کن و رفتار دستیار را شخصی‌سازی کن":"Add your documents and customize the assistant behavior", "کد ویجت را کپی و داخل وب‌سایتت جاسازی کن":"Copy the widget code and embed it on your website", "دستیار هوشمند شما":"Your smart assistant", "سلام!":"Hello!", "هر سوالی درباره‌ی دانشنامه‌ات داری بپرس":"Ask anything about your knowledge base", "ساعت کاری پشتیبانی چیه؟":"What are support hours?", "طبق سندی که آپلود کردی، پشتیبانی هر روز ۹ تا ۱۸ فعاله.":"According to your uploaded document, support is available daily from 9 AM to 6 PM.", "پیامت رو بنویس…":"Type your message…", "برای ساخت و مدیریت ویجت‌هایت وارد شو":"Sign in to build and manage your widgets", "ساخت حساب جدید":"Create a new account", "چند ثانیه طول می‌کشد؛ همین حالا شروع کن":"It only takes a few seconds; start now", "ثبت‌نام":"Sign up", "ورود به حساب":"Sign in", "Prismo":"Prismo",
     "در حال آماده‌سازی پاسخ…":"Preparing response…", "پاسخ مدل هم‌زمان با رسیدن tokenها نمایش داده شود؛ خاموش باشد پاسخ یک‌جا می‌آید.":"Show model output as tokens arrive; when off, show the complete response at once.", "مثلاً: یک پاراگراف کوتاه درباره‌ی اهمیت RAG بنویس.":"e.g. Write a short paragraph about why RAG matters.",
   });
 
@@ -201,7 +201,7 @@
   "ورود به حساب": "Sign in",
   "نام سازمان / برند شما (اختیاری)": "Organization / brand name (optional)",
   "هر کاربر، دانشنامه و ویجتِ کاملاً مجزا و اختصاصیِ خودش را دارد.": "Every user gets a completely separate knowledge base and widget.",
-  "کوازار را چطور اجرا کنیم؟": "How should Quasar run?",
+  "Prismo را چطور اجرا کنیم؟": "How should Prismo run?",
   "برای این اجرا یکی را انتخاب کن.": "Choose one for this run.",
   "کاملاً لوکال": "Fully local",
   "این نسخه روی Vercel اجرا می‌شود": "This version runs on Vercel",
@@ -209,9 +209,9 @@
   "در حال انتقال به صفحه اصلی…": "Redirecting to the main page…",
   "تنظیمات ذخیره نشد.": "Settings were not saved.",
   "Supabase انتخاب شد. در حال بررسی آماده‌شدن سرور…": "Supabase selected. Checking server readiness…",
-  "حالت لوکال انتخاب شد. در حال اجرای کوازار…": "Local mode selected. Starting Quasar…",
+  "حالت لوکال انتخاب شد. در حال اجرای Prismo…": "Local mode selected. Starting Prismo…",
   "برنامه اصلی اجرا نشد.": "The main application did not start.",
-  "راه‌اندازی بیشتر از حد معمول طول کشید. فایل data/quasar-startup.log را بررسی کن.": "Startup took longer than expected. Check data/quasar-startup.log.",
+  "راه‌اندازی بیشتر از حد معمول طول کشید. فایل data/prismo-startup.log را بررسی کن.": "Startup took longer than expected. Check data/prismo-startup.log.",
   "خطا در تنظیم پروژه.": "Project setup failed.",
   "مثلاً: فروشگاه آنلاین رویا": "e.g. Online Roya Store",
   "فعال‌کردن حالت تیره": "Enable dark mode",
@@ -229,7 +229,7 @@
   "هنوز سندی اضافه نکرده‌ای": "No document has been added yet.",
   "این پروژه سه بخش اصلی داره — All رو از منوی کناری در دسترس داری.": "This project has three main sections — you can access them all from the sidebar.",
   "این پروژه سه بخش اصلی داره — همه رو از منوی کناری در دسترس داری.": "This project has three main sections — you can access them all from the sidebar.",
-  "پنل مدیریت — کوازار": "Admin panel — Quasar",
+  "پنل مدیریت — Prismo": "Admin panel — Prismo",
   "هفت پوسته‌ی دست‌ساز با کنتراست، کارت و glow متفاوت برای کار طولانی.": "Seven handcrafted themes with distinct contrast, cards, and glow for long sessions.",
   "پس از اتمام پاسخ، یک صدای کوتاه پخش شود.": "Play a short sound after the response finishes.",
   "کنترل‌هایی برای کاهش کلیک، حرکت و شلوغی محیط.": "Controls to reduce extra clicks, motion, and visual clutter.",
@@ -254,6 +254,100 @@
   "هنوز سندی ثبت نشده است.": "No documents have been added yet.",
   "سند": "Document"
 });
+
+  // Complete phrases for the English UI, including Settings and Test Lab.
+  Object.assign(dict, {
+    'مرکز کنترل': 'Control center',
+    'ذخیره محلی': 'Saved locally',
+    'تنظیمات سایت': 'Site settings',
+    'زبان، ظاهر، چت، میانبرها و حساب را از یک مرکز کنترل سریع مدیریت کن.': 'Manage language, appearance, chat, shortcuts, and your account from one quick control center.',
+    'ظاهر و زبان': 'Appearance & language',
+    'تغییرات این بخش فوری ذخیره می‌شوند و روی تمام صفحات سایت اعمال می‌شوند.': 'Changes in this section are saved instantly and applied across the entire site.',
+    'با انتخاب English، متن‌های ثابت داشبورد، ادمین، تست‌لب و ویجت همگی انگلیسی و LTR می‌شوند.': 'Selecting English translates the dashboard, admin panel, test lab, and widget UI to English and switches the layout to LTR.',
+    'زبان و جهت صفحه': 'Language & layout direction',
+    'رنگ و حال‌وهوای محیط': 'Theme & atmosphere',
+    'هفت پوسته‌ی دست‌ساز با کنتراست، کارت و glow متفاوت برای کار طولانی.': 'Seven handcrafted themes with distinct contrast, cards, and glow for long sessions.',
+    'رفتار چت': 'Chat behavior',
+    'این گزینه‌ها واقعاً روی Test Lab و گفت‌وگوی اصلی اثر می‌گذارند.': 'These options affect both the Test Lab and the main chat.',
+    'نمایش تکه‌تکه‌ی پاسخ': 'Stream responses',
+    'پاسخ مدل هم‌زمان با رسیدن tokenها نمایش داده شود؛ خاموش باشد پاسخ یک‌جا می‌آید.': 'Show model output as tokens arrive. When disabled, show the complete response at once.',
+    'اسکرول خودکار گفتگو': 'Auto-scroll chat',
+    'هنگام دریافت پاسخ، پایین گفتگو را دنبال کند.': 'Keep the latest response in view while a reply is arriving.',
+    'ارسال با Enter': 'Send with Enter',
+    'Enter ارسال کند و Shift+Enter خط جدید بسازد.': 'Press Enter to send and Shift+Enter to insert a new line.',
+    'نمایش نشان مدل': 'Show model badge',
+    'مدل فعال کنار پاسخ نمایش داده شود.': 'Show the active model next to each response.',
+    'چیدمان فشرده چت': 'Compact chat layout',
+    'فاصله‌ی حباب‌ها و عناصر چت کمی کمتر شود.': 'Reduce spacing between chat bubbles and controls.',
+    'هشدار صوتی پایان پاسخ': 'Response completion sound',
+    'پس از اتمام پاسخ، یک صدای کوتاه پخش شود.': 'Play a short sound when a response finishes.',
+    'تأیید پاک‌کردن گفتگو': 'Confirm before clearing chat',
+    'قبل از ساخت چت تازه با میانبر، تأیید بگیر.': 'Ask for confirmation before starting a fresh chat with a shortcut.',
+    'فضای کاری و میانبرها': 'Workspace & shortcuts',
+    'کنترل‌هایی برای کاهش کلیک، حرکت و شلوغی محیط.': 'Controls that reduce clicks, motion, and visual clutter.',
+    'حالت کم‌تحرک': 'Reduced motion',
+    'انیمیشن‌ها و حرکت‌های غیرضروری را کاهش می‌دهد.': 'Reduce non-essential animations and movement.',
+    'سایدبار فشرده': 'Compact sidebar',
+    'منوی کناری را به حالت آیکونی کوچک می‌کند.': 'Collapse the sidebar to an icon-only rail.',
+    'کنتراست بیشتر': 'Higher contrast',
+    'مرزها و متن‌های کم‌رنگ را خواناتر می‌کند.': 'Improve the legibility of borders and muted text.',
+    'بازگردانی آخرین بخش': 'Restore last section',
+    'بعد از ورود دوباره همان بخش قبلی باز شود.': 'Reopen the last section after signing in again.',
+    'حفظ وضعیت سایدبار': 'Remember sidebar state',
+    'باز یا بسته بودن منوی کناری به خاطر سپرده شود.': 'Remember whether the sidebar is expanded or collapsed.',
+    'آخرین تب تنظیمات': 'Remember settings tab',
+    'آخرین تب انتخاب‌شده در دفعه بعد باز شود.': 'Restore the previously selected settings tab next time.',
+    'فعال‌سازی میانبرها': 'Enable keyboard shortcuts',
+    'میانبرهای آماده برای چت، تنظیمات و بستن پنجره‌ها.': 'Ready-made shortcuts for chat, settings, and closing dialogs.',
+    'میانبرهای آماده': 'Quick shortcuts',
+    'بازنشانی تنظیمات سایت': 'Reset site settings',
+    'حساب کاربری': 'Account',
+    'اطلاعات حساب همین‌جا دیده می‌شود؛ نام و آیکون همچنان پایین سایدبار باقی می‌ماند.': 'Manage account details here; your name and avatar remain at the bottom of the sidebar.',
+    'نام کاربری': 'Username',
+    'نام سازمان': 'Organization',
+    'نقش': 'Role',
+    'وضعیت': 'Status',
+    'فعال': 'Active',
+    'خروج از حساب': 'Sign out',
+    'پنل مدیریت': 'Admin panel',
+    'پنل ادمین': 'Admin panel',
+    'پنل Administration': 'Admin panel',
+    'تست گفت‌وگوی RAG': 'Chat test',
+    'تست گفت‌وگو با RAG': 'Chat test',
+    'تست گفت‌وگو': 'Chat test',
+    'تست چت RAG': 'Chat test',
+    'تست چتِ RAG': 'Chat test',
+    'تست چتی RAG': 'Chat test',
+    'سلام! برای تست، یک سؤال درباره‌ی دانشنامه‌ات بپرس.': 'Hello! Ask a question about your knowledge base to test the assistant.',
+    'منبعی از دانشنامه پیدا نشد.': 'No knowledge-base sources were found.',
+    'مدل فعال': 'Active model',
+    'منابع بازیابی‌شده': 'Retrieved sources',
+    'هنوز سؤالی پرسیده نشده.': 'No question has been asked yet.',
+    'شروع گفت‌وگوی جدید': 'Start a new chat',
+    'عبارت جست‌وجو': 'Search query',
+    'مثلاً: هزینه ارسال چقدره؟': 'e.g. What is the shipping cost?',
+    'جست‌وجوی معنایی (Playground)': 'Semantic search (Playground)',
+    'بازگشت به پنل ادمین': 'Back to Admin panel',
+    'حالت آماده': 'Ready mode',
+    'حالت اختصاصی': 'Custom mode',
+    'روی «افزودن سند جدید» بزن تا اولین سندت را وارد کنی.': 'Click “Add document” to add your first document.',
+    'روی لبه‌ی بالای ویجت راه می‌رود، بعد می‌ایستد و با کلیک قلب می‌دهد.': 'The pet walks along the top of the widget, pauses, and reacts with a heart when clicked.',
+    'چند ثانیه بعد از ورود، پیام خوش‌آمدگویی بالای دکمه‌ی ویجت ظاهر می‌شود.': 'A welcome message appears above the widget button a few seconds after you sign in.',
+    'مدال افزودن/ویرایش سند': 'Add/Edit document dialog',
+    'عنوان سند': 'Document title',
+    'برای این اجرا یکی را انتخاب کن. این صفحه فقط از طریق': 'Choose how to run this instance. This page is shown only through',
+    'نمایش داده می‌شود و اجرای عادی سایت دیگر این سؤال را نشان نمی‌دهد.': 'and is not shown during normal site startup.',
+    'SQLite داخلی، بدون Supabase و مناسب اجرای سریع روی همین سیستم. داده‌ها روی همین پروژه باقی می‌مانند.': 'Built-in SQLite, no Supabase required, and optimized for fast local use. Data stays in this project.',
+    'PostgreSQL / Supabase با تنظیمات قبلی پروژه، مناسب اجرای ابری یا اتصال مستقیم به دیتابیس مشترک.': 'PostgreSQL / Supabase using the project’s existing settings, suitable for cloud hosting or a shared database.',
+    'در Vercel این صفحه وارد چرخه اجرای برنامه نمی‌شود و انتخاب دیتابیس از طریق Environment Variables پروژه انجام می‌شود.': 'On Vercel, this page is not part of the app startup flow; database selection is controlled by project environment variables.',
+    'Prismo را چطور اجرا کنیم؟': 'How should Prismo run?',
+    'Prismo — ویجت هوشمند دانش‌محور': 'Prismo — Knowledge-powered AI widget',
+    'داشبورد — Prismo': 'Prismo — Dashboard',
+    'پنل مدیریت — Prismo': 'Prismo — Admin panel',
+    'راه‌اندازی Prismo': 'Prismo — Setup',
+    'Prismo': 'Prismo',
+    'پنل مدیریت — Prismo': 'Prismo — Admin panel',
+  });
 
   var phraseMap = Object.keys(dict).sort(function (a, b) { return b.length - a.length; });
   var reverseDict = {};
@@ -303,7 +397,7 @@
   function shouldSkipTextNode(node) {
     if (!node || !node.parentElement) return true;
     var el = node.parentElement;
-    if (el.closest("[data-user-content], textarea, input, pre, code, .reply-text, .chat-msg, .embed-code-box, .mono, .qz-widget-preview")) return true;
+    if (el.closest("[data-user-content], textarea, input, pre, code, .reply-text, .chat-msg.user, .chat-msg[data-runtime-message=\"1\"], .embed-code-box, .mono, .qz-widget-preview")) return true;
     return false;
   }
 
@@ -324,10 +418,17 @@
     }
     updates.forEach(function (item) { item[0].nodeValue = item[1]; });
 
-    document.querySelectorAll("input[placeholder], textarea[placeholder], [title], [aria-label]").forEach(function (el) {
+    // Semantic labels override phrase matching where text can be split or mixed with Latin acronyms.
+    document.querySelectorAll("[data-i18n-fa][data-i18n-en]").forEach(function (el) {
+      var nextText = sourceLanguage === "en" ? el.getAttribute("data-i18n-en") : el.getAttribute("data-i18n-fa");
+      if (nextText != null && el.textContent !== nextText) el.textContent = nextText;
+    });
+
+    document.querySelectorAll("input[placeholder], textarea[placeholder], [title], [aria-label], [data-i18n-value]").forEach(function (el) {
       if (el.placeholder) el.placeholder = translateString(el.placeholder, sourceLanguage);
       if (el.title) el.title = translateString(el.title, sourceLanguage);
       if (el.getAttribute("aria-label")) el.setAttribute("aria-label", translateString(el.getAttribute("aria-label"), sourceLanguage));
+      if (el.hasAttribute("data-i18n-value") && "value" in el) el.value = translateString(el.getAttribute("data-i18n-value"), sourceLanguage);
     });
     document.documentElement.lang = sourceLanguage;
     document.documentElement.dir = sourceLanguage === "en" ? "ltr" : "rtl";
@@ -455,12 +556,12 @@
       mutations.forEach(function (m) {
         if (m.type === "childList") m.addedNodes.forEach(function (n) {
           if (n.nodeType === 1) translateNode(n, true);
-          else if (n.nodeType === 3 && n.nodeValue.trim()) {
+          else if (n.nodeType === 3 && n.nodeValue.trim() && !shouldSkipTextNode(n)) {
             var raw = n.nodeValue.trim(); var translated = translateString(raw, "en");
             if (translated !== raw) n.nodeValue = translated;
           }
         });
-        else if (m.type === "characterData" && m.target && m.target.nodeValue) {
+        else if (m.type === "characterData" && m.target && m.target.nodeValue && !shouldSkipTextNode(m.target)) {
           var value = m.target.nodeValue.trim(); var translatedValue = translateString(value, "en");
           if (value && translatedValue !== value) m.target.nodeValue = translatedValue;
         }

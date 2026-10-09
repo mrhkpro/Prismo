@@ -1,4 +1,4 @@
-# Quasar — RAG Widget SaaS
+# Prismo — RAG Widget Platform
 
 A multi-tenant, knowledge-powered AI widget platform built with FastAPI, SQLAlchemy, SQLite, an embedded NumPy vector store, and Vanilla HTML/CSS/JS.
 

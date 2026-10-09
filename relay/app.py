@@ -11,7 +11,7 @@ RELAY_API_KEY = os.getenv("RELAY_API_KEY", "").strip()
 CONNECT_TIMEOUT = float(os.getenv("RELAY_CONNECT_TIMEOUT", "20"))
 READ_TIMEOUT = float(os.getenv("RELAY_READ_TIMEOUT", "180"))
 
-app = FastAPI(title="Quasar AI Relay")
+app = FastAPI(title="Prismo AI Relay")
 
 
 def _auth_ok(request: Request) -> bool:

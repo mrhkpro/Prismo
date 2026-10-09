@@ -21,7 +21,7 @@ from openai import OpenAI, APIError, APIConnectionError, AuthenticationError
 
 from .. import config, models
 
-logger = logging.getLogger("quasar.llm")
+logger = logging.getLogger("prismo.llm")
 
 
 @dataclass
@@ -104,7 +104,7 @@ def _looks_like_embedding_model(model_id: str) -> bool:
 
 def _probe_embedding_model(client: OpenAI, model_id: str) -> tuple[bool, int | None]:
     """Return whether a model really serves embeddings and its output dimension."""
-    response = client.embeddings.create(model=model_id, input="quasar-capability-probe")
+    response = client.embeddings.create(model=model_id, input="prismo-capability-probe")
     data = list(getattr(response, "data", []) or [])
     if not data or not getattr(data[0], "embedding", None):
         return False, None

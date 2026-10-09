@@ -9,7 +9,7 @@ from .. import config, models, i18n
 from . import injection_scanner, llm_client, rag_store, user_settings_compat
 from .common_responses import get_common_response
 
-logger = logging.getLogger("quasar.rag")
+logger = logging.getLogger("prismo.rag")
 
 MAX_HISTORY_MESSAGES = 12  # آخرین N پیام برای حفظ تاریخچه در پرامپت به مدل داده می‌شود
 MAX_HISTORY_CHARS = 6000
