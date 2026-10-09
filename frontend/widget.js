@@ -371,9 +371,8 @@
 
       var quickReply = getQuickReply(text);
       if (quickReply) {
-        pending.classList.remove("pending");
+        pending.classList.remove("pending", "streaming");
         pending.textContent = quickReply;
-        pending.classList.add("streaming");
         isSending = false;
         sendBtn.disabled = false;
         petReact("happy");

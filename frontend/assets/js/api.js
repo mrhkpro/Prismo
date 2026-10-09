@@ -195,7 +195,7 @@ const Skel = {
 // خطاهایی که یعنی «سرور استریم ندارد» و فراخوان می‌تواند به نسخه‌ی غیراستریم برگردد
 const STREAM_FALLBACK_STATUSES = [404, 405, 415, 501];
 
-async function apiStream(path, { body, onMeta, onDelta, signal, auth = true, idleTimeoutMs = 0 } = {}) {
+async function apiStream(path, { body, onMeta, onDelta, onEvent, signal, auth = true, idleTimeoutMs = 0 } = {}) {
   const lang = (localStorage.getItem("qz_language") || "fa").startsWith("en") ? "en" : "fa";
   const headers = { "Content-Type": "application/json", Accept: "text/event-stream", "X-QZ-Language": lang };
   if (auth) {
@@ -261,6 +261,7 @@ async function apiStream(path, { body, onMeta, onDelta, signal, auth = true, idl
     if (!dataLines.length) return;
     let data = {};
     try { data = JSON.parse(dataLines.join("\n")); } catch (_) { return; }
+    if (onEvent) onEvent(event, data);
     if (event === "meta" && onMeta) onMeta(data);
     else if (event === "delta") { gotDelta = true; if (onDelta) onDelta(data.t || ""); }
     else if (event === "done") finished = true;

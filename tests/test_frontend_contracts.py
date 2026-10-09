@@ -5,15 +5,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_auth_page_uses_versioned_assets_and_theme_support():
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert "/assets/css/style.css?v=2.7.2" in html
-    assert "/assets/js/theme.js?v=2.7.2" in html
-    assert "/assets/js/auth.js?v=2.7.2" in html
+    assert "/assets/css/style.css?v=2.7.3" in html
+    assert "/assets/js/theme.js?v=2.7.3" in html
+    assert "/assets/js/auth.js?v=2.7.3" in html
 
 
 def test_admin_page_loads_theme_support():
     html = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
-    assert "/assets/js/theme.js?v=2.7.2" in html
-    assert "/assets/css/style.css?v=2.7.2" in html
+    assert "/assets/js/theme.js?v=2.7.3" in html
+    assert "/assets/css/style.css?v=2.7.3" in html
 
 
 def test_theme_script_is_safe_without_local_storage():
@@ -114,3 +114,42 @@ def test_toast_bar_is_pinned_to_the_top_and_save_has_no_inline_text():
     js = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
     assert "widgetDirtyHint" not in html and "widgetDirtyHint" not in js
     assert 'classList.toggle("has-changes"' in js
+
+
+
+def test_english_settings_dictionary_covers_requested_dashboard_copy_and_admin_calendar():
+    settings = (ROOT / "frontend" / "assets" / "js" / "settings.js").read_text(encoding="utf-8")
+    admin = (ROOT / "frontend" / "assets" / "js" / "admin.js").read_text(encoding="utf-8")
+    for source in (
+        "پنل مدیریت",
+        "این کد را پیش از </body> هر صفحه‌ی وب‌سایتت بگذار.",
+        "قبل از انتشار ویجت، رفتار دستیار را همین‌جا امتحان کن.",
+        "هنوز سندی اضافه نکرده‌ای",
+        "این پروژه سه بخش اصلی داره — همه رو از منوی کناری در دسترس داری.",
+    ):
+        assert source in settings
+    assert 'en-US-u-ca-gregory-nu-latn' in admin
+    assert 'qz-language-change' in admin
+    assert 'function latinizeUiNumbers' in settings
+
+
+def test_battle_streaming_and_gradual_knowledge_progress_are_wired():
+    router = (ROOT / "app" / "routers" / "playground.py").read_text(encoding="utf-8")
+    api = (ROOT / "frontend" / "assets" / "js" / "api.js").read_text(encoding="utf-8")
+    dashboard = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    assert '@router.post("/battle/stream")' in router
+    assert 'llm_client.stream_chat_completion(messages, provider, model=model)' in router
+    assert 'onEvent(event, data)' in api
+    assert '/api/playground/battle/stream' in dashboard
+    assert 'startDocProgressEstimator()' in dashboard
+    assert 'Math.min(89, Math.floor(89 * (1 - Math.exp(-elapsedSeconds / 35))))' in dashboard
+    assert 'stopDocProgressEstimator()' in dashboard
+
+
+def test_widget_quick_replies_do_not_keep_the_streaming_caret():
+    widget = (ROOT / "frontend" / "widget.js").read_text(encoding="utf-8")
+    start = widget.index('var quickReply = getQuickReply(text);')
+    end = widget.index('sendBtn.disabled = true;', start)
+    quick_branch = widget[start:end]
+    assert 'pending.classList.remove("pending", "streaming")' in quick_branch
+    assert 'pending.classList.add("streaming")' not in quick_branch

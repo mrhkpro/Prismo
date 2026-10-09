@@ -103,3 +103,13 @@ All branches in the release line are merged into `main` with `--no-ff` to preser
 - `feature/global-i18n-2.7.2` — global locale propagation and settings UI.
 - `test/release-2.7.2` — regression tests and release verification.
 - Release merged into `main` with `--no-ff` and tagged `v2.7.2`.
+
+
+## v2.7.3
+
+- `feature/english-admin-dates-2.7.3` — complete translations for reported mixed-language text, Latinize UI numerals in English, and show admin dates in Gregorian format.
+- `feature/battle-stream-2.7.3` — simultaneous side-by-side token streaming for Model Battle, retaining the original endpoint as a compatibility fallback.
+- `feature/widget-cursor-knowledge-progress-2.7.3` — remove the completed quick-reply caret and add gradual, capped knowledge indexing progress.
+- `perf/knowledge-embedding-batch-2.7.3` — increase embedding batch size from 32 to 40 to reduce request overhead while leaving concurrent request count unchanged.
+- `docs/release-2.7.3` — cache-bust updated assets, update the widget embed snippet and setup server version, and capture release notes/tests.
+- Release line is merged with `--no-ff`; `main` is tagged `v2.7.3`.

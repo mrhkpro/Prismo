@@ -408,31 +408,74 @@ document.getElementById("runBattleBtn").addEventListener("click", async () => {
   const btn = document.getElementById("runBattleBtn");
   btn.disabled = true;
   const resultsBox = document.getElementById("battleResults");
+  const modelA = document.getElementById("battleModelA").value;
+  const modelB = document.getElementById("battleModelB").value;
+  const waiting = window.QZI18n ? window.QZI18n.t("در حال دریافت پاسخ…") : "در حال دریافت پاسخ…";
+  const modelNames = [modelA, modelB];
   resultsBox.style.display = "grid";
-  resultsBox.innerHTML = `<div class="battle-side">در حال دریافت پاسخ…</div><div class="battle-side">در حال دریافت پاسخ…</div>`;
+  resultsBox.innerHTML = modelNames.map((model, index) => {
+    const side = index === 0 ? "a" : "b";
+    return `<div class="battle-side">
+      <div class="model-name">${escapeHtml(model)}</div>
+      <div class="reply-text" id="battleReply${side.toUpperCase()}">${escapeHtml(waiting)}</div>
+      <div class="timing" id="battleTiming${side.toUpperCase()}">—</div>
+    </div>`;
+  }).join("");
+
+  const payload = { prompt, model_a: modelA, model_b: modelB };
+  const updateSide = (side, data) => {
+    const key = String(side || "").toUpperCase();
+    const reply = document.getElementById(`battleReply${key}`);
+    const timing = document.getElementById(`battleTiming${key}`);
+    if (!reply || !timing) return;
+    if (data.error) {
+      if (reply.textContent === waiting) reply.textContent = "";
+      const error = document.createElement("span");
+      error.className = "battle-error";
+      error.textContent = data.error;
+      reply.appendChild(error);
+    } else if (reply.textContent === waiting) {
+      reply.textContent = "";
+      if (!data.hasText) reply.textContent = window.QZI18n ? window.QZI18n.t("پاسخی دریافت نشد.") : "پاسخی دریافت نشد.";
+    }
+    if (typeof data.elapsed_ms === "number") timing.textContent = `⏱ ${data.elapsed_ms}ms`;
+    reply.closest(".battle-side")?.classList.remove("is-streaming");
+  };
 
   try {
-    const res = await apiCall("/api/playground/battle", {
-      method: "POST",
-      body: {
-        prompt,
-        model_a: document.getElementById("battleModelA").value,
-        model_b: document.getElementById("battleModelB").value,
+    await apiStream("/api/playground/battle/stream", {
+      body: payload,
+      idleTimeoutMs: 0,
+      onEvent(event, data) {
+        if (event === "delta" && (data.side === "a" || data.side === "b")) {
+          const reply = document.getElementById(`battleReply${data.side.toUpperCase()}`);
+          if (reply) {
+            if (reply.textContent === waiting) reply.textContent = "";
+            reply.textContent += data.t || "";
+          }
+        } else if (event === "side_done" && (data.side === "a" || data.side === "b")) {
+          const reply = document.getElementById(`battleReply${data.side.toUpperCase()}`);
+          updateSide(data.side, { ...data, hasText: Boolean(reply && reply.textContent && reply.textContent !== waiting) });
+        }
       },
     });
-    resultsBox.innerHTML = [res.side_a, res.side_b]
-      .map(
-        (side) => `
-      <div class="battle-side">
-        <div class="model-name">${escapeHtml(side.model)}</div>
-        <div class="reply-text">${side.error ? `<span style="color:var(--danger)">${escapeHtml(side.error)}</span>` : escapeHtml(side.reply)}</div>
-        <div class="timing">⏱ ${side.elapsed_ms}ms</div>
-      </div>`
-      )
-      .join("");
   } catch (err) {
-    toastError(err);
-    resultsBox.style.display = "none";
+    if (STREAM_FALLBACK_STATUSES.includes(err?.status)) {
+      try {
+        const res = await apiCall("/api/playground/battle", { method: "POST", body: payload });
+        [res.side_a, res.side_b].forEach((side, index) => {
+          const key = index === 0 ? "a" : "b";
+          const reply = document.getElementById(`battleReply${key.toUpperCase()}`);
+          if (reply) reply.textContent = side.error || side.reply || (window.QZI18n ? window.QZI18n.t("پاسخی دریافت نشد.") : "پاسخی دریافت نشد.");
+          updateSide(key, { error: null, elapsed_ms: side.elapsed_ms, hasText: Boolean(side.reply) });
+          if (side.error && reply) reply.textContent = side.error;
+        });
+      } catch (fallbackErr) {
+        toastError(fallbackErr);
+      }
+    } else {
+      toastError(err);
+    }
   } finally {
     btn.disabled = false;
   }
@@ -491,6 +534,7 @@ function openDocModal(title, docTitle = "", docContent = "") {
     progress.hidden = true;
     progress.classList.remove("error");
   }
+  stopDocProgressEstimator();
   clearDocProgressTipTimer();
   DOC_PROGRESS_TOKEN += 1;
   DOC_PROGRESS_PERCENT = 0;
@@ -499,10 +543,11 @@ function openDocModal(title, docTitle = "", docContent = "") {
   const progressBar = document.getElementById("docIndexProgressBar");
   const progressPercent = document.getElementById("docIndexProgressPercent");
   if (progressBar) progressBar.style.width = "0%";
-  if (progressPercent) progressPercent.textContent = "0٪";
+  if (progressPercent) progressPercent.textContent = window.QZSettings && window.QZSettings.isEnglish() ? "0%" : "0٪";
   document.getElementById("docModal").classList.add("show");
 }
 function closeDocModal() {
+  stopDocProgressEstimator();
   document.getElementById("docModal").classList.remove("show");
   EDITING_DOC_ID = null;
 }
@@ -564,6 +609,8 @@ const DOC_PROGRESS_TIPS = [
   "پشت صحنه: برای هر بخش، یک نمایش عددی ساخته می‌شود تا پیدا کردن اطلاعات مرتبط سریع شود.",
 ];
 let DOC_PROGRESS_TIMER = null;
+let DOC_PROGRESS_ESTIMATOR_TIMER = null;
+let DOC_PROGRESS_ESTIMATOR_STARTED_AT = 0;
 let DOC_PROGRESS_TIP_INDEX = 0;
 let DOC_PROGRESS_TOKEN = 0;
 let DOC_PROGRESS_PERCENT = 0;
@@ -574,6 +621,39 @@ function clearDocProgressTipTimer() {
     clearTimeout(DOC_PROGRESS_TIMER);
     DOC_PROGRESS_TIMER = null;
   }
+}
+
+function stopDocProgressEstimator() {
+  if (DOC_PROGRESS_ESTIMATOR_TIMER) {
+    clearInterval(DOC_PROGRESS_ESTIMATOR_TIMER);
+    DOC_PROGRESS_ESTIMATOR_TIMER = null;
+  }
+  DOC_PROGRESS_ESTIMATOR_STARTED_AT = 0;
+}
+
+function paintDocProgressPercent(percent) {
+  const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
+  DOC_PROGRESS_PERCENT = safePercent;
+  const percentEl = document.getElementById("docIndexProgressPercent");
+  const bar = document.getElementById("docIndexProgressBar");
+  const percentSymbol = window.QZSettings && window.QZSettings.isEnglish() ? "%" : "٪";
+  if (percentEl) percentEl.textContent = `${safePercent}${percentSymbol}`;
+  if (bar) bar.style.width = `${safePercent}%`;
+}
+
+function startDocProgressEstimator() {
+  stopDocProgressEstimator();
+  DOC_PROGRESS_ESTIMATOR_STARTED_AT = Date.now();
+  DOC_PROGRESS_ESTIMATOR_TIMER = setInterval(() => {
+    if (DOC_PROGRESS_PERCENT >= 100) {
+      stopDocProgressEstimator();
+      return;
+    }
+    const elapsedSeconds = Math.max(0, (Date.now() - DOC_PROGRESS_ESTIMATOR_STARTED_AT) / 1000);
+    // Rise gradually while a batch is in-flight, then plateau below 90% until the server confirms completion.
+    const estimated = Math.min(89, Math.floor(89 * (1 - Math.exp(-elapsedSeconds / 35))));
+    if (estimated > DOC_PROGRESS_PERCENT) paintDocProgressPercent(estimated);
+  }, 500);
 }
 
 function scheduleDocProgressTips() {
@@ -610,8 +690,12 @@ function setDocIndexProgress(percent, message, error = false) {
   const title = document.getElementById("docIndexProgressTitle");
   const percentEl = document.getElementById("docIndexProgressPercent");
   const bar = document.getElementById("docIndexProgressBar");
-  const safePercent = Math.max(0, Math.min(100, Math.round(percent || 0)));
+  const requestedPercent = Math.max(0, Math.min(100, Math.round(percent || 0)));
+  const safePercent = requestedPercent >= 100
+    ? 100
+    : Math.max(DOC_PROGRESS_PERCENT, Math.min(99, requestedPercent));
   DOC_PROGRESS_PERCENT = safePercent;
+  if (safePercent >= 100) stopDocProgressEstimator();
   DOC_PROGRESS_BASE_MESSAGE = message || "در حال پردازش سند…";
   host.hidden = false;
   host.classList.toggle("error", Boolean(error));
@@ -619,7 +703,8 @@ function setDocIndexProgress(percent, message, error = false) {
     title.classList.remove("swap");
     title.textContent = DOC_PROGRESS_BASE_MESSAGE;
   }
-  if (percentEl) percentEl.textContent = `${safePercent}٪`;
+  const percentSymbol = window.QZSettings && window.QZSettings.isEnglish() ? "%" : "٪";
+  if (percentEl) percentEl.textContent = `${safePercent}${percentSymbol}`;
   if (bar) bar.style.width = `${safePercent}%`;
   DOC_PROGRESS_TOKEN += 1;
   scheduleDocProgressTips();
@@ -647,7 +732,8 @@ document.getElementById("saveDocBtn").addEventListener("click", async () => {
       return;
     }
 
-    setDocIndexProgress(0, "در حال آماده‌سازی سند…", "embedding");
+    setDocIndexProgress(0, "در حال آماده‌سازی سند…");
+    startDocProgressEstimator();
     btn.textContent = "در حال تبدیل و ایندکس…";
 
     await apiStream("/api/knowledge/documents/stream", {
@@ -666,9 +752,11 @@ document.getElementById("saveDocBtn").addEventListener("click", async () => {
     closeDocModal();
     loadDocuments();
   } catch (err) {
+    stopDocProgressEstimator();
     setDocIndexProgress(DOC_PROGRESS_PERCENT, err && err.message ? err.message : "ایندکس سند ناموفق بود.", true);
     toastError(err);
   } finally {
+    stopDocProgressEstimator();
     btn.disabled = false;
     if (closeBtn) closeBtn.disabled = false;
     btn.textContent = "ذخیره و ایندکس‌کردن";
@@ -731,7 +819,7 @@ async function importFiles(fileList) {
   let completedFiles = 0;
   try {
     try {
-      await Lazy.script("/assets/js/extract.js?v=2.7.2");
+      await Lazy.script("/assets/js/extract.js?v=2.7.3");
     } catch (err) {
       return toastError(err);
     }
@@ -1249,7 +1337,7 @@ async function loadWidgetSection() {
     const [cfg, embed] = await Promise.all([
       apiCall("/api/widget/config"),
       apiCall("/api/widget/embed-code"),
-      Lazy.script("/assets/js/pets.js?v=2.7.2").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+      Lazy.script("/assets/js/pets.js?v=2.7.3").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
     ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";
