@@ -534,6 +534,7 @@ function openDocModal(title, docTitle = "", docContent = "") {
     progress.hidden = true;
     progress.classList.remove("error");
   }
+  stopDocProgressEstimator();
   clearDocProgressTipTimer();
   DOC_PROGRESS_TOKEN += 1;
   DOC_PROGRESS_PERCENT = 0;
@@ -542,10 +543,11 @@ function openDocModal(title, docTitle = "", docContent = "") {
   const progressBar = document.getElementById("docIndexProgressBar");
   const progressPercent = document.getElementById("docIndexProgressPercent");
   if (progressBar) progressBar.style.width = "0%";
-  if (progressPercent) progressPercent.textContent = "0٪";
+  if (progressPercent) progressPercent.textContent = window.QZSettings && window.QZSettings.isEnglish() ? "0%" : "0٪";
   document.getElementById("docModal").classList.add("show");
 }
 function closeDocModal() {
+  stopDocProgressEstimator();
   document.getElementById("docModal").classList.remove("show");
   EDITING_DOC_ID = null;
 }
@@ -607,6 +609,8 @@ const DOC_PROGRESS_TIPS = [
   "پشت صحنه: برای هر بخش، یک نمایش عددی ساخته می‌شود تا پیدا کردن اطلاعات مرتبط سریع شود.",
 ];
 let DOC_PROGRESS_TIMER = null;
+let DOC_PROGRESS_ESTIMATOR_TIMER = null;
+let DOC_PROGRESS_ESTIMATOR_STARTED_AT = 0;
 let DOC_PROGRESS_TIP_INDEX = 0;
 let DOC_PROGRESS_TOKEN = 0;
 let DOC_PROGRESS_PERCENT = 0;
@@ -617,6 +621,39 @@ function clearDocProgressTipTimer() {
     clearTimeout(DOC_PROGRESS_TIMER);
     DOC_PROGRESS_TIMER = null;
   }
+}
+
+function stopDocProgressEstimator() {
+  if (DOC_PROGRESS_ESTIMATOR_TIMER) {
+    clearInterval(DOC_PROGRESS_ESTIMATOR_TIMER);
+    DOC_PROGRESS_ESTIMATOR_TIMER = null;
+  }
+  DOC_PROGRESS_ESTIMATOR_STARTED_AT = 0;
+}
+
+function paintDocProgressPercent(percent) {
+  const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
+  DOC_PROGRESS_PERCENT = safePercent;
+  const percentEl = document.getElementById("docIndexProgressPercent");
+  const bar = document.getElementById("docIndexProgressBar");
+  const percentSymbol = window.QZSettings && window.QZSettings.isEnglish() ? "%" : "٪";
+  if (percentEl) percentEl.textContent = `${safePercent}${percentSymbol}`;
+  if (bar) bar.style.width = `${safePercent}%`;
+}
+
+function startDocProgressEstimator() {
+  stopDocProgressEstimator();
+  DOC_PROGRESS_ESTIMATOR_STARTED_AT = Date.now();
+  DOC_PROGRESS_ESTIMATOR_TIMER = setInterval(() => {
+    if (DOC_PROGRESS_PERCENT >= 100) {
+      stopDocProgressEstimator();
+      return;
+    }
+    const elapsedSeconds = Math.max(0, (Date.now() - DOC_PROGRESS_ESTIMATOR_STARTED_AT) / 1000);
+    // Rise gradually while a batch is in-flight, then plateau below 90% until the server confirms completion.
+    const estimated = Math.min(89, Math.floor(89 * (1 - Math.exp(-elapsedSeconds / 35))));
+    if (estimated > DOC_PROGRESS_PERCENT) paintDocProgressPercent(estimated);
+  }, 500);
 }
 
 function scheduleDocProgressTips() {
@@ -653,8 +690,12 @@ function setDocIndexProgress(percent, message, error = false) {
   const title = document.getElementById("docIndexProgressTitle");
   const percentEl = document.getElementById("docIndexProgressPercent");
   const bar = document.getElementById("docIndexProgressBar");
-  const safePercent = Math.max(0, Math.min(100, Math.round(percent || 0)));
+  const requestedPercent = Math.max(0, Math.min(100, Math.round(percent || 0)));
+  const safePercent = requestedPercent >= 100
+    ? 100
+    : Math.max(DOC_PROGRESS_PERCENT, Math.min(99, requestedPercent));
   DOC_PROGRESS_PERCENT = safePercent;
+  if (safePercent >= 100) stopDocProgressEstimator();
   DOC_PROGRESS_BASE_MESSAGE = message || "در حال پردازش سند…";
   host.hidden = false;
   host.classList.toggle("error", Boolean(error));
@@ -662,7 +703,8 @@ function setDocIndexProgress(percent, message, error = false) {
     title.classList.remove("swap");
     title.textContent = DOC_PROGRESS_BASE_MESSAGE;
   }
-  if (percentEl) percentEl.textContent = `${safePercent}٪`;
+  const percentSymbol = window.QZSettings && window.QZSettings.isEnglish() ? "%" : "٪";
+  if (percentEl) percentEl.textContent = `${safePercent}${percentSymbol}`;
   if (bar) bar.style.width = `${safePercent}%`;
   DOC_PROGRESS_TOKEN += 1;
   scheduleDocProgressTips();
@@ -690,7 +732,8 @@ document.getElementById("saveDocBtn").addEventListener("click", async () => {
       return;
     }
 
-    setDocIndexProgress(0, "در حال آماده‌سازی سند…", "embedding");
+    setDocIndexProgress(0, "در حال آماده‌سازی سند…");
+    startDocProgressEstimator();
     btn.textContent = "در حال تبدیل و ایندکس…";
 
     await apiStream("/api/knowledge/documents/stream", {
@@ -709,9 +752,11 @@ document.getElementById("saveDocBtn").addEventListener("click", async () => {
     closeDocModal();
     loadDocuments();
   } catch (err) {
+    stopDocProgressEstimator();
     setDocIndexProgress(DOC_PROGRESS_PERCENT, err && err.message ? err.message : "ایندکس سند ناموفق بود.", true);
     toastError(err);
   } finally {
+    stopDocProgressEstimator();
     btn.disabled = false;
     if (closeBtn) closeBtn.disabled = false;
     btn.textContent = "ذخیره و ایندکس‌کردن";
