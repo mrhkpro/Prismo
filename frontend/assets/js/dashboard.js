@@ -778,7 +778,7 @@ function ensureOperationProgress(title = "در حال پردازش…") {
       host.hidden = false;
       if (titleEl) titleEl.textContent = label || title;
       if (bar) bar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
-      if (percentEl) percentEl.textContent = `${Math.round(percent)}٪`;
+      if (percentEl) percentEl.textContent = `${Math.round(percent)}${window.QZSettings && window.QZSettings.isEnglish() ? "%" : "٪"}`;
     },
     fail() { host?.classList.add("error"); },
     finish() { if (!host) return; setTimeout(() => { host.hidden = true; host.classList.remove("error"); }, 900); },
@@ -854,7 +854,10 @@ async function importFiles(fileList) {
           await apiCall("/api/knowledge/documents", { method: "POST", timeoutMs: 0, body: { title: docTitle.slice(0, 200), content: parts[i] } });
           imported += 1;
         }
-        row.set(parts.length > 1 ? `✓ ${parts.length} بخش اضافه شد` : "✓ اضافه شد", "ok");
+        const englishUI = !!(window.QZSettings && window.QZSettings.isEnglish());
+        row.set(parts.length > 1
+          ? (englishUI ? `✓ ${parts.length} sections added` : `✓ ${parts.length} بخش اضافه شد`)
+          : (englishUI ? "✓ Added" : "✓ اضافه شد"), "ok");
         completedFiles += 1;
         progress.set(Math.round((completedFiles / files.length) * 100), `${completedFiles} از ${files.length} فایل انجام شد`);
         row.done();

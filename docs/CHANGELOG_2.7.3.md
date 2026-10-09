@@ -21,4 +21,5 @@
 ## Release verification
 
 - Updated frontend asset versions and generated widget embed code to `2.7.3` to prevent stale browser/CDN caches.
-- Full test suite: **203 passed**. Regression checks cover English copy/date formats, battle stream events, quick-reply caret cleanup, embedding batching and gradual progress behavior.
+- Full test suite: **204 passed**. Regression checks cover English copy/date formats, dynamic upload status/progress, battle stream events, quick-reply caret cleanup, embedding batching and gradual progress behavior.
+- Final polish also covers mixed `پنل Administration` labels, English empty-response/final-upload strings, and Latin `%` in the separate file-import progress overlay.

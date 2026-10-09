@@ -113,3 +113,5 @@ All branches in the release line are merged into `main` with `--no-ff` to preser
 - `perf/knowledge-embedding-batch-2.7.3` — increase embedding batch size from 32 to 40 to reduce request overhead while leaving concurrent request count unchanged.
 - `docs/release-2.7.3` — cache-bust updated assets, update the widget embed snippet and setup server version, and capture release notes/tests.
 - Release line is merged with `--no-ff`; `main` is tagged `v2.7.3`.
+
+- `fix/english-progress-polish-2.7.3` — translate mixed admin labels and fallback/upload success strings, and use Latin percent symbols for English file-import progress. Regression test added; final suite: 204 passed.

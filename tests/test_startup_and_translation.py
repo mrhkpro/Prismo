@@ -132,3 +132,17 @@ def test_legacy_settings_schema_works_without_optional_provider_columns():
         assert db.execute(text("select chat_model from user_settings where user_id=1")).scalar_one() == "legacy-chat"
     finally:
         db.close()
+
+
+def test_english_mode_covers_mixed_admin_labels_and_dynamic_upload_progress():
+    settings = (ROOT / "frontend" / "assets" / "js" / "settings.js").read_text(encoding="utf-8")
+    dashboard = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    for fa, en in [
+        ("پنل Administration", "Admin panel"),
+        ("پاسخی دریافت نشد.", "No response received."),
+        ("✓ اضافه شد", "✓ Added"),
+    ]:
+        assert fa in settings and en in settings
+    assert 'window.QZSettings.isEnglish() ? "%" : "٪"' in dashboard
+    assert 'englishUI ? `✓ ${parts.length} sections added`' in dashboard
+    assert 'englishUI ? "✓ Added" : "✓ اضافه شد"' in dashboard
