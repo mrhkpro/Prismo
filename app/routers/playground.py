@@ -1,6 +1,7 @@
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
+from queue import Empty, Queue
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -208,4 +209,65 @@ def battle(
     return schemas.BattleResponse(
         side_a=schemas.BattleSide(model=payload.model_a, reply=reply_a, elapsed_ms=ms_a, error=err_a),
         side_b=schemas.BattleSide(model=payload.model_b, reply=reply_b, elapsed_ms=ms_b, error=err_b),
+    )
+
+
+@router.post("/battle/stream")
+def battle_stream(
+    payload: schemas.BattleRequest,
+    current_user: models.User = Depends(get_current_user),
+):
+    """Stream two model answers concurrently as side-tagged SSE events."""
+    if payload.model_a not in config.DEFAULT_CHAT_MODELS or payload.model_b not in config.DEFAULT_CHAT_MODELS:
+        raise HTTPException(status_code=400, detail="مدل انتخاب‌شده در لیست مدل‌های رایگان آماده نیست.")
+
+    provider = llm_client.ProviderConfig(
+        base_url=config.DEFAULT_PROVIDER_BASE_URL,
+        api_key=config.DEFAULT_PROVIDER_API_KEY,
+        chat_model=payload.model_a,
+        embedding_model=config.DEFAULT_EMBEDDING_MODEL,
+        is_default=True,
+    )
+    messages = [{"role": "user", "content": payload.prompt}]
+
+    def event_stream():
+        events: Queue[tuple[str, dict]] = Queue()
+
+        def run_side(side: str, model: str) -> None:
+            started = time.perf_counter()
+            try:
+                for piece in llm_client.stream_chat_completion(messages, provider, model=model):
+                    if piece:
+                        events.put(("delta", {"side": side, "t": piece}))
+                events.put(("side_done", {
+                    "side": side, "model": model,
+                    "elapsed_ms": int((time.perf_counter() - started) * 1000), "error": None,
+                }))
+            except Exception as exc:  # a failure for one model must not cancel the other model
+                events.put(("side_done", {
+                    "side": side, "model": model,
+                    "elapsed_ms": int((time.perf_counter() - started) * 1000), "error": str(exc),
+                }))
+
+        yield ": qz-ready\n\n"
+        yield streaming.sse("meta", {"model_a": payload.model_a, "model_b": payload.model_b})
+        with ThreadPoolExecutor(max_workers=2, thread_name_prefix="battle-stream") as executor:
+            executor.submit(run_side, "a", payload.model_a)
+            executor.submit(run_side, "b", payload.model_b)
+            remaining = 2
+            while remaining:
+                try:
+                    event, data = events.get(timeout=10)
+                except Empty:
+                    yield ": keepalive\n\n"
+                    continue
+                yield streaming.sse(event, data)
+                if event == "side_done":
+                    remaining -= 1
+        yield streaming.sse("done", {})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers=streaming.SSE_HEADERS,
     )

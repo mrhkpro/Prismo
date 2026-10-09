@@ -408,31 +408,74 @@ document.getElementById("runBattleBtn").addEventListener("click", async () => {
   const btn = document.getElementById("runBattleBtn");
   btn.disabled = true;
   const resultsBox = document.getElementById("battleResults");
+  const modelA = document.getElementById("battleModelA").value;
+  const modelB = document.getElementById("battleModelB").value;
+  const waiting = window.QZI18n ? window.QZI18n.t("در حال دریافت پاسخ…") : "در حال دریافت پاسخ…";
+  const modelNames = [modelA, modelB];
   resultsBox.style.display = "grid";
-  resultsBox.innerHTML = `<div class="battle-side">در حال دریافت پاسخ…</div><div class="battle-side">در حال دریافت پاسخ…</div>`;
+  resultsBox.innerHTML = modelNames.map((model, index) => {
+    const side = index === 0 ? "a" : "b";
+    return `<div class="battle-side">
+      <div class="model-name">${escapeHtml(model)}</div>
+      <div class="reply-text" id="battleReply${side.toUpperCase()}">${escapeHtml(waiting)}</div>
+      <div class="timing" id="battleTiming${side.toUpperCase()}">—</div>
+    </div>`;
+  }).join("");
+
+  const payload = { prompt, model_a: modelA, model_b: modelB };
+  const updateSide = (side, data) => {
+    const key = String(side || "").toUpperCase();
+    const reply = document.getElementById(`battleReply${key}`);
+    const timing = document.getElementById(`battleTiming${key}`);
+    if (!reply || !timing) return;
+    if (data.error) {
+      if (reply.textContent === waiting) reply.textContent = "";
+      const error = document.createElement("span");
+      error.className = "battle-error";
+      error.textContent = data.error;
+      reply.appendChild(error);
+    } else if (reply.textContent === waiting) {
+      reply.textContent = "";
+      if (!data.hasText) reply.textContent = window.QZI18n ? window.QZI18n.t("پاسخی دریافت نشد.") : "پاسخی دریافت نشد.";
+    }
+    if (typeof data.elapsed_ms === "number") timing.textContent = `⏱ ${data.elapsed_ms}ms`;
+    reply.closest(".battle-side")?.classList.remove("is-streaming");
+  };
 
   try {
-    const res = await apiCall("/api/playground/battle", {
-      method: "POST",
-      body: {
-        prompt,
-        model_a: document.getElementById("battleModelA").value,
-        model_b: document.getElementById("battleModelB").value,
+    await apiStream("/api/playground/battle/stream", {
+      body: payload,
+      idleTimeoutMs: 0,
+      onEvent(event, data) {
+        if (event === "delta" && (data.side === "a" || data.side === "b")) {
+          const reply = document.getElementById(`battleReply${data.side.toUpperCase()}`);
+          if (reply) {
+            if (reply.textContent === waiting) reply.textContent = "";
+            reply.textContent += data.t || "";
+          }
+        } else if (event === "side_done" && (data.side === "a" || data.side === "b")) {
+          const reply = document.getElementById(`battleReply${data.side.toUpperCase()}`);
+          updateSide(data.side, { ...data, hasText: Boolean(reply && reply.textContent && reply.textContent !== waiting) });
+        }
       },
     });
-    resultsBox.innerHTML = [res.side_a, res.side_b]
-      .map(
-        (side) => `
-      <div class="battle-side">
-        <div class="model-name">${escapeHtml(side.model)}</div>
-        <div class="reply-text">${side.error ? `<span style="color:var(--danger)">${escapeHtml(side.error)}</span>` : escapeHtml(side.reply)}</div>
-        <div class="timing">⏱ ${side.elapsed_ms}ms</div>
-      </div>`
-      )
-      .join("");
   } catch (err) {
-    toastError(err);
-    resultsBox.style.display = "none";
+    if (STREAM_FALLBACK_STATUSES.includes(err?.status)) {
+      try {
+        const res = await apiCall("/api/playground/battle", { method: "POST", body: payload });
+        [res.side_a, res.side_b].forEach((side, index) => {
+          const key = index === 0 ? "a" : "b";
+          const reply = document.getElementById(`battleReply${key.toUpperCase()}`);
+          if (reply) reply.textContent = side.error || side.reply || (window.QZI18n ? window.QZI18n.t("پاسخی دریافت نشد.") : "پاسخی دریافت نشد.");
+          updateSide(key, { error: null, elapsed_ms: side.elapsed_ms, hasText: Boolean(side.reply) });
+          if (side.error && reply) reply.textContent = side.error;
+        });
+      } catch (fallbackErr) {
+        toastError(fallbackErr);
+      }
+    } else {
+      toastError(err);
+    }
   } finally {
     btn.disabled = false;
   }
