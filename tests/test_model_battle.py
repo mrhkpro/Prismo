@@ -23,11 +23,57 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from app import schemas
+from app import schemas, config
 from app.routers.playground import battle, battle_stream
 
 
 class ModelBattleTests(unittest.TestCase):
+    def test_battle_uses_saved_custom_provider_alongside_builtin_model(self):
+        user = SimpleNamespace(id=123)
+        payload = schemas.BattleRequest(
+            prompt="hello", model_a="my-personal-model", model_b="qwen-35b-a3b-instruct"
+        )
+        settings = SimpleNamespace(
+            use_default_provider=False,
+            api_key="custom-key",
+            base_url="https://custom.example/v1",
+            chat_model="my-personal-model",
+            embedding_model="my-embedding-model",
+            separate_embedding_provider=False,
+            embedding_base_url=None,
+            embedding_api_key=None,
+        )
+        providers_used = {}
+
+        def fake_timed(messages, provider, model):
+            providers_used[model] = provider.base_url
+            return f"reply-{model}", 10, None
+
+        db = SimpleNamespace(execute=lambda *_args, **_kwargs: None)
+        with patch("app.routers.playground.user_settings_compat.get", return_value=settings):
+            with patch("app.routers.playground.llm_client.timed_chat_completion", side_effect=fake_timed):
+                result = battle(payload, user, db)
+
+        self.assertEqual(providers_used["my-personal-model"], "https://custom.example/v1")
+        self.assertEqual(providers_used["qwen-35b-a3b-instruct"], config.DEFAULT_PROVIDER_BASE_URL)
+        self.assertEqual(result.side_a.model, "my-personal-model")
+
+    def test_battle_rejects_custom_model_that_is_not_saved_for_this_user(self):
+        from fastapi import HTTPException
+        from app.routers.playground import _battle_provider_for_model
+
+        settings = SimpleNamespace(
+            use_default_provider=False,
+            api_key="custom-key",
+            base_url="https://custom.example/v1",
+            chat_model="saved-model",
+            embedding_model="embedding-model",
+            separate_embedding_provider=False,
+        )
+        with self.assertRaises(HTTPException) as raised:
+            _battle_provider_for_model("not-saved-model", settings)
+        self.assertEqual(raised.exception.status_code, 400)
+
     def test_models_are_called_concurrently(self):
         calls = []
 

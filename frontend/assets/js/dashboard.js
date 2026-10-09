@@ -246,6 +246,12 @@ async function loadProviderSettings() {
     const s = await apiCall("/api/settings");
     CURRENT_SETTINGS = s;
 
+    // Keep the currently saved custom models visible after a page refresh.
+    // The API currently stores the user's selected chat/embedding model, not
+    // the transient result of the model-discovery request.
+    const savedBattleA = document.getElementById("battleModelA").value;
+    const savedBattleB = document.getElementById("battleModelB").value;
+
     document.getElementById("baseUrlInput").value = s.base_url || "";
     const apiInput = document.getElementById("apiKeyInput");
     apiInput.value = "";
@@ -262,18 +268,26 @@ async function loadProviderSettings() {
       : "کلید جداگانه‌ای ذخیره نشده است.";
     setModelCredentialMode(Boolean(s.separate_embedding_provider), true);
 
+    const isDefault = s.use_default_provider;
     fillModelSelect(document.getElementById("chatModelSelect"), s.default_chat_models, s.chat_model);
     fillModelSelect(document.getElementById("embeddingModelSelect"), s.default_embedding_models, s.embedding_model);
-    fillModelSelect(document.getElementById("battleModelA"), s.default_chat_models, s.default_chat_models[0]);
-    fillModelSelect(document.getElementById("battleModelB"), s.default_chat_models, s.default_chat_models[1] || s.default_chat_models[0]);
 
-    const isDefault = s.use_default_provider;
+    // Custom model IDs are persisted as part of the user's provider settings.
+    // Add the saved ID to Battle even though it is not in the built-in catalog.
+    const battleModels = [...new Set(s.default_chat_models || [])];
+    const savedCustomModel = !isDefault && s.chat_model ? s.chat_model : "";
+    if (savedCustomModel && !battleModels.includes(savedCustomModel)) battleModels.push(savedCustomModel);
+    const fallbackA = (s.default_chat_models || [])[0] || battleModels[0] || "";
+    const fallbackB = savedCustomModel || (s.default_chat_models || [])[1] || fallbackA;
+    fillModelSelect(document.getElementById("battleModelA"), battleModels, battleModels.includes(savedBattleA) ? savedBattleA : fallbackA);
+    fillModelSelect(document.getElementById("battleModelB"), battleModels, battleModels.includes(savedBattleB) ? savedBattleB : fallbackB);
+
     setProviderMode(isDefault);
 
     DISCOVERED_CUSTOM_MODELS = [];
     DISCOVERED_EMBEDDING_MODELS = [];
-    fillModelSelect(document.getElementById("customChatModelSelect"), [], s.chat_model);
-    fillModelSelect(document.getElementById("customEmbeddingModelSelect"), [], s.embedding_model);
+    fillModelSelect(document.getElementById("customChatModelSelect"), !isDefault && s.chat_model ? [s.chat_model] : [], s.chat_model);
+    fillModelSelect(document.getElementById("customEmbeddingModelSelect"), !isDefault && s.embedding_model ? [s.embedding_model] : [], s.embedding_model);
     document.getElementById("modelDiscoveryStatus").textContent = isDefault
       ? ""
       : "برای نمایش مدل‌های این سرویس، روی «دریافت مدل‌ها» بزن.";
@@ -819,7 +833,7 @@ async function importFiles(fileList) {
   let completedFiles = 0;
   try {
     try {
-      await Lazy.script("/assets/js/extract.js?v=2.7.4");
+      await Lazy.script("/assets/js/extract.js?v=2.7.5");
     } catch (err) {
       return toastError(err);
     }
@@ -1261,12 +1275,16 @@ function renderSwatches(containerId, colors, inputId) {
 function renderPetGrid(selected, color) {
   const grid = widgetEl("petGrid");
   if (!window.QzPets) return;
+  const isEnglish = Boolean(window.QZSettings && window.QZSettings.isEnglish && window.QZSettings.isEnglish());
+  const petLabels = isEnglish
+    ? { dog: "Dog", cat: "Cat", raccoon: "Raccoon" }
+    : QzPets.labels;
   grid.innerHTML = QzPets.names
     .map(
       (name) => `
     <button type="button" class="pet-card${name === selected ? " active" : ""}" data-pet="${name}" role="radio" aria-checked="${name === selected}">
       <span class="pet-thumb">${QzPets.svg(name, "i", color, 4)}</span>
-      <span class="pet-name">${QzPets.labels[name]}</span>
+      <span class="pet-name">${petLabels[name] || name}</span>
     </button>`
     )
     .join("");
@@ -1321,6 +1339,10 @@ document.addEventListener("qz-language-change", () => {
     if (prompt && (prompt.value === "تو یک دستیار هوشمند و مؤدب هستی. پاسخ‌ها را فقط بر اساس دانشنامه ارائه‌شده به کاربر بده. اگر پاسخ در دانشنامه نیست، صادقانه بگو اطلاعات کافی نداری و حدس نزن. پاسخ‌ها را کوتاه، دقیق و به زبان فارسی روان بنویس." || prompt.value === "You are a helpful and polite AI assistant. Answer only from the knowledge base provided to the user. If the answer is not in the knowledge base, say that you do not have enough information and do not guess. Keep answers concise, accurate, and natural in English.")) {
       prompt.value = window.QZSettings && window.QZSettings.isEnglish() ? "You are a helpful and polite AI assistant. Answer only from the knowledge base provided to the user. If the answer is not in the knowledge base, say that you do not have enough information and do not guess. Keep answers concise, accurate, and natural in English." : "تو یک دستیار هوشمند و مؤدب هستی. پاسخ‌ها را فقط بر اساس دانشنامه ارائه‌شده به کاربر بده. اگر پاسخ در دانشنامه نیست، صادقانه بگو اطلاعات کافی نداری و حدس نزن. پاسخ‌ها را کوتاه، دقیق و به زبان فارسی روان بنویس.";
     }
+    if (window.QzPets && widgetEl("petGrid")) {
+      const activePet = document.querySelector("#petGrid .pet-card.active");
+      renderPetGrid(activePet ? activePet.dataset.pet : "dog", widgetEl("petColorInput").value);
+    }
   }
   if (LAST_WIDGET_ID) renderWidgetPreview(LAST_WIDGET_ID);
   renderEmbedCode();
@@ -1336,12 +1358,18 @@ function renderEmbedCode() {
 }
 
 async function loadWidgetSection() {
+  const english = Boolean(window.QZSettings && window.QZSettings.isEnglish && window.QZSettings.isEnglish());
+  const embedCodeBox = widgetEl("embedCodeBox");
+  // .embed-code-box is intentionally excluded from the generic translation
+  // observer because its final content is executable code. Localize its
+  // initial loading label here instead of relying on DOM text translation.
+  if (embedCodeBox) embedCodeBox.textContent = english ? "Loading…" : "در حال بارگذاری…";
   try {
     setWidgetPreviewLoading(true);
     const [cfg, embed] = await Promise.all([
       apiCall("/api/widget/config"),
       apiCall("/api/widget/embed-code"),
-      Lazy.script("/assets/js/pets.js?v=2.7.4").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+      Lazy.script("/assets/js/pets.js?v=2.7.5").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
     ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";

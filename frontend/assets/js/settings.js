@@ -1,4 +1,4 @@
-/* Prismo Settings + global i18n layer — v2.7.4 */
+/* Prismo Settings + global i18n layer — v2.7.5 */
 (function () {
   "use strict";
 

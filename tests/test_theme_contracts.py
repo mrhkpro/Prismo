@@ -130,7 +130,7 @@ class PageWiringTests(unittest.TestCase):
         versions = set()
         for page in PAGES:
             versions.update(re.findall(r"\?v=(\d+\.\d+\.\d+)", self.read(page)))
-        self.assertEqual(versions, {"2.7.4"})
+        self.assertEqual(versions, {"2.7.5"})
 
     def test_heavy_scripts_are_loaded_on_demand_not_with_the_page(self):
         dashboard = self.read("dashboard.html")
@@ -167,7 +167,7 @@ class PageWiringTests(unittest.TestCase):
         self.assertIn("color-scheme: light", CSS.split(".widget-preview-frame", 1)[1].split("}", 1)[0])
 
     def test_dashboard_badge_matches_release(self):
-        self.assertIn("PRISMO 2.7.4", self.read("dashboard.html"))
+        self.assertIn("PRISMO 2.7.5", self.read("dashboard.html"))
 
 
 class PetSpriteContractTests(unittest.TestCase):
