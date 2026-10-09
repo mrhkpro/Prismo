@@ -5,15 +5,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_auth_page_uses_versioned_assets_and_theme_support():
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert "/assets/css/style.css?v=2.7.2" in html
-    assert "/assets/js/theme.js?v=2.7.2" in html
-    assert "/assets/js/auth.js?v=2.7.2" in html
+    assert "/assets/css/style.css?v=2.7.3" in html
+    assert "/assets/js/theme.js?v=2.7.3" in html
+    assert "/assets/js/auth.js?v=2.7.3" in html
 
 
 def test_admin_page_loads_theme_support():
     html = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
-    assert "/assets/js/theme.js?v=2.7.2" in html
-    assert "/assets/css/style.css?v=2.7.2" in html
+    assert "/assets/js/theme.js?v=2.7.3" in html
+    assert "/assets/css/style.css?v=2.7.3" in html
 
 
 def test_theme_script_is_safe_without_local_storage():
@@ -130,6 +130,7 @@ def test_english_settings_dictionary_covers_requested_dashboard_copy_and_admin_c
         assert source in settings
     assert 'en-US-u-ca-gregory-nu-latn' in admin
     assert 'qz-language-change' in admin
+    assert 'function latinizeUiNumbers' in settings
 
 
 def test_battle_streaming_and_gradual_knowledge_progress_are_wired():

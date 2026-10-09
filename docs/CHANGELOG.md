@@ -1,4 +1,10 @@
-# v2.7.2 — Global i18n, Admin & Supabase Compatibility
+# v2.7.3 — English UI, Streaming Model Battle & Knowledge Progress
+
+See `CHANGELOG_2.7.3.md` for the complete release notes.
+
+# Changelog
+
+## v2.7.2 — Global i18n, Admin & Supabase Compatibility
 
 See `CHANGELOG_2.7.2.md` for the complete release notes.
 
