@@ -569,6 +569,47 @@ tbody tr:hover { background: var(--accent-soft); }
 .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
 .modal-head h3 { font-size: 17px; }
 
+/* Compact transcript viewer for admin conversation inspection only. */
+#sessionModal .modal-box {
+  width: min(640px, 100%);
+  max-width: 640px;
+  max-height: 80vh;
+  padding: 18px 20px;
+  overflow: hidden;
+}
+#sessionModal .modal-head {
+  flex: 0 0 auto;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+#sessionModal .modal-head h3 { font-size: 15px; }
+#sessionModal #sessionModalBody.chat-stream {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(58vh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 8px 4px;
+  gap: 8px;
+  scrollbar-width: thin;
+}
+#sessionModal .chat-msg {
+  max-width: 90%;
+  padding: 8px 11px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+@media (max-width: 600px) {
+  #sessionModal.modal-overlay { padding: 12px; }
+  #sessionModal .modal-box { padding: 14px; max-height: 84vh; }
+  #sessionModal #sessionModalBody.chat-stream { max-height: 66vh; padding-inline: 4px; }
+  #sessionModal .chat-msg { max-width: 96%; }
+}
+
 .doc-index-progress { margin-top: 14px; padding: 15px; border: 1px solid var(--accent-line); border-radius: var(--radius-md); background: linear-gradient(180deg, var(--bg-elevated), var(--bg-elevated-2)); box-shadow: 0 8px 24px rgba(20, 8, 48, .08); }
 .doc-index-progress.error { border-color: var(--danger); }
 .doc-index-progress-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }

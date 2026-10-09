@@ -130,7 +130,7 @@ class PageWiringTests(unittest.TestCase):
         versions = set()
         for page in PAGES:
             versions.update(re.findall(r"\?v=(\d+\.\d+\.\d+)", self.read(page)))
-        self.assertEqual(versions, {"2.7.5"})
+        self.assertEqual(versions, {"2.7.6"})
 
     def test_heavy_scripts_are_loaded_on_demand_not_with_the_page(self):
         dashboard = self.read("dashboard.html")
