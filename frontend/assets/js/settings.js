@@ -227,6 +227,13 @@
   "این پروژه سه بخش اصلی داره — All رو از منوی کناری در دسترس داری.": "This project has three main sections — you can access them all from the sidebar.",
   "این پروژه سه بخش اصلی داره — همه رو از منوی کناری در دسترس داری.": "This project has three main sections — you can access them all from the sidebar.",
   "پنل مدیریت — کوازار": "Admin panel — Quasar",
+  "هفت پوسته‌ی دست‌ساز با کنتراست، کارت و glow متفاوت برای کار طولانی.": "Seven handcrafted themes with distinct contrast, cards, and glow for long sessions.",
+  "پس از اتمام پاسخ، یک صدای کوتاه پخش شود.": "Play a short sound after the response finishes.",
+  "کنترل‌هایی برای کاهش کلیک، حرکت و شلوغی محیط.": "Controls to reduce extra clicks, motion, and visual clutter.",
+  "باز یا بسته بودن منوی کناری به خاطر سپرده شود.": "Remember whether the sidebar is expanded or collapsed.",
+  "آخرین تب انتخاب‌شده در دفعه بعد باز شود.": "Restore the last selected tab next time.",
+  "محتوا": "Content",
+  "نشست": "Session",
   "در حال دریافت پاسخ…": "Receiving responses…",
   "مدل انتخاب‌شده در لیست مدل‌های رایگان آماده نیست.": "The selected model is not in the ready-to-use model list.",
   "کل کاربران": "Total users",
@@ -258,11 +265,23 @@
   function currentTheme() { try { return localStorage.getItem(THEME_KEY) || state.theme || "dark"; } catch (_) { return state.theme || "dark"; } }
   function getLanguage() { return state.language === "en" ? "en" : "fa"; }
 
+  function latinizeUiNumbers(text, language) {
+    if (language !== "en") return text;
+    var eastern = "۰۱۲۳۴۵۶۷۸۹";
+    var arabic = "٠١٢٣٤٥٦٧٨٩";
+    return String(text).replace(/[۰-۹٠-٩٪]/g, function (digit) {
+      if (digit === "٪") return "%";
+      var idx = eastern.indexOf(digit);
+      if (idx < 0) idx = arabic.indexOf(digit);
+      return idx < 0 ? digit : String(idx);
+    });
+  }
+
   function translateString(text, language) {
     var value = String(text || "");
     if (!value) return value;
     var exact = language === "en" ? dict[value] : reverseDict[value];
-    if (exact) return exact;
+    if (exact) return latinizeUiNumbers(exact, language);
     var out = value;
     var changed = false;
     if (language === "en") {
@@ -275,7 +294,7 @@
         if (out.indexOf(en) !== -1) { out = out.split(en).join(fa); changed = true; }
       });
     }
-    return changed ? out : value;
+    return latinizeUiNumbers(changed ? out : value, language);
   }
 
   function shouldSkipTextNode(node) {
