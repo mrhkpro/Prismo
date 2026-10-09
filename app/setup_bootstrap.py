@@ -40,7 +40,7 @@ def _upsert_env(name: str, value: str) -> None:
 
 
 class SetupHandler(BaseHTTPRequestHandler):
-    server_version = "QuasarSetup/2.7.3"
+    server_version = "PrismoSetup/2.7.4"
 
     def _json(self, status: int, payload: dict) -> None:
         raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -60,7 +60,7 @@ class SetupHandler(BaseHTTPRequestHandler):
             if code is None:
                 self._json(200, {"state": "starting"})
                 return
-            log_path = BASE_DIR / "data" / "quasar-startup.log"
+            log_path = BASE_DIR / "data" / "prismo-startup.log"
             detail = ""
             if log_path.exists():
                 try:
@@ -97,7 +97,7 @@ class SetupHandler(BaseHTTPRequestHandler):
 
         self.server.selected_mode = mode
         try:
-            log_path = BASE_DIR / "data" / "quasar-startup.log"
+            log_path = BASE_DIR / "data" / "prismo-startup.log"
             log_path.parent.mkdir(parents=True, exist_ok=True)
             log_handle = open(log_path, "w", encoding="utf-8")
             cmd = [sys.executable, "-m", "uvicorn", "app.main:app", "--host", HOST, "--port", str(APP_PORT), "--no-access-log"]
@@ -136,7 +136,7 @@ def main() -> None:
     server = ThreadingHTTPServer((HOST, SETUP_PORT), SetupHandler)
     server.selected_mode = None
     server.app_process = None
-    print(f"Quasar setup page: http://{HOST}:{SETUP_PORT}/setup.html")
+    print(f"Prismo setup page: http://{HOST}:{SETUP_PORT}/setup.html")
     threading.Timer(0.7, lambda: webbrowser.open(f"http://{HOST}:{SETUP_PORT}/setup.html")).start()
     server.serve_forever()
 

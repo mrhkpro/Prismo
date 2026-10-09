@@ -10,7 +10,7 @@ from ..services import user_settings_compat
 from ..services import llm_client, rag_pipeline, rate_limit, streaming, widget_extras
 
 
-logger = logging.getLogger("quasar.public_widget")
+logger = logging.getLogger("prismo.public_widget")
 
 router = APIRouter(prefix="/public/widget", tags=["ویجت عمومی (بدون نیاز به ورود)"])
 

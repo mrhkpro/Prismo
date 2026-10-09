@@ -1,4 +1,4 @@
--- Quasar 2.7: optional independent embedding provider credentials.
+-- Prismo 2.7: optional independent embedding provider credentials.
 -- Safe to run once after 001/002.
 ALTER TABLE user_settings
   ADD COLUMN IF NOT EXISTS separate_embedding_provider boolean NOT NULL DEFAULT false,

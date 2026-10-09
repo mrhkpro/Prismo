@@ -185,12 +185,12 @@ class AuthFlowTests(PlatformTestCase):
         self.assertEqual(self.client.get("/api/health").json(), {"status": "ok"})
         index = self.client.get("/index.html")
         self.assertEqual(index.status_code, 200)
-        self.assertIn("style.css?v=2.7.3", index.text)
+        self.assertIn("style.css?v=2.7.4", index.text)
         self.assertEqual(self.client.get("/assets/css/style.css").status_code, 200)
         self.assertEqual(self.client.get("/widget.js").status_code, 200)
 
     def test_versioned_assets_are_cached_long_but_html_and_widget_are_not(self):
-        cached = self.client.get("/assets/css/style.css?v=2.7.3")
+        cached = self.client.get("/assets/css/style.css?v=2.7.4")
         self.assertEqual(cached.status_code, 200)
         self.assertIn("immutable", cached.headers.get("cache-control", ""))
         self.assertIn("max-age=31536000", cached.headers.get("cache-control", ""))
@@ -378,7 +378,7 @@ class WidgetFlowTests(PlatformTestCase):
         self.assertEqual(embed["widget_id"], wid)
         code = embed["embed_code_template"]
         self.assertIn(f'data-widget-id="{wid}"', code)
-        self.assertIn("__BASE_URL__/widget.js?v=2.7.3", code)
+        self.assertIn("__BASE_URL__/widget.js?v=2.7.4", code)
         self.assertIn('data-theme="auto"', code)
 
     def test_unknown_widget_is_404(self):

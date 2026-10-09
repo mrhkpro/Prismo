@@ -819,7 +819,7 @@ async function importFiles(fileList) {
   let completedFiles = 0;
   try {
     try {
-      await Lazy.script("/assets/js/extract.js?v=2.7.3");
+      await Lazy.script("/assets/js/extract.js?v=2.7.4");
     } catch (err) {
       return toastError(err);
     }
@@ -963,6 +963,7 @@ function appendChatMsg(role, text) {
   const stream = document.getElementById("chatStream");
   const el = document.createElement("div");
   el.className = `chat-msg ${role === "user" ? "user" : "bot"}`;
+  el.dataset.runtimeMessage = "1";
   el.textContent = text;
   stream.appendChild(el);
   stream.scrollTop = stream.scrollHeight;
@@ -993,7 +994,7 @@ function renderChatSources(sources) {
 }
 
 function showChatError(bubble, err) {
-  const requestId = err && err.requestId ? `\nشناسه درخواست: ${err.requestId}` : "";
+  const requestId = err && err.requestId ? `\n${window.QZI18n ? window.QZI18n.t("شناسه درخواست:") : "Request ID:"} ${err.requestId}` : "";
   const message = `${err && err.message ? err.message : String(err)}${requestId}`;
   if (bubble.dataset.hasText === "1") {
     // متنِ نیمه‌کاره را نگه می‌داریم و خطا را زیرش می‌نویسیم
@@ -1074,7 +1075,7 @@ async function sendChatMessage() {
 
   CHAT_REQUEST_ACTIVE = true;
   sendBtn.innerHTML = STOP_ICON;
-  sendBtn.title = "توقف پاسخ";
+  sendBtn.title = window.QZI18n ? window.QZI18n.t("توقف پاسخ") : "Stop response";
   input.value = "";
   appendChatMsg("user", message);
   const bubble = appendChatMsg("bot", "در حال آماده‌سازی پاسخ…");
@@ -1340,7 +1341,7 @@ async function loadWidgetSection() {
     const [cfg, embed] = await Promise.all([
       apiCall("/api/widget/config"),
       apiCall("/api/widget/embed-code"),
-      Lazy.script("/assets/js/pets.js?v=2.7.3").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+      Lazy.script("/assets/js/pets.js?v=2.7.4").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
     ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";

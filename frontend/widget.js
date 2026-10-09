@@ -1,5 +1,5 @@
 /*
- * ویجت چت هوشمند — کوازار
+ * ویجت چت هوشمند — Prismo
  *
  * قابل جاسازی در هر صفحه:
  * <script
@@ -38,7 +38,7 @@
       })();
 
     if (!thisScript) {
-      console.error("[Quasar widget] Widget script tag not found.");
+      console.error("[Prismo widget] Widget script tag not found.");
       return;
     }
 
@@ -51,13 +51,13 @@
     var THEME = thisScript.getAttribute("data-theme") || "auto";
     var LANGUAGE = (thisScript.getAttribute("data-language") || "fa").toLowerCase().indexOf("en") === 0 ? "en" : "fa";
     var I18N = {
-      fa: { open: "باز کردن گفتگو", close: "بستن", input: "پیامت رو بنویس…", send: "ارسال", footer: "ساخته‌شده با کوازار", pending: "در حال پاسخ…", stopped: "پاسخ متوقف شد.", noReply: "پاسخی دریافت نشد.", serviceError: "این سرویس در حال حاضر موقتاً در دسترس نیست.", loadError: "خطا در بارگذاری ویجت", retry: "تلاش دوباره", serverError: "خطایی در سرویس رخ داد.", offline: "ارتباط با سرویس برقرار نشد.", petLabel: "حیوان خانگی ویجت — برای محبت کلیک کن", settingsUnavailable: "تنظیمات ویجت دریافت نشد. اتصال سرور را بررسی کنید.", title: "دستیار هوشمند", welcome: "سلام! چطور می‌تونم کمکتون کنم؟" },
-      en: { open: "Open chat", close: "Close", input: "Type your message…", send: "Send", footer: "Powered by Quasar", pending: "Responding…", stopped: "Response stopped.", noReply: "No response received.", serviceError: "This service is temporarily unavailable.", loadError: "Widget loading error", retry: "Retry", serverError: "A service error occurred.", offline: "Could not connect to the service.", petLabel: "Widget pet — click to show some love", settingsUnavailable: "Widget settings could not be loaded. Check the server connection.", title: "Smart Assistant", welcome: "Hello! How can I help you?" }
+      fa: { open: "باز کردن گفتگو", close: "بستن", input: "پیامت رو بنویس…", send: "ارسال", footer: "ساخته‌شده با Prismo", pending: "در حال پاسخ…", stopped: "پاسخ متوقف شد.", noReply: "پاسخی دریافت نشد.", serviceError: "این سرویس در حال حاضر موقتاً در دسترس نیست.", loadError: "خطا در بارگذاری ویجت", retry: "تلاش دوباره", serverError: "خطایی در سرویس رخ داد.", offline: "ارتباط با سرویس برقرار نشد.", petLabel: "حیوان خانگی ویجت — برای محبت کلیک کن", settingsUnavailable: "تنظیمات ویجت دریافت نشد. اتصال سرور را بررسی کنید.", title: "دستیار هوشمند", welcome: "سلام! چطور می‌تونم کمکتون کنم؟" },
+      en: { open: "Open chat", close: "Close", input: "Type your message…", send: "Send", footer: "Powered by Prismo", pending: "Responding…", stopped: "Response stopped.", noReply: "No response received.", serviceError: "This service is temporarily unavailable.", loadError: "Widget loading error", retry: "Retry", serverError: "A service error occurred.", offline: "Could not connect to the service.", petLabel: "Widget pet — click to show some love", settingsUnavailable: "Widget settings could not be loaded. Check the server connection.", title: "Smart Assistant", welcome: "Hello! How can I help you?" }
     };
     var T = function (key) { return I18N[LANGUAGE][key] || key; };
 
     if (!WIDGET_ID) {
-      console.error("[Quasar widget] data-widget-id is missing.");
+      console.error("[Prismo widget] data-widget-id is missing.");
       return;
     }
 
@@ -712,7 +712,7 @@ var PET_SPRITES = {"dog":{"body":["................","...........KK...","..K....
         retry.style.cssText = "margin:0 14px 12px;padding:8px 12px;border:1px solid var(--qz-border,#e6e7eb);border-radius:12px;background:transparent;color:var(--qz-text,#e6ebf2);cursor:pointer;";
         retry.addEventListener("click", function () { location.reload(); });
         panel.appendChild(retry);
-        console.error("[Quasar widget] Failed to load widget settings:", err);
+        console.error("[Prismo widget] Failed to load widget settings:", err);
       });
   }
 

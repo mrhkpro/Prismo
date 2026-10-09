@@ -114,7 +114,7 @@ def runtime_info():
 # ============================================================
 
 logger = logging.getLogger(
-    "quasar"
+    "prismo"
 )
 
 logging.basicConfig(

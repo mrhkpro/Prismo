@@ -1,12 +1,12 @@
 # Deployment Guide
 
-Quasar is a FastAPI application with a static frontend, SQLite for local development, Supabase PostgreSQL with pgvector for cloud deployment, and an OpenAI-compatible model provider.
+Prismo is a FastAPI application with a static frontend, SQLite for local development, Supabase PostgreSQL with pgvector for cloud deployment, and an OpenAI-compatible model provider.
 
 ## Local Windows
 
 Run `setup.bat`. The script creates `.venv`, verifies Python 3.10+, checks/restores pip when necessary, prepares `.env` from `.env.example`, starts Uvicorn on `127.0.0.1:8000`, and opens the browser.
 
-Dependency installation is resilient to common package-index/DNS problems. The installer tries the official PyPI index first and then HTTPS mirrors. You can override the order with `QUASAR_PIP_INDEX_URL` before running the setup script.
+Dependency installation is resilient to common package-index/DNS problems. The installer tries the official PyPI index first and then HTTPS mirrors. You can override the order with `PRISMO_PIP_INDEX_URL` before running the setup script. The legacy `QUASAR_PIP_INDEX_URL` variable remains supported for existing setups.
 
 The setup script does not ask for an API key. Provider credentials belong in the local `.env` file or can be configured through the application's provider settings.
 

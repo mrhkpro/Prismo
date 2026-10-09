@@ -1,4 +1,4 @@
-# Quasar 2.7.1
+# Prismo 2.7.1
 
 ## Performance
 - Supabase/PostgreSQL startup no longer runs `create_all`, schema inspection, `ALTER TABLE`, or admin seeding.

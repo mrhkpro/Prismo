@@ -75,7 +75,7 @@ def test_widget_has_real_english_user_facing_fallbacks():
     assert 'welcome: "Hello! How can I help you?"' in js
     assert 'petLabel: "Widget pet — click to show some love"' in js
     assert 'settingsUnavailable: "Widget settings could not be loaded. Check the server connection."' in js
-    assert 'console.error("[Quasar widget]' in js
+    assert 'console.error("[Prismo widget]' in js
 
 
 def test_settings_and_rag_localize_built_in_defaults_for_english_requests(monkeypatch):
@@ -146,3 +146,40 @@ def test_english_mode_covers_mixed_admin_labels_and_dynamic_upload_progress():
     assert 'window.QZSettings.isEnglish() ? "%" : "٪"' in dashboard
     assert 'englishUI ? `✓ ${parts.length} sections added`' in dashboard
     assert 'englishUI ? "✓ Added" : "✓ اضافه شد"' in dashboard
+
+
+def test_prismo_brand_and_login_language_switch_are_present():
+    index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+    assert 'data-language="fa"' in index and 'data-language="en"' in index
+    assert 'data-theme-settings-center="1"' in index
+    assert 'prismo-icon.svg?v=2.7.4' in index
+    assert '<title>Prismo — ویجت هوشمند دانش‌محور</title>' in index
+    assert 'Prismo — Knowledge-powered AI widget' in (ROOT / 'frontend' / 'assets' / 'js' / 'settings.js').read_text(encoding='utf-8')
+    assert "themeToggle" not in index
+
+
+def test_english_settings_and_test_lab_labels_are_complete():
+    js = (ROOT / "frontend" / "assets" / "js" / "settings.js").read_text(encoding="utf-8").replace("\\u200c", "\u200c")
+    for fa, en in [
+        ("تغییرات این بخش فوری ذخیره می‌شوند و روی تمام صفحات سایت اعمال می‌شوند.", "Changes in this section are saved instantly and applied across the entire site."),
+        ("فضای کاری و میانبرها", "Workspace & shortcuts"),
+        ("اطلاعات حساب همین‌جا دیده می‌شود؛ نام و آیکون همچنان پایین سایدبار باقی می‌ماند.", "Manage account details here; your name and avatar remain at the bottom of the sidebar."),
+        ("تست گفت‌وگوی RAG", "Chat test"),
+        ("سلام! برای تست، یک سؤال درباره‌ی دانشنامه‌ات بپرس.", "Hello! Ask a question about your knowledge base to test the assistant."),
+        ("پنل مدیریت", "Admin panel"),
+    ]:
+        assert fa in js and en in js
+    assert '.chat-msg[data-runtime-message=\\\"1\\\"]' in js
+
+
+def test_test_lab_uses_explicit_bilingual_labels_not_mixed_rag_phrases():
+    dashboard = (ROOT / "frontend" / "dashboard.html").read_text(encoding="utf-8")
+    settings_js = (ROOT / "frontend" / "assets" / "js" / "settings.js").read_text(encoding="utf-8")
+    assert 'data-i18n-en="Chat test"' in dashboard
+    assert 'data-i18n-en="Hello! Ask a question about your knowledge base to test the assistant."' in dashboard
+    assert 'document.querySelectorAll("[data-i18n-fa][data-i18n-en]")' in settings_js
+
+
+def test_prismo_login_favicon_is_configured():
+    index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+    assert '<link rel="icon" type="image/svg+xml" href="/assets/prismo-icon.svg?v=2.7.4">' in index

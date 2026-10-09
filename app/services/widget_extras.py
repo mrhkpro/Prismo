@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from .. import config
 
-logger = logging.getLogger("quasar.widget_extras")
+logger = logging.getLogger("prismo.widget_extras")
 
 PETS = ("dog", "cat", "raccoon")
 POSITIONS = ("bottom-left", "bottom-right")

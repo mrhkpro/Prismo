@@ -12,7 +12,7 @@ from ..database import get_db
 from ..security import get_current_user
 from ..services import llm_client, rag_pipeline, rag_store, streaming, user_settings_compat
 
-logger = logging.getLogger("quasar.playground")
+logger = logging.getLogger("prismo.playground")
 
 router = APIRouter(prefix="/api/playground", tags=["آزمایشگاه تست"])
 

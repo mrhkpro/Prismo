@@ -1,11 +1,11 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title Quasar - RAG Widget SaaS
+title Prismo - RAG Widget SaaS
 cd /d "%~dp0"
 
 echo ================================================================
-echo   Quasar - RAG Widget SaaS
+echo   Prismo - RAG Widget SaaS
 echo   One-click Windows setup and local launcher
 echo ================================================================
 echo.
@@ -68,9 +68,13 @@ echo   This helps when files.pythonhosted.org cannot be resolved on the current 
 echo.
 
 rem Users may override the default order for their network:
-rem   set QUASAR_PIP_INDEX_URL=https://your-mirror.example/simple
-if defined QUASAR_PIP_INDEX_URL (
-    echo   Trying custom index: %QUASAR_PIP_INDEX_URL%
+rem   set PRISMO_PIP_INDEX_URL=https://your-mirror.example/simple
+if defined PRISMO_PIP_INDEX_URL (
+    echo   Trying custom index: %PRISMO_PIP_INDEX_URL%
+    call :install_from_index "%PRISMO_PIP_INDEX_URL%"
+    if not errorlevel 1 goto deps_ok
+) else if defined QUASAR_PIP_INDEX_URL (
+    echo   Trying legacy custom index: %QUASAR_PIP_INDEX_URL%
     call :install_from_index "%QUASAR_PIP_INDEX_URL%"
     if not errorlevel 1 goto deps_ok
 )
@@ -105,7 +109,7 @@ echo   1. Run: ipconfig /flushdns
 echo   2. Check that normal HTTPS websites open in the same network.
 echo   3. Check proxy/VPN/firewall/DNS settings if your network requires them.
 echo   4. You can set a custom mirror before running setup.bat:
-echo      set QUASAR_PIP_INDEX_URL=https://your-mirror.example/simple
+echo      set PRISMO_PIP_INDEX_URL=https://your-mirror.example/simple
 pause
 exit /b 1
 
@@ -121,7 +125,7 @@ if not exist ".env" (
     echo       Created .env from .env.example.
 )
 
-echo [4/4] Opening Quasar setup...
+echo [4/4] Opening Prismo setup...
 "%VENV_PY%" app\setup_bootstrap.py
 if errorlevel 1 (
     echo ERROR: Local setup page failed to start.
@@ -131,7 +135,7 @@ if errorlevel 1 (
 
 echo.
 echo ================================================================
-echo   Quasar is running at http://127.0.0.1:8000/
+echo   Prismo is running at http://127.0.0.1:8000/
 echo.
 echo   Default admin username: admin
 echo   Default admin password: Admin@12345
