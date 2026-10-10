@@ -213,11 +213,32 @@ function setEmbeddingProviderMode(useDefault) {
   customButton.setAttribute("aria-pressed", String(!useDefault));
 }
 
-document.querySelectorAll("#view-ai-settings [data-aitab]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("#view-ai-settings [data-aitab]").forEach((b) => b.classList.toggle("active", b === btn));
-    document.getElementById("aitab-connect").classList.toggle("active", btn.dataset.aitab === "connect");
-    document.getElementById("aitab-battle").classList.toggle("active", btn.dataset.aitab === "battle");
+const aiTabButtons = Array.from(document.querySelectorAll("#view-ai-settings [data-aitab]"));
+function activateAiTab(btn, moveFocus = false) {
+  aiTabButtons.forEach((candidate) => {
+    const active = candidate === btn;
+    candidate.classList.toggle("active", active);
+    candidate.setAttribute("aria-selected", String(active));
+    candidate.tabIndex = active ? 0 : -1;
+  });
+  document.getElementById("aitab-connect").classList.toggle("active", btn.dataset.aitab === "connect");
+  document.getElementById("aitab-battle").classList.toggle("active", btn.dataset.aitab === "battle");
+  if (moveFocus) btn.focus();
+}
+aiTabButtons.forEach((btn, index) => {
+  btn.addEventListener("click", () => activateAiTab(btn));
+  btn.addEventListener("keydown", (event) => {
+    let nextIndex = index;
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") nextIndex = (index + 1) % aiTabButtons.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = aiTabButtons.length - 1;
+    else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      activateAiTab(btn);
+      return;
+    } else return;
+    event.preventDefault();
+    activateAiTab(aiTabButtons[nextIndex], true);
   });
 });
 

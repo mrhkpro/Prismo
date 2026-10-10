@@ -371,6 +371,8 @@
   Object.assign(dict, {
     'اول مدل چت را انتخاب کن، بعد مدل embedding را؛ وقتی همه‌چیز آماده شد، تنظیمات را از انتهای صفحه ذخیره کن.': 'Choose your chat model first, then your embedding model. When everything is ready, save your settings at the bottom.',
     'مراحل تنظیم مدل': 'Model setup steps',
+    'تنظیم مدل‌ها': 'Model setup',
+    'بخش‌های هوش مصنوعی': 'AI sections',
     'منبع مدل چت': 'Chat model source',
     'منبع مدل embedding': 'Embedding model source',
     'مدل چت': 'Chat model',
