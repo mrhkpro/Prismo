@@ -78,7 +78,9 @@ def discover_models(
     embedding_api_key = (payload.embedding_api_key or settings.embedding_api_key or "").strip()
     embedding_base_url = (payload.embedding_base_url or settings.embedding_base_url or "").strip()
     discover_kwargs = {}
-    if payload.separate_embedding_provider and settings.separate_embedding_provider:
+    # Discovery is a read-only test action. Honor the credentials currently
+    # entered in the form even if the user has not saved provider settings yet.
+    if payload.separate_embedding_provider:
         discover_kwargs = {
             "embedding_base_url": embedding_base_url or None,
             "embedding_api_key": embedding_api_key or None,

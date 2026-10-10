@@ -130,7 +130,8 @@ All branches in the release line are merged into `main` with `--no-ff` to preser
 - `feature/google-oauth-cookie-session-2.7.7` — server-side Google Authorization Code + PKCE, verified ID token, secure cookie session and logout; merged with `--no-ff`.
 - `fix/theme-presets-nord-amber-rose-2.7.7` — unified persisted theme selection and polished Nord/Amber/Rose; merged with `--no-ff`.
 - `fix/openrouter-catalog-full-models-2.7.7` — full OpenRouter metadata/pricing catalogue, free/paid counts and exact embedding-dimension probes; merged with `--no-ff`.
+- `fix/separate-embedding-form-key-2.7.7` — uses unsaved form-entered embedding credentials for a read-only discovery request; merged with `--no-ff`.
 - `work/oauth-themes-openrouter-2.7.7` — integration branch; release cache-busters and v2.7.7 changelog.
-- Verification: 228 Python tests, Python compile check, JavaScript syntax checks and a local SQLite health/static smoke test. Google OAuth and OpenRouter cannot be called live without external credentials/network access; those flows were tested with mocks.
+- Verification: 229 Python tests, Python compile check, JavaScript syntax checks and a local SQLite health/static smoke test. Google OAuth and OpenRouter cannot be called live without external credentials/network access; those flows were tested with mocks.
 - Environment safety: `.env` had previously been tracked. It is removed from the delivered history and ignored going forward; the `.env.example` template remains.
 
