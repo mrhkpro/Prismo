@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, noarchive, nosnippet, noimageindex">
-<link rel="icon" type="image/svg+xml" href="/assets/prismo-icon.svg?v=2.7.9">
+<link rel="icon" type="image/svg+xml" href="/assets/prismo-icon.svg?v=2.8.0">
 <title>داشبورد — Prismo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +16,7 @@
     if (["light","dark","ocean","forest","sunset","lavender","mono","nord","amber","rose"].includes(theme)) document.documentElement.dataset.theme = theme;
   } catch (_) {}
 </script>
-<link rel="stylesheet" href="/assets/css/style.css?v=2.7.9">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.8.0">
 </head>
 <body data-theme-settings-center="1">
 
@@ -102,7 +102,7 @@
     <!-- ---------- خانه ---------- -->
     <section class="view active" id="view-overview">
       <div class="page-head">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span class="badge badge-accent">PRISMO 2.7.9</span><span class="badge badge-success"><span class="badge-dot"></span> سیستم آماده</span></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span class="badge badge-accent">PRISMO 2.8.0</span><span class="badge badge-success"><span class="badge-dot"></span> سیستم آماده</span></div>
         <h1>سلام 👋</h1>
         <p>یک نگاه سریع به وضعیت دستیار هوشمند و دانشنامه‌ات</p>
       </div>
@@ -135,7 +135,7 @@
     <section class="view" id="view-ai-settings">
       <div class="page-head">
         <h1>مدل هوش مصنوعی</h1>
-        <p>یک اتصال انتخاب کن و مدل‌ها را تنظیم کن.</p>
+        <p>اول مدل چت را انتخاب کن، بعد مدل embedding را؛ وقتی همه‌چیز آماده شد، تنظیمات را از انتهای صفحه ذخیره کن.</p>
       </div>
 
       <div class="tab-strip">
@@ -145,87 +145,153 @@
 
       <div class="tab-pane active" id="aitab-connect">
         <input type="checkbox" id="useDefaultProviderChk" hidden>
-        <div class="panel flat">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">منبع مدل</div>
-              <div class="panel-desc">مدل‌های رایگان آماده یا API سازگار با OpenAI.</div>
-            </div>
-            <div class="panel-tools">
-              <span class="badge badge-muted" id="providerStatusBadge">مدل‌های آماده</span>
-              <div class="segmented" role="tablist" aria-label="منبع مدل">
-                <button type="button" class="seg-btn active" id="defaultProviderModeBtn">رایگان آماده</button>
-                <button type="button" class="seg-btn" id="customProviderModeBtn">API اختصاصی</button>
-              </div>
-            </div>
-          </div>
 
-          <!-- منبع مدل چت مستقل از embedding انتخاب می‌شود -->
-          <div id="defaultProviderInfo">
-            <div class="form-grid">
-              <div class="field"><label>مدل چت آماده</label><select id="chatModelSelect"></select></div>
-            </div>
-            <div class="panel-foot">
-              <button class="btn btn-primary" id="saveProviderBtn">ذخیره تنظیمات مدل‌ها</button>
-              <button class="btn btn-ghost" id="testConnectionBtn">تست اتصال</button>
-            </div>
+        <div class="ai-setup-steps" aria-label="مراحل تنظیم مدل">
+          <div class="ai-setup-step">
+            <span class="ai-step-number">۱</span>
+            <span class="ai-step-copy"><strong>مدل چت</strong><small>منبع و مدل پاسخ‌گویی</small></span>
           </div>
-
-          <!-- منبع چت اختصاصی -->
-          <div id="customProviderPanel" style="display:none;">
-            <div class="form-grid">
-              <div class="field span-2">
-                <label>Chat Base URL</label>
-                <input type="url" id="baseUrlInput" placeholder="https://api.example.com/v1" dir="ltr" autocomplete="url">
-              </div>
-              <div class="field span-2">
-                <label>Chat API Key</label>
-                <div class="input-action">
-                  <input type="password" id="apiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
-                  <button class="btn btn-soft" id="discoverModelsBtn" type="button">دریافت مدل‌های چت</button>
-                </div>
-                <span class="field-hint" id="apiKeyStatusHint"></span>
-              </div>
-              <div class="field span-2"><label>مدل چت سرویس اختصاصی</label><select id="customChatModelSelect" disabled></select></div>
-              <div class="field span-2"><div class="status-line" id="modelDiscoveryStatus"></div></div>
-            </div>
-            <div class="panel-foot">
-              <button class="btn btn-primary" id="saveCustomProviderBtn">ذخیره تنظیمات مدل‌ها</button>
-              <button class="btn btn-ghost" id="testCustomConnectionBtn">تست اتصال</button>
-            </div>
+          <span class="ai-step-connector" aria-hidden="true"></span>
+          <div class="ai-setup-step">
+            <span class="ai-step-number">۲</span>
+            <span class="ai-step-copy"><strong>مدل embedding</strong><small>جست‌وجوی دانشنامه</small></span>
           </div>
-
-          <!-- منبع embedding مستقل از منبع چت -->
-          <div class="field-grid span-2 provider-source-section" id="embeddingProviderSection">
-            <div class="field span-2">
-              <label>منبع مدل Embedding</label>
-              <div class="segmented" role="tablist" aria-label="منبع مدل embedding">
-                <button type="button" class="seg-btn active" id="embeddingDefaultProviderModeBtn">مدل آماده</button>
-                <button type="button" class="seg-btn" id="embeddingCustomProviderModeBtn">API اختصاصی</button>
-              </div>
-              <span class="field-hint">مدل چت و embedding می‌توانند از دو سرویس متفاوت باشند. حالت آماده از مدل‌های تعریف‌شده برای پروژه استفاده می‌کند.</span>
-            </div>
-            <div id="defaultEmbeddingProviderPanel" class="form-grid span-2">
-              <div class="field"><label>مدل Embedding آماده</label><select id="embeddingModelSelect"></select></div>
-            </div>
-            <div id="customEmbeddingProviderPanel" class="form-grid span-2" style="display:none;">
-              <div class="field">
-                <label>Embedding Base URL</label>
-                <input type="url" id="embeddingBaseUrlInput" placeholder="https://embedding.example.com/v1" dir="ltr" autocomplete="url">
-              </div>
-              <div class="field">
-                <label>Embedding API Key</label>
-                <div class="input-action">
-                  <input type="password" id="embeddingApiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
-                  <button class="btn btn-soft" id="discoverEmbeddingModelsBtn" type="button">دریافت مدل‌های Embedding</button>
-                </div>
-                <span class="field-hint" id="embeddingApiKeyStatusHint"></span>
-              </div>
-              <div class="field span-2"><label>مدل Embedding سرویس اختصاصی</label><select id="customEmbeddingModelSelect" disabled></select><span class="field-hint">فقط مدل‌هایی نمایش داده می‌شوند که بُعد بردارشان با تنظیم پروژه سازگار باشد.</span></div>
-              <div class="field span-2"><div class="status-line" id="embeddingModelDiscoveryStatus"></div></div>
-            </div>
+          <span class="ai-step-connector" aria-hidden="true"></span>
+          <div class="ai-setup-step">
+            <span class="ai-step-number">۳</span>
+            <span class="ai-step-copy"><strong>ذخیره و تست</strong><small>در انتهای صفحه</small></span>
           </div>
         </div>
+
+        <div class="ai-provider-stack">
+          <!-- بخش اول: اتصال مدل چت -->
+          <section class="ai-config-card" aria-labelledby="chatProviderTitle">
+            <div class="ai-config-head">
+              <div class="ai-config-heading">
+                <span class="ai-config-icon" aria-hidden="true">✦</span>
+                <div>
+                  <div class="ai-config-kicker">مرحله ۱</div>
+                  <h2 id="chatProviderTitle">اتصال مدل چت</h2>
+                  <p>مدلی که پاسخ‌های دستیار را تولید می‌کند انتخاب کن.</p>
+                </div>
+              </div>
+              <div class="ai-source-controls">
+                <span class="badge badge-muted" id="providerStatusBadge">مدل‌های آماده</span>
+                <div class="segmented" role="group" aria-label="منبع مدل چت">
+                  <button type="button" class="seg-btn active" id="defaultProviderModeBtn" aria-pressed="true">مدل آماده</button>
+                  <button type="button" class="seg-btn" id="customProviderModeBtn" aria-pressed="false">API اختصاصی</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="ai-config-body">
+              <div id="defaultProviderInfo" class="ai-provider-panel">
+                <div class="form-grid">
+                  <div class="field span-2">
+                    <label for="chatModelSelect">مدل چت آماده</label>
+                    <select id="chatModelSelect"></select>
+                    <span class="field-hint">برای شروع، یک مدل آماده را انتخاب کن. نیازی به واردکردن کلید API نیست.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div id="customProviderPanel" class="ai-provider-panel" style="display:none;">
+                <div class="form-grid">
+                  <div class="field span-2">
+                    <label for="baseUrlInput">آدرس API چت (Base URL)</label>
+                    <input type="url" id="baseUrlInput" placeholder="https://openrouter.ai/api/v1" dir="ltr" autocomplete="url">
+                    <span class="field-hint">آدرس پایهٔ سرویس سازگار با OpenAI؛ برای OpenRouter از آدرس بالا استفاده کن.</span>
+                  </div>
+                  <div class="field span-2">
+                    <label for="apiKeyInput">کلید API چت</label>
+                    <div class="input-action">
+                      <input type="password" id="apiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
+                      <button class="btn btn-soft" id="discoverModelsBtn" type="button">دریافت مدل‌ها</button>
+                    </div>
+                    <span class="field-hint" id="apiKeyStatusHint">کلید فقط سمت سرور ذخیره می‌شود.</span>
+                  </div>
+                  <div class="field span-2">
+                    <label for="customChatModelSelect">مدل چت این سرویس</label>
+                    <select id="customChatModelSelect" disabled></select>
+                    <span class="field-hint">بعد از واردکردن آدرس و کلید، «دریافت مدل‌ها» را بزن و مدل موردنظر را انتخاب کن.</span>
+                  </div>
+                  <div class="field span-2"><div class="status-line" id="modelDiscoveryStatus" aria-live="polite"></div></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- بخش دوم: انتخاب مستقل مدل embedding -->
+          <section class="ai-config-card" id="embeddingProviderSection" aria-labelledby="embeddingProviderTitle">
+            <div class="ai-config-head">
+              <div class="ai-config-heading">
+                <span class="ai-config-icon ai-config-icon-embedding" aria-hidden="true">⌕</span>
+                <div>
+                  <div class="ai-config-kicker">مرحله ۲</div>
+                  <h2 id="embeddingProviderTitle">مدل جست‌وجوی دانشنامه (Embedding)</h2>
+                  <p>این مدل مستقل از مدل چت است و می‌تواند از سرویس دیگری استفاده کند.</p>
+                </div>
+              </div>
+              <div class="segmented" role="group" aria-label="منبع مدل embedding">
+                <button type="button" class="seg-btn active" id="embeddingDefaultProviderModeBtn" aria-pressed="true">مدل آماده</button>
+                <button type="button" class="seg-btn" id="embeddingCustomProviderModeBtn" aria-pressed="false">API اختصاصی</button>
+              </div>
+            </div>
+
+            <div class="ai-config-body">
+              <p class="ai-info-note"><span aria-hidden="true">ⓘ</span> مدل چت و embedding را می‌توانی از دو سرویس متفاوت انتخاب کنی. مدل embedding باید با بُعد برداری ذخیره‌شده در پروژه سازگار باشد.</p>
+              <div id="defaultEmbeddingProviderPanel" class="ai-provider-panel">
+                <div class="form-grid">
+                  <div class="field span-2">
+                    <label for="embeddingModelSelect">مدل embedding آماده</label>
+                    <select id="embeddingModelSelect"></select>
+                  </div>
+                </div>
+              </div>
+              <div id="customEmbeddingProviderPanel" class="ai-provider-panel" style="display:none;">
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="embeddingBaseUrlInput">آدرس API embedding</label>
+                    <input type="url" id="embeddingBaseUrlInput" placeholder="https://embedding.example.com/v1" dir="ltr" autocomplete="url">
+                  </div>
+                  <div class="field">
+                    <label for="embeddingApiKeyInput">کلید API embedding</label>
+                    <div class="input-action">
+                      <input type="password" id="embeddingApiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
+                      <button class="btn btn-soft" id="discoverEmbeddingModelsBtn" type="button">دریافت مدل‌ها</button>
+                    </div>
+                    <span class="field-hint" id="embeddingApiKeyStatusHint">در صورت یکسان‌بودن سرویس‌ها می‌توانی کلید چت را هم استفاده کنی.</span>
+                  </div>
+                  <div class="field span-2">
+                    <label for="customEmbeddingModelSelect">مدل embedding این سرویس</label>
+                    <select id="customEmbeddingModelSelect" disabled></select>
+                    <span class="field-hint">فقط مدل‌هایی نمایش داده می‌شوند که آزمون سازگاری بُعد بردار را گذرانده باشند.</span>
+                  </div>
+                  <div class="field span-2"><div class="status-line" id="embeddingModelDiscoveryStatus" aria-live="polite"></div></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- اقدام‌ها عمداً بعد از تمام انتخاب‌ها قرار گرفته‌اند. -->
+        <section class="ai-connection-actions" aria-label="ذخیره و تست اتصال">
+          <div class="ai-action-copy">
+            <div class="ai-config-kicker">مرحله ۳ · پایان تنظیمات</div>
+            <h2>همه‌چیز آماده است؟</h2>
+            <p>تنظیمات مدل چت و embedding با هم ذخیره می‌شوند. بعد از ذخیره، اتصال را تست کن.</p>
+          </div>
+          <div class="ai-action-buttons">
+            <button class="btn btn-primary ai-save-button" id="saveProviderBtn" type="button">
+              <span aria-hidden="true">✓</span> ذخیره و فعال‌سازی
+            </button>
+            <button class="btn btn-primary ai-save-button" id="saveCustomProviderBtn" type="button" style="display:none;">
+              <span aria-hidden="true">✓</span> ذخیره و فعال‌سازی
+            </button>
+            <button class="btn btn-ghost" id="testConnectionBtn" type="button">تست اتصال</button>
+            <button class="btn btn-ghost" id="testCustomConnectionBtn" type="button" style="display:none;">تست اتصال</button>
+          </div>
+        </section>
       </div>
 
       <div class="tab-pane" id="aitab-battle">
@@ -609,10 +675,10 @@
   </div>
 </div>
 
-<script src="/assets/js/api.js?v=2.7.9"></script>
-<script src="/assets/js/theme.js?v=2.7.9"></script>
-<script src="/assets/js/settings.js?v=2.7.9"></script>
-<script src="/assets/js/shell.js?v=2.7.9" defer></script>
-<script src="/assets/js/dashboard.js?v=2.7.9"></script>
+<script src="/assets/js/api.js?v=2.8.0"></script>
+<script src="/assets/js/theme.js?v=2.8.0"></script>
+<script src="/assets/js/settings.js?v=2.8.0"></script>
+<script src="/assets/js/shell.js?v=2.8.0" defer></script>
+<script src="/assets/js/dashboard.js?v=2.8.0"></script>
 </body>
 </html>

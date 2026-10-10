@@ -1033,3 +1033,86 @@ body.qz-compact-chat .chat-msg{padding-top:8px;padding-bottom:8px}body.qz-compac
 .theme-preview-nord { background:linear-gradient(135deg,#1a1f29 0%,#5e81ac 58%,#88c0d0 100%); }
 .theme-preview-amber { background:linear-gradient(135deg,#1a140e 0%,#e06c00 56%,#ffb000 100%); }
 .theme-preview-rose { background:linear-gradient(135deg,#1a0f16 0%,#c86dd7 56%,#ff5ca8 100%); }
+
+/* ---------- جریان اتصال مدل؛ انتخاب‌ها پیش از اقدام نهایی ---------- */
+#aitab-connect .ai-setup-steps {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  margin: 0 0 18px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(115deg, var(--accent-soft), transparent 70%), var(--bg-elevated-2);
+}
+#aitab-connect .ai-setup-step { display:flex; align-items:center; gap:10px; min-width:0; }
+#aitab-connect .ai-step-number {
+  display:grid; place-items:center; flex:0 0 30px; width:30px; height:30px;
+  border-radius:10px; background:var(--accent-soft); color:var(--accent-text);
+  border:1px solid var(--accent-line); font-size:13px; font-weight:800;
+}
+#aitab-connect .ai-step-copy { display:flex; flex-direction:column; line-height:1.45; gap:2px; }
+#aitab-connect .ai-step-copy strong { font-size:12.5px; color:var(--text); }
+#aitab-connect .ai-step-copy small { font-size:11px; color:var(--text-faint); }
+#aitab-connect .ai-step-connector { height:1px; flex:1 1 24px; min-width:14px; background:var(--border); }
+#aitab-connect .ai-provider-stack { display:grid; gap:16px; }
+#aitab-connect .ai-config-card {
+  min-width:0; overflow:hidden; border:1px solid var(--border); border-radius:var(--radius-lg);
+  background:var(--bg-elevated); box-shadow:var(--shadow-card);
+}
+#aitab-connect .ai-config-head {
+  display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+  padding:19px 22px; border-bottom:1px solid var(--border-soft);
+  background:linear-gradient(100deg, var(--accent-soft), transparent 65%);
+}
+#aitab-connect .ai-config-heading { display:flex; align-items:center; gap:13px; min-width:220px; flex:1 1 320px; }
+#aitab-connect .ai-config-icon {
+  display:grid; place-items:center; flex:0 0 42px; width:42px; height:42px;
+  border-radius:13px; border:1px solid var(--accent-line); background:var(--accent-soft);
+  color:var(--accent-text); font-size:24px; line-height:1;
+}
+#aitab-connect .ai-config-icon-embedding { font-size:29px; }
+#aitab-connect .ai-config-kicker { color:var(--accent-text); text-transform:none; font-size:11px; font-weight:800; letter-spacing:.02em; margin-bottom:2px; }
+#aitab-connect .ai-config-heading h2, #aitab-connect .ai-action-copy h2 { color:var(--text); font-size:16px; line-height:1.55; margin:0; }
+#aitab-connect .ai-config-heading p { color:var(--text-muted); font-size:12px; margin-top:2px; line-height:1.7; }
+#aitab-connect .ai-source-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+#aitab-connect .ai-config-body { padding:21px 22px 23px; }
+#aitab-connect .ai-provider-panel .form-grid { gap:0 18px; }
+#aitab-connect .ai-provider-panel .field { min-width:0; margin-bottom:0; }
+#aitab-connect .ai-provider-panel input, #aitab-connect .ai-provider-panel select { width:100%; min-width:0; }
+#aitab-connect .ai-provider-panel .input-action { align-items:stretch; }
+#aitab-connect .ai-provider-panel .input-action .btn { flex:0 0 auto; }
+#aitab-connect .ai-provider-panel .field-hint { display:block; line-height:1.8; }
+#aitab-connect .ai-info-note {
+  display:flex; align-items:flex-start; gap:9px; padding:11px 13px; margin:0 0 17px;
+  border:1px solid var(--accent-line); border-radius:var(--radius-md); background:var(--accent-soft);
+  color:var(--text-muted); font-size:12px; line-height:1.9;
+}
+#aitab-connect .ai-info-note > span { color:var(--accent-text); font-weight:800; flex:0 0 auto; }
+#aitab-connect .ai-connection-actions {
+  display:flex; align-items:center; justify-content:space-between; gap:22px; flex-wrap:wrap;
+  margin-top:19px; padding:21px 22px; border:1px solid var(--accent-line); border-radius:var(--radius-lg);
+  background:linear-gradient(112deg, var(--accent-soft), transparent 78%), var(--bg-elevated);
+  box-shadow:var(--shadow-card);
+}
+#aitab-connect .ai-action-copy { flex:1 1 260px; min-width:0; }
+#aitab-connect .ai-action-copy h2 { margin-top:2px; }
+#aitab-connect .ai-action-copy p { color:var(--text-muted); font-size:12px; line-height:1.8; margin-top:4px; }
+#aitab-connect .ai-action-buttons { display:flex; align-items:center; flex-wrap:wrap; gap:9px; }
+#aitab-connect .ai-save-button { min-width:190px; }
+#aitab-connect .ai-action-buttons .btn:disabled { opacity:.65; cursor:wait; transform:none; }
+#aitab-connect .status-line { white-space:normal; overflow-wrap:anywhere; }
+#aitab-connect .ai-config-card .segmented { max-width:100%; }
+#aitab-connect .ai-config-card .seg-btn { white-space:nowrap; }
+@media (max-width:760px) {
+  #aitab-connect .ai-setup-steps { align-items:flex-start; flex-direction:column; gap:9px; }
+  #aitab-connect .ai-step-connector { width:1px; height:10px; min-width:0; min-height:10px; flex:0 0 10px; margin-inline-start:14px; }
+  #aitab-connect .ai-config-head { align-items:flex-start; padding:16px; }
+  #aitab-connect .ai-config-body { padding:16px; }
+  #aitab-connect .ai-source-controls { width:100%; justify-content:space-between; }
+  #aitab-connect .ai-connection-actions { align-items:stretch; padding:17px; }
+  #aitab-connect .ai-action-buttons { width:100%; }
+  #aitab-connect .ai-action-buttons .btn { flex:1 1 100%; }
+  #aitab-connect .ai-save-button { min-width:0; }
+  #aitab-connect .ai-provider-panel .input-action { flex-direction:column; }
+}
