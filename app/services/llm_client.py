@@ -163,25 +163,32 @@ def _dedup_keep_order(*groups: List[str]) -> List[str]:
     return result
 
 
+def _field(item, name: str, default=None):
+    """Read a field from either an SDK model object or a JSON dictionary."""
+    if isinstance(item, dict):
+        return item.get(name, default)
+    return getattr(item, name, default) if item is not None else default
+
+
 def _architecture_info(item) -> Optional[dict]:
     """Best-effort read of OpenRouter-style architecture metadata.
 
-    The OpenAI SDK's Model schema allows unknown extra fields through
-    (model_config extra="allow"), so gateways like OpenRouter that annotate
-    each model with input/output modalities expose that data here even
-    though the base OpenAI API does not define it. Plain OpenAI-compatible
-    servers simply omit it and this returns None.
+    Works with both OpenAI SDK model instances and OpenRouter's raw JSON
+    records so the UI can use the full, provider-defined catalogue.
     """
-    arch = getattr(item, "architecture", None) if item is not None else None
+    arch = _field(item, "architecture")
     if arch is None:
         return None
     try:
-        if isinstance(arch, dict):
-            output = arch.get("output_modalities") or []
-            input_ = arch.get("input_modalities") or []
-        else:
-            output = list(getattr(arch, "output_modalities", None) or [])
-            input_ = list(getattr(arch, "input_modalities", None) or [])
+        output = _field(arch, "output_modalities", None) or []
+        input_ = _field(arch, "input_modalities", None) or []
+        modality = str(_field(arch, "modality", "") or "")
+        if modality and "->" in modality and (not input_ or not output):
+            left, right = modality.split("->", 1)
+            if not input_:
+                input_ = [part.strip() for part in left.replace(",", "+").split("+") if part.strip()]
+            if not output:
+                output = [part.strip() for part in right.replace(",", "+").split("+") if part.strip()]
         return {
             "output_modalities": {str(m).strip().casefold() for m in output},
             "input_modalities": {str(m).strip().casefold() for m in input_},
@@ -213,6 +220,223 @@ def _is_openrouter_host(base_url: str) -> bool:
     except Exception:
         return False
     return host == "openrouter.ai" or host.endswith(".openrouter.ai")
+
+
+def _fetch_openrouter_model_catalog(base_url: str, api_key: str) -> List[dict]:
+    """Fetch the complete OpenRouter model catalogue, including pricing.
+
+    Unlike the OpenAI-compatible ``/models`` wrapper, this direct request
+    retains OpenRouter-specific name, modality, context-length, and pricing
+    metadata. API keys and response bodies are deliberately excluded from
+    diagnostic errors.
+    """
+    if not _is_openrouter_host(base_url):
+        return []
+    if not api_key:
+        raise LLMError("برای دریافت کاتالوگ OpenRouter باید API Key وارد شود.")
+    parsed = urlparse(base_url)
+    path = parsed.path.rstrip("/") or "/api/v1"
+    url = f"{parsed.scheme}://{parsed.netloc}{path}/models"
+    headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
+    app_url = str(getattr(config, "APP_PUBLIC_URL", "") or "").strip()
+    if app_url.startswith(("https://", "http://")):
+        headers["HTTP-Referer"] = app_url
+    headers["X-Title"] = "Prismo"
+    try:
+        with httpx.Client(timeout=httpx.Timeout(
+            config.MODEL_PROBE_TIMEOUT_SECONDS,
+            connect=config.MODEL_PROBE_CONNECT_TIMEOUT_SECONDS,
+        )) as http_client:
+            response = http_client.get(url, headers=headers)
+        if response.status_code in (401, 403):
+            raise LLMError("OpenRouter کلید API را نپذیرفت؛ معتبر بودن کلید و دسترسی حساب را بررسی کنید.")
+        if response.status_code == 429:
+            raise LLMError("OpenRouter محدودیت درخواست اعمال کرد؛ کمی بعد دوباره تلاش کنید.")
+        if response.status_code >= 400:
+            raise LLMError(f"دریافت فهرست مدل‌های OpenRouter با خطای HTTP {response.status_code} ناموفق بود.")
+        payload = response.json()
+        entries = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(entries, list):
+            raise LLMError("پاسخ کاتالوگ OpenRouter ساختار قابل‌شناسایی نداشت.")
+        return [entry for entry in entries if isinstance(entry, dict) and str(entry.get("id") or "").strip()]
+    except LLMError:
+        raise
+    except httpx.TimeoutException as exc:
+        raise LLMError("مهلت دریافت کاتالوگ OpenRouter تمام شد؛ اتصال شبکه را بررسی کنید.") from exc
+    except httpx.HTTPError as exc:
+        raise LLMError("ارتباط با کاتالوگ OpenRouter برقرار نشد؛ شبکه و Base URL را بررسی کنید.") from exc
+    except (ValueError, TypeError) as exc:
+        raise LLMError("پاسخ کاتالوگ OpenRouter قابل‌خواندن نبود.") from exc
+
+
+def _as_float(value) -> Optional[float]:
+    try:
+        if value is None or value == "":
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _openrouter_catalog_entry(item: dict, embedding_ids: Optional[set[str]] = None) -> dict:
+    """Normalize provider metadata for the API/UI without dropping models."""
+    model_id = str(item.get("id") or "").strip()
+    name = str(item.get("name") or model_id)
+    architecture = _architecture_info(item) or {}
+    inputs = sorted(architecture.get("input_modalities") or set())
+    outputs = sorted(architecture.get("output_modalities") or set())
+    price = item.get("pricing") if isinstance(item.get("pricing"), dict) else {}
+    prompt_price = _as_float(price.get("prompt"))
+    completion_price = _as_float(price.get("completion"))
+    model_id_lower = model_id.casefold()
+    if model_id_lower.endswith(":free") or (prompt_price == 0 and completion_price == 0):
+        price_tier = "free"
+    elif (prompt_price is not None and prompt_price > 0) or (completion_price is not None and completion_price > 0):
+        price_tier = "paid"
+    else:
+        price_tier = "unknown"
+
+    if "text" in outputs and ("text" in inputs or not inputs):
+        supports_chat = True
+    elif outputs and "text" not in outputs:
+        supports_chat = False
+    elif inputs and "text" not in inputs:
+        supports_chat = False
+    else:
+        # The catalogue sometimes omits modality metadata for newer models.
+        # Be inclusive in that case, but avoid obvious embedding/image/audio IDs.
+        supports_chat = not _looks_like_embedding_model(model_id) and not _looks_non_text_output(model_id)
+
+    declared_embedding = bool({"embedding", "embeddings"} & set(outputs))
+    supports_embeddings = declared_embedding or model_id in (embedding_ids or set()) or _looks_like_embedding_model(model_id)
+    context = item.get("context_length")
+    try:
+        context = int(context) if context is not None else None
+    except (TypeError, ValueError):
+        context = None
+    return {
+        "id": model_id,
+        "name": name,
+        "context_length": context,
+        "prompt_price": str(price.get("prompt")) if price.get("prompt") is not None else None,
+        "completion_price": str(price.get("completion")) if price.get("completion") is not None else None,
+        "price_tier": price_tier,
+        "input_modalities": inputs,
+        "output_modalities": outputs,
+        "supports_chat": supports_chat,
+        "supports_embeddings": supports_embeddings,
+    }
+
+
+def _discover_openrouter_model_capabilities(
+    chat_base: str,
+    chat_key: str,
+    embedding_base: str,
+    embedding_key: str,
+) -> dict:
+    """Use OpenRouter's full metadata for chat options and probe embeddings.
+
+    Chat catalogue entries are shown based on declared modalities instead of
+    hiding hundreds of valid models behind a costly per-model inference call.
+    Embeddings are still actively probed and only offered when their vector
+    size matches the application's configured storage dimension.
+    """
+    raw_catalog = _fetch_openrouter_model_catalog(chat_base, chat_key)
+    if not raw_catalog:
+        raise LLMError("OpenRouter کاتالوگ خالی برگرداند؛ وضعیت حساب یا دسترسی مدل‌ها را بررسی کنید.")
+
+    embedding_ids: List[str] = []
+    if _is_openrouter_host(embedding_base):
+        embedding_ids = _fetch_openrouter_embedding_catalog(embedding_base, embedding_key)
+        if not embedding_ids and embedding_base == chat_base:
+            # The endpoint may be temporarily unavailable; do not fail the
+            # complete chat catalogue just because embedding discovery failed.
+            logger.warning("OpenRouter embedding catalogue was unavailable during model discovery")
+    catalog_by_id = {}
+    for item in raw_catalog:
+        model_id = str(item.get("id") or "").strip()
+        if model_id and model_id not in catalog_by_id:
+            catalog_by_id[model_id] = item
+    for model_id in embedding_ids:
+        catalog_by_id.setdefault(model_id, {"id": model_id, "name": model_id})
+
+    catalog = [
+        _openrouter_catalog_entry(item, set(embedding_ids))
+        for item in catalog_by_id.values()
+    ]
+    catalog.sort(key=lambda entry: (entry["name"].casefold(), entry["id"].casefold()))
+    chat_models = sorted(
+        {entry["id"] for entry in catalog if entry["supports_chat"]},
+        key=str.casefold,
+    )
+
+    # For a separate non-OpenRouter embedding provider, look at its own
+    # catalogue and try name/architecture hints as well; its API key is never
+    # sent to the chat-provider endpoint.
+    embedding_candidates = list(embedding_ids)
+    if not _is_openrouter_host(embedding_base):
+        try:
+            emb_items = _list_models_raw(embedding_base, embedding_key)
+        except Exception as exc:  # don't discard a valid chat catalogue for a separate embedding outage
+            logger.warning("Could not read separate embedding catalogue (%s)", type(exc).__name__)
+            emb_items = []
+        emb_ids = [str(_field(item, "id", "") or "").strip() for item in emb_items]
+        emb_ids = [model_id for model_id in emb_ids if model_id]
+        emb_by_id = {str(_field(item, "id", "") or "").strip(): item for item in emb_items}
+        declared, name_declared, _excluded, unknown = _classify_catalog(emb_ids, emb_by_id)
+        embedding_candidates = _dedup_keep_order(
+            declared, name_declared,
+            [mid for mid in unknown if _looks_like_embedding_model(mid)],
+        )
+        cap = max(config.MAX_EMBEDDING_MODEL_PROBES, len(declared) + len(name_declared))
+        embedding_candidates = embedding_candidates[:cap]
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    verified_embeddings: List[str] = []
+    def probe_embedding(model_id: str):
+        try:
+            emb_client = _client(embedding_base, embedding_key, short_timeout=True)
+            ok, dimension = _probe_embedding_model(emb_client, model_id)
+            return model_id, bool(ok and dimension == config.EMBEDDING_DIMENSIONS)
+        except Exception:
+            return model_id, False
+
+    if embedding_candidates:
+        with ThreadPoolExecutor(max_workers=min(config.MODEL_DISCOVERY_CONCURRENCY, len(embedding_candidates))) as pool:
+            for model_id, ok in pool.map(probe_embedding, embedding_candidates):
+                if ok:
+                    verified_embeddings.append(model_id)
+    verified_embeddings = sorted(set(verified_embeddings), key=str.casefold)
+    verified_set = set(verified_embeddings)
+    for entry in catalog:
+        if entry["id"] in embedding_ids:
+            # Discovery catalog membership is not proof of dimension fit.
+            # This bit means the model is listed as an embedding offering;
+            # verified models are separately returned as embedding_models.
+            entry["supports_embeddings"] = True
+
+    ids = sorted({entry["id"] for entry in catalog}, key=str.casefold)
+    return {
+        "models": ids,
+        "chat_models": chat_models,
+        "embedding_models": verified_embeddings,
+        "unknown_models": sorted(
+            [entry["id"] for entry in catalog if not entry["supports_chat"] and entry["id"] not in verified_set],
+            key=str.casefold,
+        ),
+        "chat_probe_ok": bool(chat_models),
+        "embedding_probe_ok": bool(verified_embeddings),
+        "dual_capable_models": sorted(set(chat_models) & verified_set, key=str.casefold),
+        "total_models_found": len(ids),
+        "chat_candidates_probed": 0,
+        "embedding_candidates_probed": len(embedding_candidates),
+        "chat_candidates_truncated": False,
+        "embedding_candidates_truncated": False,
+        "model_catalog": catalog,
+        "free_chat_models_count": sum(1 for entry in catalog if entry["supports_chat"] and entry["price_tier"] == "free"),
+        "paid_chat_models_count": sum(1 for entry in catalog if entry["supports_chat"] and entry["price_tier"] == "paid"),
+    }
 
 
 def _fetch_openrouter_embedding_catalog(chat_base_url: str, api_key: str) -> List[str]:
@@ -329,6 +553,11 @@ def discover_model_capabilities(
     if not chat_base or not chat_key:
         raise LLMError("Base URL و API Key سرویس چت را وارد کنید.")
 
+    emb_base = normalize_base_url(embedding_base_url or chat_base)
+    emb_key = (embedding_api_key or chat_key).strip()
+    if _is_openrouter_host(chat_base):
+        return _discover_openrouter_model_capabilities(chat_base, chat_key, emb_base, emb_key)
+
     raw_items = _list_models_raw(chat_base, chat_key)
     models_list = sorted(
         {str(item.id).strip() for item in raw_items if getattr(item, "id", None) and str(item.id).strip()},
@@ -344,8 +573,6 @@ def discover_model_capabilities(
             by_id[mid] = item
 
     chat_client = _client(chat_base, chat_key, short_timeout=True)
-    emb_base = normalize_base_url(embedding_base_url or chat_base)
-    emb_key = (embedding_api_key or chat_key).strip()
 
     declared_chat, declared_embedding, excluded, unclassified = _classify_catalog(models_list, by_id)
     excluded_set = set(excluded)

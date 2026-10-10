@@ -133,6 +133,20 @@ See [`docs/GIT_WORKFLOW.md`](docs/GIT_WORKFLOW.md) and [`docs/GIT_HISTORY.md`](d
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
 - [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
 
+## اتصال API خارجی با OpenRouter
+
+در تنظیمات برنامه، بخش هوش مصنوعی را روی **API اختصاصی** بگذارید و این Base URL را وارد کنید:
+
+```text
+https://openrouter.ai/api/v1
+```
+
+کلید OpenRouter را در فیلد API Key وارد کنید و «دریافت مدل‌ها» را بزنید. فهرست از کاتالوگ رسمی OpenRouter ساخته می‌شود و نام، شناسه، طول context و قیمت ورودی/خروجی هر مدل را نگه می‌دارد؛ در گزینه‌های مدل، مدل‌های رایگان، پولی و مواردی که قیمت اعلام نشده‌اند از هم مشخص می‌شوند. عدد «کل مدل‌ها» با تعداد مدل‌های چت فرق دارد، چون کاتالوگ می‌تواند مدل‌های تصویر/صوت یا قابلیت‌های دیگر را هم شامل شود.
+
+برای اینکه یک مدل صرفاً به علت محدودیت probe از فهرست حذف نشود، گزینه‌های چت بر اساس modalityهای اعلام‌شده توسط OpenRouter نمایش داده می‌شوند. پس از انتخاب مدل، دکمهٔ **تست اتصال** را بزنید تا دسترسی واقعی حساب به همان مدل بررسی شود. برای embedding، برنامه درخواست آزمایشی واقعی می‌فرستد و فقط مدلی را قابل انتخاب اعلام می‌کند که طول بردارش دقیقاً با `EMBEDDING_DIMENSIONS` پروژه و فضای برداری پایگاه داده سازگار باشد؛ صرف حضور مدل در کاتالوگ به معنی سازگاری ابعاد نیست.
+
+کلید API را در HTML/JavaScript یا Git قرار ندهید. با تنظیم API در صفحه، کلید از مرورگر به بک‌اند ارسال و طبق رفتار فعلی برنامه در تنظیمات همان حساب ذخیره می‌شود؛ پایگاه داده و نسخه‌های پشتیبان آن نیز باید محافظت شوند. برای استفاده از OpenRouter به‌عنوان provider پیش‌فرض سرور، به‌جای درج کلید در کد، متغیرهای `DEFAULT_PROVIDER_BASE_URL=https://openrouter.ai/api/v1` و `DEFAULT_PROVIDER_API_KEY` را در محیط محرمانهٔ سرور تنظیم کنید.
+
 ## Project boundary
 
 The project uses a simple embedded vector store because the target deployment does not require a separate vector service. Prompt-injection detection is deliberately heuristic and is a monitoring/control layer, not a claim of complete model security. The public-widget rate limiter is currently in-memory per process.
