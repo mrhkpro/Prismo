@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, noarchive, nosnippet, noimageindex">
-  <link rel="icon" type="image/svg+xml" href="/assets/prismo-icon.svg?v=2.7.7">
+  <link rel="icon" type="image/svg+xml" href="/assets/prismo-icon.svg?v=2.7.8">
   <title>Prismo — Widget Preview</title>
   <style>
     html, body { margin:0; width:100%; height:100%; overflow:hidden; background:transparent; }
@@ -17,7 +17,7 @@
   var widgetId = params.get("widget_id");
   if (!widgetId) return;
   var script = document.createElement("script");
-  script.src = "/widget.js?v=2.7.7";
+  script.src = "/widget.js?v=2.7.8";
   script.async = false;
   script.setAttribute("data-widget-id", widgetId);
   script.setAttribute("data-preview", "1");

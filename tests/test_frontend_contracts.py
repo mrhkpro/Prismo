@@ -5,15 +5,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_auth_page_uses_versioned_assets_and_theme_support():
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert "/assets/css/style.css?v=2.7.7" in html
-    assert "/assets/js/theme.js?v=2.7.7" in html
-    assert "/assets/js/auth.js?v=2.7.7" in html
+    assert "/assets/css/style.css?v=2.7.8" in html
+    assert "/assets/js/theme.js?v=2.7.8" in html
+    assert "/assets/js/auth.js?v=2.7.8" in html
 
 
 def test_admin_page_loads_theme_support():
     html = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
-    assert "/assets/js/theme.js?v=2.7.7" in html
-    assert "/assets/css/style.css?v=2.7.7" in html
+    assert "/assets/js/theme.js?v=2.7.8" in html
+    assert "/assets/css/style.css?v=2.7.8" in html
     assert 'id="sessionModalBody" class="chat-stream" aria-live="polite"' in html
     css = (ROOT / "frontend" / "assets" / "css" / "style.css").read_text(encoding="utf-8")
     assert "#sessionModal .modal-box" in css
@@ -154,11 +154,11 @@ def test_battle_streaming_and_gradual_knowledge_progress_are_wired():
 def test_saved_custom_model_is_rehydrated_for_battle_and_english_widget_labels():
     dashboard = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
     html = (ROOT / "frontend" / "dashboard.html").read_text(encoding="utf-8")
-    assert "const savedCustomModel = !isDefault && s.chat_model ? s.chat_model : \"\";" in dashboard
+    assert "const savedCustomModel = !chatUsesDefault && s.chat_model ? s.chat_model : \"\";" in dashboard
     assert 'fillModelSelect(document.getElementById("battleModelB"), battleModels' in dashboard
     assert '{ dog: "Dog", cat: "Cat", raccoon: "Raccoon" }' in dashboard
     assert 'embedCodeBox.textContent = english ? "Loading…" : "در حال بارگذاری…";' in dashboard
-    assert 'dashboard.js?v=2.7.7' in html
+    assert 'dashboard.js?v=2.7.8' in html
 
 
 def test_widget_quick_replies_do_not_keep_the_streaming_caret():

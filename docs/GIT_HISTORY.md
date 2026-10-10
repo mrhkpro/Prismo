@@ -135,3 +135,11 @@ All branches in the release line are merged into `main` with `--no-ff` to preser
 - Verification: 229 Python tests, Python compile check, JavaScript syntax checks and a local SQLite health/static smoke test. Google OAuth and OpenRouter cannot be called live without external credentials/network access; those flows were tested with mocks.
 - Environment safety: `.env` had previously been tracked. It is removed from the delivered history and ignored going forward; the `.env.example` template remains.
 
+
+## v2.7.8 — independent provider modes and auth recovery — 2026-10-10
+
+- `feat/independent-chat-embedding-providers-v2.7.8` — independently select the chat source/model and embedding source/model; preserve custom embedding credentials when temporarily switching back to prepared embeddings; reduce chat discovery time by skipping unrelated embedding probes; add migration 005 and compatibility tests.
+- `fix/google-supabase-config-fast-2.7.8` — accept common Supabase/Vercel env aliases, redirect directly to Supabase Auth with PKCE, preserve the legacy username/password flow, and document both Supabase-hosted and direct Google OAuth configuration.
+- `chore/release-2.7.8` — bump app asset cache keys, update release docs, and verify frontend contracts.
+- Release is merged to `main` with `--no-ff` and tagged `v2.7.8`; `.env` and API keys are excluded from deliverables.
+- Verification: 238 Python tests passed; `compileall`, JavaScript `node --check`, and `git diff --check` passed. Live Google/Supabase OAuth and external model APIs were not exercised because valid production credentials/network access were not available in this environment.
