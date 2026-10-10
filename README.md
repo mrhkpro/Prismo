@@ -153,9 +153,28 @@ The project uses a simple embedded vector store because the target deployment do
 
 ## ورود با گوگل (اختیاری)
 
-این نسخه جریان Authorization Code + PKCE را در بک‌اند FastAPI اجرا می‌کند؛ `GOOGLE_CLIENT_SECRET` هرگز به HTML یا JavaScript فرستاده نمی‌شود. در مخزن فعلی Supabase نقش PostgreSQL را دارد و برنامه از قبل از Supabase Auth استفاده نمی‌کند؛ حفظ همین backend auth باعث می‌شود حساب‌های محلی SQLite و حساب‌های میزبانی‌شده یک رفتار داشته باشند.
+ورود نام کاربری/رمز عبور فعلی برنامه حفظ شده است. ورود گوگل دو روش دارد؛ **یکی از این دو روش را انتخاب کنید**:
 
-متغیرهای زیر را در فایل محلی `.env` یا Environment Variables سرویس میزبانی تنظیم کنید:
+### روش پیشنهادی: Google Provider در Supabase Auth
+
+اگر Google از قبل در Supabase → Authentication → Providers فعال است، متغیرهای زیر را در Environment Variables سرور یا `.env` محلی اضافه کنید:
+
+```env
+SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co
+SUPABASE_ANON_KEY=YOUR-ANON-OR-PUBLISHABLE-KEY
+APP_PUBLIC_URL=http://localhost:8000
+```
+
+در محیط عملیاتی `APP_PUBLIC_URL` را روی دامنهٔ HTTPS واقعی قرار دهید. متغیرهای متداول `NEXT_PUBLIC_SUPABASE_URL` و `NEXT_PUBLIC_SUPABASE_ANON_KEY` هم پشتیبانی می‌شوند تا در استقرارهایی که این نام‌ها از قبل وجود دارند، نیاز به کپی مجدد نباشد. کلید عمومی anon/publishable برای این مسیر است؛ **هرگز `service_role` یا secret key را به‌جای آن نگذارید**.
+
+در Google Cloud، Redirect URI مربوط به Google باید callback خود Supabase باشد: `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`. همان Client ID و Client Secret را در Supabase → Authentication → Providers → Google ثبت و Provider را فعال کنید. سپس در Supabase → Authentication → URL Configuration، Site URL را روی دامنهٔ برنامه قرار دهید و این Redirect URL را مجاز کنید:
+
+- توسعه محلی: `http://localhost:8000/api/auth/google/supabase-callback`
+- محیط عملیاتی: `https://YOUR-DOMAIN/api/auth/google/supabase-callback`
+
+### روش جایگزین: OAuth مستقیم از Google به برنامه
+
+در Google Cloud یک OAuth Client از نوع Web application بسازید و این مقادیر را فقط سمت سرور تنظیم کنید:
 
 ```env
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
@@ -164,18 +183,17 @@ GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/google/callback
 APP_PUBLIC_URL=http://localhost:8000
 ```
 
-`GOOGLE_REDIRECT_URI` باید دقیقاً با آدرس ثبت‌شده در Google Cloud Console برابر باشد؛ در محیط واقعی از HTTPS و دامنه‌ی واقعی برنامه استفاده کنید. نشست Google در کوکی امضاشده‌ی `HttpOnly`, `SameSite=Lax` ذخیره می‌شود. برای PostgreSQL/Supabase، قبل از استفاده از Google OAuth فایل `supabase/migrations/004_google_oauth_identity.sql` را یک‌بار در SQL Editor اجرا کنید. SQLite محلی ستون‌های لازم را هنگام راه‌اندازی به‌صورت سازگار اضافه می‌کند.
+در این روش Redirect URI خود Google باید callback برنامه باشد: `http://localhost:8000/api/auth/google/callback` یا `https://YOUR-DOMAIN/api/auth/google/callback`. `GOOGLE_CLIENT_SECRET` هرگز به HTML یا JavaScript فرستاده نمی‌شود.
 
-### مراحل Google Cloud و Supabase
+### migrationهای لازم برای Supabase PostgreSQL
 
-1. در Google Cloud یک پروژه انتخاب یا بسازید و **Google Auth Platform / OAuth consent screen** را تکمیل کنید؛ هنگام توسعه، ایمیل حساب‌های آزمایشی را در Test users قرار دهید.
-2. از بخش Credentials یک **OAuth client ID** از نوع **Web application** بسازید. برای توسعه، Authorized JavaScript origin را `http://localhost:8000` قرار دهید و Redirect URI را `http://localhost:8000/api/auth/google/callback` وارد کنید. اگر از `127.0.0.1` استفاده می‌کنید باید origin و redirect جداگانه همان میزبان را هم ثبت کنید.
-3. Client ID و Client Secret را فقط در `.env` محلی یا تنظیمات رمزنگاری‌شده‌ی محیط اجرا ثبت کنید. در Vercel/میزبانی، `GOOGLE_REDIRECT_URI` باید مانند `https://YOUR-DOMAIN/api/auth/google/callback` باشد و همان مقدار عیناً در Google Cloud مجاز شده باشد.
-4. اگر دیتابیس روی Supabase است، migration شماره 004 را در SQL Editor اجرا کنید. چون این نسخه مستقیماً با Google OIDC کار می‌کند، callback ثبت‌شده در Google Cloud به برنامه اشاره می‌کند، نه به `https://<project-ref>.supabase.co/auth/v1/callback`. تنظیم callback در Supabase Auth برای این جریان لازم نیست.
-5. بعد از تنظیم، ورود با Google را روی همان دامنه‌ی HTTPS تست کنید. برای محیط تولید، یک `SECRET_KEY` قوی و یکتا نیز لازم است.
+اگر دیتابیس برنامه روی Supabase/PostgreSQL است، فایل‌های زیر را هرکدام **یک بار** در SQL Editor همان پروژه اجرا کنید:
 
-## Google sign-in with Supabase Auth
+1. `supabase/migrations/004_google_oauth_identity.sql` — جدول نگاشت هویت‌های OAuth را می‌سازد و جدول قدیمی `users` را دست‌نخورده نگه می‌دارد.
+2. `supabase/migrations/005_independent_embedding_provider.sql` — انتخاب منبع embedding را جدا از منبع چت ذخیره می‌کند.
 
-If the Google provider is already enabled in Supabase Auth, add `SUPABASE_URL` and `SUPABASE_ANON_KEY` to the server-side `.env` (or Vercel environment variables). The public anon/publishable key is expected here; **never use the service-role key**. Configure the app origin in Supabase Auth URL Configuration and allow the callback `https://YOUR-DOMAIN/api/auth/google/supabase-callback` (local example: `http://localhost:8000/api/auth/google/supabase-callback`). Run `supabase/migrations/004_google_oauth_identity.sql` once to create the external identity mapping table. Existing username/password accounts and the legacy `users` table remain unchanged.
+اگر متغیرهای OAuth سمت سرور تنظیم نشده باشند، کد برنامه نمی‌تواند اطلاعات پروژه یا کلید عمومی را از `DATABASE_URL` حدس بزند؛ باید URL پروژه و anon/publishable key را در تنظیمات سرور قرار دهید. خروجی `service_role` را هرگز در فرانت‌اند استفاده نکنید.
 
-Alternatively, configure direct Google OAuth using `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` with the callback `https://YOUR-DOMAIN/api/auth/google/callback`. Keep the client secret server-side only.
+### Independent chat and embedding providers
+
+In Settings → AI connection, the chat source and embedding source have separate selectors. You can use a custom/OpenRouter chat model with the project's ready embedding model, or use the ready chat model with a custom embedding endpoint. Custom embedding discovery is a separate action and validates vector dimensions. On an existing Supabase database, run migration `005_independent_embedding_provider.sql` once so the new selection persists.

@@ -24,7 +24,7 @@
   }
   function oauthErrorMessage(code) {
     const en = {
-      google_not_configured: "Google sign-in is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY when Google is enabled in Supabase, or configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for direct Google OAuth, then restart the server.",
+      google_not_configured: "Google sign-in is not configured. Set the Supabase Project URL and anon/publishable key in the server environment (SUPABASE_URL and SUPABASE_ANON_KEY), and enable Google under Supabase Auth → Providers. Alternatively, set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for direct Google OAuth.",
       google_denied: "Google sign-in was cancelled.",
       google_state: "Google sign-in could not verify this request. Please try again.",
       google_exchange: "Google could not complete the secure sign-in exchange. Check the callback configuration.",
@@ -34,7 +34,7 @@
       google_failed: "Google sign-in could not be completed. Please try again.",
     };
     const fa = {
-      google_not_configured: "ورود گوگل هنوز تنظیم نشده است. در سرور، SUPABASE_URL و SUPABASE_ANON_KEY را وارد کنید (اگر Google در Supabase فعال است)؛ یا GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET را برای OAuth مستقیم تنظیم کنید. سپس سرور را دوباره اجرا کنید.",
+      google_not_configured: "ورود گوگل پیکربندی نشده است. آدرس پروژه و کلید عمومی anon/publishable سوپابیس را در متغیرهای سرور SUPABASE_URL و SUPABASE_ANON_KEY وارد و Google را در Supabase Auth ← Providers فعال کنید؛ یا برای OAuth مستقیم، GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET را تنظیم کنید. کلید service_role قابل استفاده نیست.",
       google_denied: "فرایند ورود با گوگل لغو شد.",
       google_state: "اعتبار درخواست ورود با گوگل تأیید نشد؛ دوباره تلاش کنید.",
       google_exchange: "تبادل امن کد ورود با گوگل ناموفق بود؛ تنظیمات callback را بررسی کنید.",
