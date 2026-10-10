@@ -18,7 +18,7 @@
 - Added mocked contract tests for complete model listing, price classification, modality exclusion and embedding-dimension validation.
 
 ## Verification
-- Full Python test suite: **226 passed**.
+- Full Python test suite: **228 passed**.
 - JavaScript syntax checks passed for the modified dashboard, settings, theme, auth and API scripts.
 - Google OAuth tests use mocked Google token exchange/profile verification; real Google sign-in still requires valid Cloud OAuth credentials.
 - A live OpenRouter catalog request could not be completed from the current execution environment (outbound request unavailable); catalog and response handling were tested with mocked responses.
