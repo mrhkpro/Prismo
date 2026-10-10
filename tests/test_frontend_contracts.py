@@ -189,6 +189,9 @@ def test_ai_connection_actions_appear_after_chat_and_embedding_configuration():
     assert 'style.display = useDefault ? "inline-flex" : "none"' in js
     assert 'style.display = useDefault ? "none" : "inline-flex"' in js
     assert 'aria-pressed' in connection
+    assert 'role="tablist" aria-label="بخش‌های هوش مصنوعی"' in html
+    assert '>تنظیم مدل‌ها</div>' in html
+    assert 'ArrowLeft' in js and 'ArrowRight' in js and 'aria-selected' in js
     assert 'مرحله ۳ · پایان تنظیمات' in connection
 
 
@@ -206,6 +209,7 @@ def test_ai_connection_copy_is_translated_for_english_ui():
         ("اتصال مدل چت", "Connect chat model"),
         ("مدل جست‌وجوی دانشنامه (Embedding)", "Knowledge retrieval model (Embedding)"),
         ("ذخیره و فعال‌سازی", "Save and activate"),
+        ("تنظیم مدل‌ها", "Model setup"),
         ("همه‌چیز آماده است؟", "Ready to go?"),
     ):
         assert source in settings and target in settings
