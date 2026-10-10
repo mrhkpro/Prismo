@@ -82,6 +82,29 @@ class AIProviderTests(unittest.TestCase):
         self.assertEqual(FakeUser.settings.api_key, "saved-key")
 
 
+    def test_discovery_uses_form_credentials_for_unsaved_separate_embedding_provider(self):
+        payload = schemas.DiscoverModelsRequest(
+            base_url="https://openrouter.ai/api/v1",
+            api_key="form-chat-key",
+            separate_embedding_provider=True,
+            embedding_base_url="https://embedding.example/v1",
+            embedding_api_key="form-embedding-key",
+        )
+        expected = {
+            "models": ["chat-model"], "chat_models": ["chat-model"],
+            "embedding_models": [], "unknown_models": [],
+        }
+        with patch("app.routers.settings.llm_client.discover_model_capabilities", return_value=expected) as discover:
+            response = settings_router.discover_models(payload, FakeUser())
+        self.assertEqual(response.chat_models, ["chat-model"])
+        discover.assert_called_once_with(
+            "https://openrouter.ai/api/v1", "form-chat-key",
+            embedding_base_url="https://embedding.example/v1",
+            embedding_api_key="form-embedding-key",
+        )
+        # Discovery is intentionally read-only; the supplied form key is not saved.
+        self.assertEqual(FakeUser.settings.api_key, "saved-key")
+
     def test_client_uses_hosted_timeout_and_retry_settings(self):
         fake = SimpleNamespace()
         with patch("app.services.llm_client.OpenAI", return_value=fake) as openai_cls:
