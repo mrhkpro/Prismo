@@ -90,7 +90,10 @@ document.getElementById("exitImpersonationBtn").addEventListener("click", () => 
   Auth.restoreAdminToken();
   location.href = "/admin.html";
 });
-document.getElementById("logoutBtn").addEventListener("click", () => {
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  const button = document.getElementById("logoutBtn");
+  button.disabled = true;
+  try { await apiCall("/api/auth/logout", { method: "POST", auth: false, timeoutMs: 5000 }); } catch (_) {}
   Auth.clear();
   localStorage.removeItem("rag_saas_admin_token_stash");
   location.href = "/index.html";

@@ -3,12 +3,23 @@
 
 const TOKEN_KEY = "rag_saas_token";
 const IMPERSONATE_STASH_KEY = "rag_saas_admin_token_stash";
+const COOKIE_SESSION_KEY = "rag_saas_cookie_session";
 
 const Auth = {
   getToken() { return localStorage.getItem(TOKEN_KEY); },
-  setToken(t) { localStorage.setItem(TOKEN_KEY, t); },
-  clear() { localStorage.removeItem(TOKEN_KEY); },
-  isLoggedIn() { return !!localStorage.getItem(TOKEN_KEY); },
+  setToken(t) {
+    localStorage.setItem(TOKEN_KEY, t);
+    localStorage.removeItem(COOKIE_SESSION_KEY);
+  },
+  setCookieSession(active = true) {
+    if (active) localStorage.setItem(COOKIE_SESSION_KEY, "1");
+    else localStorage.removeItem(COOKIE_SESSION_KEY);
+  },
+  clear() {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(COOKIE_SESSION_KEY);
+  },
+  isLoggedIn() { return !!localStorage.getItem(TOKEN_KEY) || localStorage.getItem(COOKIE_SESSION_KEY) === "1"; },
 
   // برای حالت «ورود به‌جای کاربر»: توکن فعلیِ ادمین را کنار می‌گذاریم تا بتوانیم برگردیم
   stashAdminTokenAndSwitch(newToken) {
@@ -42,6 +53,7 @@ async function apiCallRaw(path, { method = "GET", body = null, auth = true, time
       headers,
       body: body !== null ? JSON.stringify(body) : undefined,
       signal: controller ? controller.signal : undefined,
+      credentials: "same-origin",
     });
   } catch (networkErr) {
     if (networkErr && networkErr.name === "AbortError") {

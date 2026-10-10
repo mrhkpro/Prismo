@@ -1025,3 +1025,14 @@ body.qz-compact-chat .chat-msg{padding-top:8px;padding-bottom:8px}body.qz-compac
 .prismo-setup-mark { padding:0; background:transparent; overflow:hidden; }
 .prismo-setup-mark img { width:100%; height:100%; object-fit:contain; border-radius:14px; }
 .prismo-logo { width:100%; height:100%; }
+
+
+/* Server-side Google OAuth button: inherit the selected theme without overriding
+   the existing email/password form or its primary-action styling. */
+.auth-divider { display:flex; align-items:center; gap:12px; margin:16px 0 13px; color:var(--text-faint); font-size:12px; }
+.auth-divider::before,.auth-divider::after { content:""; height:1px; flex:1; background:var(--border); }
+.btn-google { gap:11px; background:var(--bg-elevated-2); color:var(--text); border-color:var(--border); box-shadow:none; }
+.btn-google:hover { background:var(--bg-elevated); border-color:var(--accent-line); box-shadow:0 0 0 3px var(--accent-soft); transform:translateY(-1px); }
+.btn-google:disabled { opacity:.68; cursor:wait; transform:none; }
+.google-mark { width:18px; height:18px; flex:0 0 18px; }
+.auth-google-note { margin-top:8px; color:var(--text-faint); font-size:11.5px; text-align:center; }
