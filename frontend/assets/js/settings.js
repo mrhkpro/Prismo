@@ -38,7 +38,7 @@
     "آزمایشگاه تست داخلی":"Internal test lab", "قبل از انتشار ویجت، پاسخ‌گویی و RAG را همین‌جا امتحان کن.":"Test RAG and responses here before publishing the widget.", "گفت‌وگوی جدید":"New chat", "جست‌وجوی معنایی (Playground)":"Semantic search (Playground)", "تست گفت‌وگو":"Chat test", "یک سؤال درباره‌ی دانشنامه‌ات بپرس.":"Ask a question about your knowledge base.", "منابع بازیابی‌شده":"Retrieved sources", "هنوز سؤالی پرسیده نشده.":"No question asked yet.", "شروع گفت‌وگوی جدید":"Start new chat", "جست‌وجو":"Search", "نتیجه‌ای یافت نشد":"No results found", "پاسخ متوقف شد.":"Response stopped.", "در حال آماده‌سازی پاسخ…":"Preparing response…", "در حال پاسخ…":"Responding…", "ارسال":"Send", "توقف پاسخ":"Stop response",
     "ویجت و کد جاسازی":"Widget & embed", "ظاهر و رفتار ویجت را تنظیم کن؛ پیش‌نمایش سمت چپ همان لحظه عوض می‌شود.":"Configure the widget; the live preview updates instantly.", "ظاهر":"Appearance", "حیوان خانگی":"Pet", "گفت‌وگو":"Chat", "عنوان ویجت":"Widget title", "پیام خوش‌آمدگویی":"Welcome message", "رنگ اصلی":"Primary color", "محل ویجت روی صفحه":"Widget position", "پایین چپ":"Bottom left", "پایین راست":"Bottom right", "حیوان خانگی پیکسلی":"Pixel pet", "رنگ حیوان":"Pet color", "پیام تیزر":"Teaser message", "پاسخ‌های سریع (حداکثر ۴ مورد)":"Quick replies (max 4)", "ذخیره‌ی تغییرات":"Save changes", "پیش‌نمایش زنده":"Live preview", "ویجت واقعی؛ حتی قبل از ذخیره.":"Real widget preview, even before saving.", "بازنشانی":"Reset", "کد جاسازی":"Embed code", "کپی کد":"Copy code", "خودکار":"Auto", "روشن":"Light", "تیره":"Dark",
     "حساب کاربری":"Account", "اطلاعات حساب همین‌جا مدیریت می‌شود؛ نام و آیکونت همچنان پایین منوی کناری است.":"Manage your account here; your name and avatar stay at the bottom of the sidebar.", "نام کاربری":"Username", "نام سازمان":"Organization", "نقش":"Role", "وضعیت":"Status", "خروج از حساب":"Sign out",
-    "مرکز کنترل":"Control center", "ذخیره محلی":"Saved locally", "تنظیمات سایت":"Site settings", "زبان، ظاهر، رفتار پاسخ‌ها، تجربه کاربری و حساب را از یکجا کنترل کن.":"Control language, appearance, response behavior, UX, and your account from one place.", "زبان و جهت صفحه":"Language & direction", "با انتخاب English، رابط کاربری کاملاً چپ‌چین می‌شود.":"Choosing English switches the interface fully to left-to-right.", "فارسی":"Persian", "راست‌چین":"Right to left", "Left to right":"Left to right", "رنگ و حال‌وهوای محیط":"Theme & atmosphere", "۷ پوسته‌ی آماده با ذخیره‌سازی فوری.":"Seven ready-made themes with instant saving.", "روشن کلاسیک":"Classic light", "تیره کلاسیک":"Classic dark", "اقیانوس":"Ocean", "جنگل":"Forest", "غروب":"Sunset", "لاوندر":"Lavender", "مینیمال":"Minimal",
+    "مرکز کنترل":"Control center", "ذخیره محلی":"Saved locally", "تنظیمات سایت":"Site settings", "زبان، ظاهر، رفتار پاسخ‌ها، تجربه کاربری و حساب را از یکجا کنترل کن.":"Control language, appearance, response behavior, UX, and your account from one place.", "زبان و جهت صفحه":"Language & direction", "با انتخاب English، رابط کاربری کاملاً چپ‌چین می‌شود.":"Choosing English switches the interface fully to left-to-right.", "فارسی":"Persian", "راست‌چین":"Right to left", "Left to right":"Left to right", "رنگ و حال‌وهوای محیط":"Theme & atmosphere", "۱۰ پوسته‌ی آماده با ذخیره‌سازی فوری.":"Ten ready-made themes with instant saving.", "روشن کلاسیک":"Classic light", "تیره کلاسیک":"Classic dark", "اقیانوس":"Ocean", "جنگل":"Forest", "غروب":"Sunset", "لاوندر":"Lavender", "مینیمال":"Minimal", "نورد":"Nord", "آبی سرد و آرام":"Cool, calm blue", "کهربا":"Amber", "گرم با حس ترمینال قدیمی":"Warm, retro terminal", "رز":"Rose", "صورتی تیره و شیک":"Elegant dark rose",
     "رفتار پاسخ":"Response behavior", "این گزینه مستقیماً روی چت داخلی داشبورد اعمال می‌شود.":"These options directly affect the dashboard chat.", "نمایش تکه‌تکه‌ی پاسخ":"Stream the answer", "پاسخ مدل هم‌زمان با رسیدن توکن‌ها نمایش داده شود.":"Show the response as tokens arrive.", "اسکرول خودکار گفتگو":"Auto-scroll chat", "هنگام دریافت پاسخ، پایین گفتگو را دنبال کند.":"Keep the latest response in view.", "هشدار صوتی پایان پاسخ":"Response sound", "بعد از تمام شدن پاسخ، یک صدای کوتاه پخش شود.":"Play a short sound when a response finishes.", "ارسال با Enter":"Send with Enter", "با Enter ارسال کن و با Shift+Enter خط جدید بساز.":"Send with Enter and use Shift+Enter for a new line.", "نمایش نشان مدل":"Show model badge", "مدل فعال کنار پاسخ‌ها نمایش داده شود.":"Show the active model next to responses.", "چیدمان فشرده چت":"Compact chat", "فاصله‌ها و حباب‌های پیام کمی جمع‌وجورتر شوند.":"Use tighter spacing and more compact message bubbles.", "تأیید پاک‌کردن گفتگو":"Confirm clear chat", "قبل از پاک‌کردن یا شروع گفت‌وگوی تازه تأیید بگیر.":"Ask for confirmation before clearing or starting a new chat.",
     "تجربه کاربری":"User experience", "جزئیاتی که روی سرعت حس‌شده و کار با پنل اثر می‌گذارند.":"Controls that affect perceived speed and usability.", "حالت کم‌تحرک":"Reduced motion", "انیمیشن‌ها و حرکت‌های غیرضروری را کاهش می‌دهد.":"Reduce non-essential motion.", "سایدبار فشرده":"Compact sidebar", "منوی کناری را به حالت آیکونی کوچک می‌کند.":"Use an icon-only sidebar.", "کنتراست بیشتر":"High contrast", "مرزها و متن‌های کم‌رنگ را خواناتر می‌کند.":"Increase border and muted-text contrast.",
     "حافظه و حریم تجربه":"Local preferences", "تنظیمات شخصی این مرورگر در همین دستگاه ذخیره می‌شوند.":"Personal preferences are stored locally on this device.", "بازگردانی آخرین بخش":"Remember last section", "پس از ورود دوباره، همان بخش قبلی باز شود.":"Reopen the last section after signing in.", "بازگردانی اندازه منو":"Remember sidebar", "وضعیت باز/بسته بودن سایدبار حفظ شود.":"Remember the sidebar size/state.", "آخرین تب تنظیمات":"Remember settings tab", "آخرین تب تنظیمات بازشده حفظ شود.":"Remember the last settings tab.", "میانبرهای صفحه‌کلید":"Keyboard shortcuts", "برای کارهای پرتکرار سریع‌تر از میانبرها استفاده کن.":"Use shortcuts for frequent actions.", "فعال‌سازی میانبرها":"Enable shortcuts", "بازنشانی تنظیمات سایت":"Reset site settings",
@@ -359,7 +359,14 @@
   function save(next) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch (_) {} }
   var state = read();
 
-  function currentTheme() { try { return localStorage.getItem(THEME_KEY) || state.theme || "dark"; } catch (_) { return state.theme || "dark"; } }
+  var allowedThemes = ["light", "dark", "ocean", "forest", "sunset", "lavender", "mono", "nord", "amber", "rose"];
+  function currentTheme() {
+    try {
+      var stored = localStorage.getItem(THEME_KEY);
+      if (allowedThemes.indexOf(stored) !== -1) return stored;
+    } catch (_) {}
+    return allowedThemes.indexOf(state.theme) !== -1 ? state.theme : "dark";
+  }
   function getLanguage() { return state.language === "en" ? "en" : "fa"; }
 
   function latinizeUiNumbers(text, language) {
@@ -437,14 +444,37 @@
   }
 
   function setTheme(theme, persist) {
-    var allowed = ["light", "dark", "ocean", "forest", "sunset", "lavender", "mono", "nord", "amber", "rose"];
-    if (allowed.indexOf(theme) === -1) theme = "dark";
-    root.dataset.theme = theme;
+    // Keep one theme authority for both the global shell and the settings view.
+    // Previously settings.js and theme.js each wrote the root/localStorage
+    // independently, allowing stale or invalid saved values to desynchronise
+    // the active preset state from the CSS tokens.
+    if (allowedThemes.indexOf(theme) === -1) theme = "dark";
+    if (window.QZTheme && typeof window.QZTheme.set === "function") {
+      window.QZTheme.set(theme, !!persist);
+      theme = window.QZTheme.get();
+    } else {
+      root.dataset.theme = theme;
+      if (persist) { try { localStorage.setItem(THEME_KEY, theme); } catch (_) {} }
+      document.dispatchEvent(new CustomEvent("qz-theme-change", { detail: { theme: theme } }));
+    }
     state.theme = theme;
-    if (persist) { try { localStorage.setItem(THEME_KEY, theme); } catch (_) {} save(state); }
-    document.dispatchEvent(new CustomEvent("qz-theme-change", { detail: { theme: theme } }));
-    document.querySelectorAll(".theme-preset").forEach(function (el) { el.classList.toggle("active", el.dataset.themePreset === theme); });
+    if (persist) save(state);
+    document.querySelectorAll("[data-theme-preset]").forEach(function (el) {
+      var active = el.dataset.themePreset === theme;
+      el.classList.toggle("active", active);
+      el.setAttribute("aria-pressed", active ? "true" : "false");
+    });
   }
+
+  document.addEventListener("qz-theme-change", function (event) {
+    var theme = event && event.detail && event.detail.theme;
+    if (allowedThemes.indexOf(theme) === -1) return;
+    document.querySelectorAll("[data-theme-preset]").forEach(function (el) {
+      var active = el.dataset.themePreset === theme;
+      el.classList.toggle("active", active);
+      el.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  });
 
   function setLanguage(lang, persist) {
     state.language = lang === "en" ? "en" : "fa";

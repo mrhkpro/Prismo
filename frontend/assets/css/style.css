@@ -1036,3 +1036,11 @@ body.qz-compact-chat .chat-msg{padding-top:8px;padding-bottom:8px}body.qz-compac
 .btn-google:disabled { opacity:.68; cursor:wait; transform:none; }
 .google-mark { width:18px; height:18px; flex:0 0 18px; }
 .auth-google-note { margin-top:8px; color:var(--text-faint); font-size:11.5px; text-align:center; }
+
+
+/* Preset selection remains visible and accessible in every palette. */
+.settings-theme-grid .theme-preset[aria-pressed="true"] { border-color:var(--accent); background:var(--accent-soft); box-shadow:0 0 0 2px var(--accent-soft),var(--shadow-card); }
+.settings-theme-grid .theme-preset:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.theme-preview-nord { background:linear-gradient(135deg,#1a1f29 0%,#5e81ac 58%,#88c0d0 100%); }
+.theme-preview-amber { background:linear-gradient(135deg,#1a140e 0%,#e06c00 56%,#ffb000 100%); }
+.theme-preview-rose { background:linear-gradient(135deg,#1a0f16 0%,#c86dd7 56%,#ff5ca8 100%); }

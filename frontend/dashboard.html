@@ -10,6 +10,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"></noscript>
+<script>
+  try {
+    var theme = localStorage.getItem("qz_theme");
+    if (["light","dark","ocean","forest","sunset","lavender","mono","nord","amber","rose"].includes(theme)) document.documentElement.dataset.theme = theme;
+  } catch (_) {}
+</script>
 <link rel="stylesheet" href="/assets/css/style.css?v=2.7.6">
 </head>
 <body data-theme-settings-center="1">
@@ -516,7 +522,7 @@
                 <button class="theme-preset" type="button" data-theme-preset="lavender"><span class="theme-preview theme-preview-lavender"></span><b>لاوندر</b><small>Soft & creative</small></button>
                 <button class="theme-preset" type="button" data-theme-preset="mono"><span class="theme-preview theme-preview-mono"></span><b>مینیمال</b><small>Monochrome</small></button>
                 <button class="theme-preset" type="button" data-theme-preset="nord"><span class="theme-preview theme-preview-nord"></span><b>نورد</b><small>Arctic & crisp</small></button>
-                <button class="theme-preset" type="button" data-theme-preset="amber"><span class="theme-preview theme-preview-amber"></span><b>کهربا</b><small>Warm terminal</small></button>
+                <button class="theme-preset" type="button" data-theme-preset="amber"><span class="theme-preview theme-preview-amber"></span><b>کهربا</b><small>گرم با حس ترمینال قدیمی</small></button>
                 <button class="theme-preset" type="button" data-theme-preset="rose"><span class="theme-preview theme-preview-rose"></span><b>رز</b><small>Elegant & bold</small></button>
               </div>
             </div>
