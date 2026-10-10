@@ -36,26 +36,43 @@ class ProviderConfig:
 
 
 def resolve_provider(settings: models.UserSettings) -> ProviderConfig:
-    """بر اساس تنظیمات کاربر، مشخصات نهاییِ ارائه‌دهنده را برمی‌گرداند."""
-    use_custom = (not settings.use_default_provider) and settings.api_key and settings.base_url
-    if use_custom:
-        return ProviderConfig(
-            base_url=settings.base_url,
-            api_key=settings.api_key,
-            chat_model=settings.chat_model or config.DEFAULT_CHAT_MODEL,
-            embedding_model=settings.embedding_model or config.DEFAULT_EMBEDDING_MODEL,
-            is_default=False,
-            embedding_base_url=(settings.embedding_base_url or settings.base_url) if settings.separate_embedding_provider else settings.base_url,
-            embedding_api_key=(settings.embedding_api_key or "") if settings.separate_embedding_provider else settings.api_key,
-        )
+    """Resolve chat and embedding providers independently, with legacy fallback."""
+    default_base = config.AI_PROXY_BASE_URL or config.DEFAULT_PROVIDER_BASE_URL
+    default_key = config.AI_PROXY_API_KEY or config.DEFAULT_PROVIDER_API_KEY
+
+    custom_chat_available = bool((getattr(settings, "base_url", None) or "").strip() and getattr(settings, "api_key", None))
+    chat_is_default = bool(getattr(settings, "use_default_provider", True)) or not custom_chat_available
+    if chat_is_default:
+        chat_base, chat_key = default_base, default_key
+    else:
+        chat_base, chat_key = settings.base_url, settings.api_key
+
+    # Existing rows predate the independent mode; retain their old "both use
+    # the same mode" behavior until migration 005 stores an explicit choice.
+    embedding_mode = getattr(settings, "embedding_use_default_provider", None)
+    embedding_is_default = chat_is_default if embedding_mode is None else bool(embedding_mode)
+    if embedding_is_default:
+        embedding_base, embedding_key = default_base, default_key
+    elif bool(getattr(settings, "separate_embedding_provider", False)) and getattr(settings, "embedding_base_url", None):
+        embedding_base = settings.embedding_base_url
+        embedding_key = getattr(settings, "embedding_api_key", None) or (chat_key if not chat_is_default else "")
+    elif not chat_is_default:
+        # A custom embedding may intentionally share the custom chat endpoint/key.
+        embedding_base, embedding_key = chat_base, chat_key
+    else:
+        # Invalid/incomplete custom embedding configuration degrades to the
+        # ready provider rather than causing unrelated chat requests to fail.
+        embedding_base, embedding_key = default_base, default_key
+        embedding_is_default = True
+
     return ProviderConfig(
-        base_url=config.AI_PROXY_BASE_URL or config.DEFAULT_PROVIDER_BASE_URL,
-        api_key=config.AI_PROXY_API_KEY or config.DEFAULT_PROVIDER_API_KEY,
-        chat_model=settings.chat_model or config.DEFAULT_CHAT_MODEL,
-        embedding_model=settings.embedding_model or config.DEFAULT_EMBEDDING_MODEL,
-        is_default=True,
-        embedding_base_url=config.AI_PROXY_BASE_URL or config.DEFAULT_PROVIDER_BASE_URL,
-        embedding_api_key=config.AI_PROXY_API_KEY or config.DEFAULT_PROVIDER_API_KEY,
+        base_url=chat_base,
+        api_key=chat_key,
+        chat_model=getattr(settings, "chat_model", None) or config.DEFAULT_CHAT_MODEL,
+        embedding_model=getattr(settings, "embedding_model", None) or config.DEFAULT_EMBEDDING_MODEL,
+        is_default=chat_is_default,
+        embedding_base_url=embedding_base,
+        embedding_api_key=embedding_key,
     )
 
 
@@ -333,6 +350,7 @@ def _discover_openrouter_model_capabilities(
     chat_key: str,
     embedding_base: str,
     embedding_key: str,
+    include_embeddings: bool = True,
 ) -> dict:
     """Use OpenRouter's full metadata for chat options and probe embeddings.
 
@@ -346,7 +364,7 @@ def _discover_openrouter_model_capabilities(
         raise LLMError("OpenRouter کاتالوگ خالی برگرداند؛ وضعیت حساب یا دسترسی مدل‌ها را بررسی کنید.")
 
     embedding_ids: List[str] = []
-    if _is_openrouter_host(embedding_base):
+    if include_embeddings and _is_openrouter_host(embedding_base):
         embedding_ids = _fetch_openrouter_embedding_catalog(embedding_base, embedding_key)
         if not embedding_ids and embedding_base == chat_base:
             # The endpoint may be temporarily unavailable; do not fail the
@@ -373,8 +391,8 @@ def _discover_openrouter_model_capabilities(
     # For a separate non-OpenRouter embedding provider, look at its own
     # catalogue and try name/architecture hints as well; its API key is never
     # sent to the chat-provider endpoint.
-    embedding_candidates = list(embedding_ids)
-    if not _is_openrouter_host(embedding_base):
+    embedding_candidates = list(embedding_ids) if include_embeddings else []
+    if include_embeddings and not _is_openrouter_host(embedding_base):
         try:
             emb_items = _list_models_raw(embedding_base, embedding_key)
         except Exception as exc:  # don't discard a valid chat catalogue for a separate embedding outage
@@ -531,8 +549,9 @@ def discover_model_capabilities(
     api_key: str,
     embedding_base_url: Optional[str] = None,
     embedding_api_key: Optional[str] = None,
+    include_embeddings: bool = True,
 ) -> dict:
-    """Discover verified chat/embedding models with bounded concurrent probes.
+    """Discover chat models quickly, optionally probing embedding candidates too.
 
     Large gateways (OpenRouter and similar) can list hundreds of models, and
     OpenRouter publishes its embedding-capable models through a *separate*
@@ -556,7 +575,7 @@ def discover_model_capabilities(
     emb_base = normalize_base_url(embedding_base_url or chat_base)
     emb_key = (embedding_api_key or chat_key).strip()
     if _is_openrouter_host(chat_base):
-        return _discover_openrouter_model_capabilities(chat_base, chat_key, emb_base, emb_key)
+        return _discover_openrouter_model_capabilities(chat_base, chat_key, emb_base, emb_key, include_embeddings)
 
     raw_items = _list_models_raw(chat_base, chat_key)
     models_list = sorted(
@@ -582,11 +601,12 @@ def discover_model_capabilities(
     likely_chat = [m for m in remaining if not _looks_non_text_output(m)]
     unlikely_chat = [m for m in remaining if _looks_non_text_output(m)]
 
-    openrouter_embedding_ids = _fetch_openrouter_embedding_catalog(chat_base, emb_key)
+    openrouter_embedding_ids = _fetch_openrouter_embedding_catalog(chat_base, emb_key) if include_embeddings else []
 
     chat_candidates_ordered = _dedup_keep_order(declared_chat, likely_chat, unlikely_chat)
-    embedding_candidates_ordered = _dedup_keep_order(
-        openrouter_embedding_ids, declared_embedding, name_hinted_embedding
+    embedding_candidates_ordered = (
+        _dedup_keep_order(openrouter_embedding_ids, declared_embedding, name_hinted_embedding)
+        if include_embeddings else []
     )
 
     # The probe budget bounds the *uncertain* tail (name-guessed candidates on

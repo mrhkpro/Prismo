@@ -63,6 +63,7 @@ class UserOut(BaseModel):
 # ---------------------------------------------------------------------------
 class SettingsOut(BaseModel):
     use_default_provider: bool
+    embedding_use_default_provider: Optional[bool] = None
     api_key_set: bool
     base_url: Optional[str] = None
     separate_embedding_provider: bool = False
@@ -85,6 +86,7 @@ class SettingsOut(BaseModel):
 
 class SettingsUpdate(BaseModel):
     use_default_provider: Optional[bool] = None
+    embedding_use_default_provider: Optional[bool] = None
     api_key: Optional[str] = None
     base_url: Optional[str] = None
     separate_embedding_provider: Optional[bool] = None
@@ -129,6 +131,7 @@ class DiscoverModelsRequest(BaseModel):
     base_url: str = Field(min_length=1, max_length=500)
     api_key: Optional[str] = Field(default=None, max_length=500)
     separate_embedding_provider: bool = False
+    discover_embeddings: bool = True
     embedding_base_url: Optional[str] = Field(default=None, max_length=500)
     embedding_api_key: Optional[str] = Field(default=None, max_length=500)
 
@@ -213,6 +216,11 @@ class CustomConnectionTestRequest(BaseModel):
     base_url: str = Field(min_length=1, max_length=500)
     chat_model: str = Field(min_length=1, max_length=200)
     api_key: Optional[str] = Field(default=None, max_length=500)
+    embedding_use_default_provider: Optional[bool] = None
+    embedding_model: Optional[str] = Field(default=None, max_length=200)
+    separate_embedding_provider: bool = False
+    embedding_base_url: Optional[str] = Field(default=None, max_length=500)
+    embedding_api_key: Optional[str] = Field(default=None, max_length=500)
 
     @field_validator("base_url")
     @classmethod

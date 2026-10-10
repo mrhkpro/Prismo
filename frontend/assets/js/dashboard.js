@@ -176,16 +176,22 @@ function fillModelSelect(selectEl, models, selected, modelInfoById = null) {
 
 function setProviderMode(useDefault) {
   const checkbox = document.getElementById("useDefaultProviderChk");
-  checkbox.checked = useDefault;
-
+  if (checkbox) checkbox.checked = useDefault;
   document.getElementById("defaultProviderInfo").style.display = useDefault ? "block" : "none";
   document.getElementById("customProviderPanel").style.display = useDefault ? "none" : "block";
   document.getElementById("defaultProviderModeBtn").classList.toggle("active", useDefault);
   document.getElementById("customProviderModeBtn").classList.toggle("active", !useDefault);
 
   const badge = document.getElementById("providerStatusBadge");
-  badge.textContent = useDefault ? "مدل‌های آماده" : "API اختصاصی";
+  badge.textContent = useDefault ? "چت آماده" : "چت اختصاصی";
   badge.className = `badge ${useDefault ? "badge-success" : "badge-accent"}`;
+}
+
+function setEmbeddingProviderMode(useDefault) {
+  document.getElementById("defaultEmbeddingProviderPanel").style.display = useDefault ? "grid" : "none";
+  document.getElementById("customEmbeddingProviderPanel").style.display = useDefault ? "none" : "grid";
+  document.getElementById("embeddingDefaultProviderModeBtn").classList.toggle("active", useDefault);
+  document.getElementById("embeddingCustomProviderModeBtn").classList.toggle("active", !useDefault);
 }
 
 document.querySelectorAll("#view-ai-settings [data-aitab]").forEach((btn) => {
@@ -198,20 +204,8 @@ document.querySelectorAll("#view-ai-settings [data-aitab]").forEach((btn) => {
 
 document.getElementById("defaultProviderModeBtn").addEventListener("click", () => setProviderMode(true));
 document.getElementById("customProviderModeBtn").addEventListener("click", () => setProviderMode(false));
-
-function setModelCredentialMode(separate, persistOnly = false) {
-  const panel = document.getElementById("separateEmbeddingProviderPanel");
-  const sharedBtn = document.getElementById("sharedModelKeyBtn");
-  const separateBtn = document.getElementById("separateModelKeyBtn");
-  if (!panel || !sharedBtn || !separateBtn) return;
-  panel.style.display = separate ? "grid" : "none";
-  sharedBtn.classList.toggle("active", !separate);
-  separateBtn.classList.toggle("active", separate);
-  if (!persistOnly && CURRENT_SETTINGS) CURRENT_SETTINGS.separate_embedding_provider = separate;
-}
-
-document.getElementById("sharedModelKeyBtn")?.addEventListener("click", () => setModelCredentialMode(false));
-document.getElementById("separateModelKeyBtn")?.addEventListener("click", () => setModelCredentialMode(true));
+document.getElementById("embeddingDefaultProviderModeBtn").addEventListener("click", () => setEmbeddingProviderMode(true));
+document.getElementById("embeddingCustomProviderModeBtn").addEventListener("click", () => setEmbeddingProviderMode(false));
 
 document.getElementById("discoverModelsBtn").addEventListener("click", async () => {
   const btn = document.getElementById("discoverModelsBtn");
@@ -220,26 +214,23 @@ document.getElementById("discoverModelsBtn").addEventListener("click", async () 
   const apiKey = document.getElementById("apiKeyInput").value.trim();
   const savedKey = Boolean(CURRENT_SETTINGS && CURRENT_SETTINGS.api_key_set);
 
-  if (!baseUrl) return toast("Base URL را وارد کن.", "error");
-  if (!apiKey && !savedKey) return toast("API Key را وارد کن.", "error");
+  if (!baseUrl) return toast("Chat Base URL را وارد کن.", "error");
+  if (!apiKey && !savedKey) return toast("Chat API Key را وارد کن.", "error");
 
   btn.disabled = true;
   btn.textContent = "در حال دریافت…";
-  status.textContent = "در حال خواندن /models سرویس…";
+  status.textContent = "در حال دریافت کاتالوگ مدل‌های چت…";
+  status.className = "status-line";
   try {
-    const separate = document.getElementById("separateModelKeyBtn").classList.contains("active");
-    const embeddingBaseUrl = document.getElementById("embeddingBaseUrlInput").value.trim();
-    const embeddingApiKey = document.getElementById("embeddingApiKeyInput").value.trim();
-    if (separate && !embeddingBaseUrl) return toast("Embedding Base URL را وارد کن.", "error");
-    if (separate && !embeddingApiKey && !(CURRENT_SETTINGS && CURRENT_SETTINGS.embedding_api_key_set)) return toast("Embedding API Key را وارد کن.", "error");
+    // Discover chat models separately. Embedding probes can involve dozens of
+    // provider calls and are now only performed when the user selects a custom
+    // embedding source and presses its dedicated discovery button.
     const result = await apiCall("/api/settings/discover-models", {
       method: "POST",
       body: {
         base_url: baseUrl,
         ...(apiKey ? { api_key: apiKey } : {}),
-        separate_embedding_provider: separate,
-        ...(separate && embeddingBaseUrl ? { embedding_base_url: embeddingBaseUrl } : {}),
-        ...(separate && embeddingApiKey ? { embedding_api_key: embeddingApiKey } : {}),
+        discover_embeddings: false,
       },
     });
     const modelCatalog = Array.isArray(result.model_catalog) ? result.model_catalog : [];
@@ -249,71 +240,56 @@ document.getElementById("discoverModelsBtn").addEventListener("click", async () 
     });
     const isOpenRouter = /(^|\.)openrouter\.ai$/i.test(new URL(baseUrl).hostname);
     DISCOVERED_CUSTOM_MODELS = result.chat_models || result.models || [];
-    DISCOVERED_EMBEDDING_MODELS = result.embedding_models || [];
     const currentChat = document.getElementById("customChatModelSelect").value;
-    const currentEmbedding = document.getElementById("customEmbeddingModelSelect").value;
     fillModelSelect(document.getElementById("customChatModelSelect"), DISCOVERED_CUSTOM_MODELS, currentChat, DISCOVERED_CUSTOM_MODEL_INFO);
-    fillModelSelect(document.getElementById("customEmbeddingModelSelect"), DISCOVERED_EMBEDDING_MODELS, currentEmbedding);
-    const dual = result.dual_capable_models || [];
-    const truncNote = result.chat_candidates_truncated || result.embedding_candidates_truncated
-      ? ` (از مجموع ${result.total_models_found || "؟"} مدل موجود، ${result.chat_candidates_probed || 0} برای چت و ${result.embedding_candidates_probed || 0} برای embedding تست شد؛ بخشی از مدل‌ها به‌دلیل سقف بررسی تست نشدند)`
+    const truncNote = result.chat_candidates_truncated
+      ? ` (از مجموع ${result.total_models_found || "؟"} مدل، ${result.chat_candidates_probed || 0} مدل چت تست شد؛ برای سرعت، فقط بخش منتخب کاتالوگ probe شده است)`
       : "";
     if (isOpenRouter && modelCatalog.length) {
       const freeCount = Number(result.free_chat_models_count || 0);
       const paidCount = Number(result.paid_chat_models_count || 0);
       const knownCount = freeCount + paidCount;
       const unknownCount = Math.max(0, DISCOVERED_CUSTOM_MODELS.length - knownCount);
-      const dims = (CURRENT_SETTINGS && CURRENT_SETTINGS.embedding_dimensions) || "تنظیم‌شده در سرور";
-      status.textContent = `کاتالوگ کامل OpenRouter دریافت شد: ${result.total_models_found || modelCatalog.length} مدل در کل • ${DISCOVERED_CUSTOM_MODELS.length} مدل چت قابل انتخاب (${freeCount} رایگان، ${paidCount} پولی${unknownCount ? `، ${unknownCount} با قیمت نامشخص` : ""}) • ${DISCOVERED_EMBEDDING_MODELS.length} مدل embedding با ابعاد موردنیاز ${dims} تأیید شد. مدل‌های چت با متادیتای رسمی فهرست شده‌اند؛ برای اطمینان از دسترسی حساب به مدل انتخابی از «تست اتصال» استفاده کن.`;
-      if (!DISCOVERED_EMBEDDING_MODELS.length) {
-        status.textContent += " در این دور هیچ embeddingای با ابعاد ذخیره‌سازی پروژه تأیید نشد؛ بررسی کن که کاتالوگ embedding در دسترس باشد و مدل دقیقاً با ابعاد پروژه سازگار باشد.";
-      }
+      status.textContent = `کاتالوگ OpenRouter دریافت شد: ${result.total_models_found || modelCatalog.length} مدل در کل • ${DISCOVERED_CUSTOM_MODELS.length} مدل چت قابل انتخاب (${freeCount} رایگان، ${paidCount} پولی${unknownCount ? `، ${unknownCount} با قیمت نامشخص` : ""}). انتخاب embedding جداگانه انجام می‌شود.`;
       status.className = "status-line success-text";
-      toast("فهرست کامل مدل‌های OpenRouter دریافت شد.", "success");
-    } else if (DISCOVERED_CUSTOM_MODELS.length && DISCOVERED_EMBEDDING_MODELS.length) {
-      status.textContent = `${DISCOVERED_CUSTOM_MODELS.length} مدل چت تأیید شد • ${DISCOVERED_EMBEDDING_MODELS.length} مدل embedding تأیید شد${dual.length ? ` • ${dual.length} مدل هر دو قابلیت را دارد` : ""}.${truncNote}`;
+      toast("فهرست مدل‌های چت دریافت شد.", "success");
+    } else if (DISCOVERED_CUSTOM_MODELS.length) {
+      status.textContent = `${DISCOVERED_CUSTOM_MODELS.length} مدل چت پاسخ‌گو تأیید شد.${truncNote} مدل embedding را جداگانه انتخاب یا کشف کن.`;
       status.className = "status-line success-text";
-      toast("فهرست مدل‌ها با probe واقعی تأیید شد.", "success");
-    } else if (!DISCOVERED_CUSTOM_MODELS.length) {
+      toast("فهرست مدل‌های چت دریافت شد.", "success");
+    } else {
       status.textContent = "هیچ مدل چتی پیدا نشد. Base URL، کلید API و مجوزهای سرویس را بررسی کن.";
       status.className = "status-line error-text";
       toast("مدل چت قابل استفاده پیدا نشد.", "error");
-    } else {
-      const dims = (CURRENT_SETTINGS && CURRENT_SETTINGS.embedding_dimensions) || "";
-      status.textContent = `${DISCOVERED_CUSTOM_MODELS.length} مدل چت تأیید شد؛ مدل embedding سازگار با ابعاد ${dims} پیدا نشد.${truncNote}`;
-      status.className = "status-line error-text";
-      toast("مدل embedding قابل استفاده پیدا نشد.", "error");
     }
   } catch (err) {
     DISCOVERED_CUSTOM_MODELS = [];
-    DISCOVERED_EMBEDDING_MODELS = [];
     DISCOVERED_CUSTOM_MODEL_INFO = Object.create(null);
     fillModelSelect(document.getElementById("customChatModelSelect"), [], "");
-    fillModelSelect(document.getElementById("customEmbeddingModelSelect"), [], "");
     status.textContent = err.message;
     status.className = "status-line error-text";
   } finally {
     btn.disabled = false;
-    btn.textContent = "دریافت مدل‌ها";
+    btn.textContent = "دریافت مدل‌های چت";
   }
 });
 
-// دکمهٔ اختصاصی برای کشف مدل‌های embedding با همان API Key جداگانه‌ای که برای
-// embedding وارد شده — مستقل از اعتبار Base URL/API Key بخش چت، چون provider
-// embedding می‌تواند کاملاً متفاوت باشد (مثلاً یک کلید OpenRouter جداگانه).
-document.getElementById("discoverEmbeddingModelsBtn")?.addEventListener("click", async () => {
+document.getElementById("discoverEmbeddingModelsBtn").addEventListener("click", async () => {
   const btn = document.getElementById("discoverEmbeddingModelsBtn");
   const status = document.getElementById("embeddingModelDiscoveryStatus");
   const embeddingBaseUrl = document.getElementById("embeddingBaseUrlInput").value.trim();
   const embeddingApiKey = document.getElementById("embeddingApiKeyInput").value.trim();
   const savedKey = Boolean(CURRENT_SETTINGS && CURRENT_SETTINGS.embedding_api_key_set);
+  const chatUsesCustomProvider = document.getElementById("customProviderModeBtn").classList.contains("active");
+  const savedChatKey = Boolean(CURRENT_SETTINGS && CURRENT_SETTINGS.api_key_set);
 
   if (!embeddingBaseUrl) return toast("Embedding Base URL را وارد کن.", "error");
-  if (!embeddingApiKey && !savedKey) return toast("Embedding API Key را وارد کن.", "error");
+  if (!embeddingApiKey && !savedKey && !(chatUsesCustomProvider && savedChatKey)) return toast("Embedding API Key را وارد کن.", "error");
 
   btn.disabled = true;
   btn.textContent = "در حال دریافت…";
-  status.textContent = "در حال خواندن /models سرویس embedding…";
+  status.textContent = "در حال بررسی ابعاد مدل‌های Embedding…";
+  status.className = "status-line";
   try {
     const result = await apiCall("/api/settings/discover-embedding-models", {
       method: "POST",
@@ -327,16 +303,16 @@ document.getElementById("discoverEmbeddingModelsBtn")?.addEventListener("click",
     fillModelSelect(document.getElementById("customEmbeddingModelSelect"), DISCOVERED_EMBEDDING_MODELS, currentEmbedding);
     const dims = (CURRENT_SETTINGS && CURRENT_SETTINGS.embedding_dimensions) || "";
     const truncNote = result.embedding_candidates_truncated
-      ? ` (از مجموع ${result.total_models_found || "؟"} مدل، ${result.embedding_candidates_probed || 0} تا تست شد؛ دوباره بزن تا بیشتر بررسی شود)`
+      ? ` (از مجموع ${result.total_models_found || "؟"} مدل، ${result.embedding_candidates_probed || 0} مدل آزمایش شد)`
       : "";
     if (DISCOVERED_EMBEDDING_MODELS.length) {
-      status.textContent = `${DISCOVERED_EMBEDDING_MODELS.length} مدل embedding با ابعاد ${dims} تأیید شد.${truncNote}`;
+      status.textContent = `${DISCOVERED_EMBEDDING_MODELS.length} مدل embedding با بُعد ${dims} تأیید شد.${truncNote}`;
       status.className = "status-line success-text";
-      toast("مدل‌های embedding با probe واقعی تأیید شد.", "success");
+      toast("مدل‌های embedding سازگار پیدا شد.", "success");
     } else {
-      status.textContent = `هیچ مدل embedding سازگار با ابعاد ${dims} پیدا نشد.${truncNote}`;
+      status.textContent = `هیچ مدل embedding سازگار با بُعد ${dims} پیدا نشد.${truncNote}`;
       status.className = "status-line error-text";
-      toast("مدل embedding قابل استفاده پیدا نشد.", "error");
+      toast("مدل embedding سازگار پیدا نشد.", "error");
     }
   } catch (err) {
     status.textContent = err.message;
@@ -351,53 +327,52 @@ async function loadProviderSettings() {
   try {
     const s = await apiCall("/api/settings");
     CURRENT_SETTINGS = s;
-
-    // Keep the currently saved custom models visible after a page refresh.
-    // The API currently stores the user's selected chat/embedding model, not
-    // the transient result of the model-discovery request.
     const savedBattleA = document.getElementById("battleModelA").value;
     const savedBattleB = document.getElementById("battleModelB").value;
 
     document.getElementById("baseUrlInput").value = s.base_url || "";
     const apiInput = document.getElementById("apiKeyInput");
     apiInput.value = "";
-    apiInput.placeholder = s.api_key_set
-      ? "•••••••• (کلید ذخیره شده — برای تغییر دوباره وارد کن)"
-      : "sk-...";
+    apiInput.placeholder = s.api_key_set ? "•••••••• (کلید ذخیره شده — برای تغییر دوباره وارد کن)" : "sk-...";
     document.getElementById("apiKeyStatusHint").textContent = s.api_key_set
-      ? "کلید ذخیره شده است؛ برای امنیت نمایش داده نمی‌شود."
-      : "کلیدی ذخیره نشده است.";
+      ? "کلید چت ذخیره شده است؛ برای امنیت نمایش داده نمی‌شود."
+      : "کلید چت ذخیره نشده است.";
+
     document.getElementById("embeddingBaseUrlInput").value = s.embedding_base_url || "";
-    document.getElementById("embeddingApiKeyInput").value = "";
+    const embeddingKeyInput = document.getElementById("embeddingApiKeyInput");
+    embeddingKeyInput.value = "";
+    embeddingKeyInput.placeholder = s.embedding_api_key_set ? "•••••••• (کلید ذخیره شده — برای تغییر دوباره وارد کن)" : "sk-...";
     document.getElementById("embeddingApiKeyStatusHint").textContent = s.embedding_api_key_set
       ? "کلید embedding ذخیره شده است؛ برای امنیت نمایش داده نمی‌شود."
-      : "کلید جداگانه‌ای ذخیره نشده است.";
-    setModelCredentialMode(Boolean(s.separate_embedding_provider), true);
+      : "برای embedding اختصاصی کلید وارد کن؛ اگر endpoint و کلید چت یکی هستند، می‌توان از کلید چت هم استفاده کرد.";
 
-    const isDefault = s.use_default_provider;
-    fillModelSelect(document.getElementById("chatModelSelect"), s.default_chat_models, s.chat_model);
-    fillModelSelect(document.getElementById("embeddingModelSelect"), s.default_embedding_models, s.embedding_model);
+    const chatUsesDefault = Boolean(s.use_default_provider);
+    const embeddingUsesDefault = s.embedding_use_default_provider == null
+      ? chatUsesDefault
+      : Boolean(s.embedding_use_default_provider);
+    setProviderMode(chatUsesDefault);
+    setEmbeddingProviderMode(embeddingUsesDefault);
 
-    // Custom model IDs are persisted as part of the user's provider settings.
-    // Add the saved ID to Battle even though it is not in the built-in catalog.
+    fillModelSelect(document.getElementById("chatModelSelect"), s.default_chat_models, chatUsesDefault ? s.chat_model : (s.default_chat_models || [])[0]);
+    fillModelSelect(document.getElementById("embeddingModelSelect"), s.default_embedding_models, embeddingUsesDefault ? s.embedding_model : (s.default_embedding_models || [])[0]);
+
     const battleModels = [...new Set(s.default_chat_models || [])];
-    const savedCustomModel = !isDefault && s.chat_model ? s.chat_model : "";
+    const savedCustomModel = !chatUsesDefault && s.chat_model ? s.chat_model : "";
     if (savedCustomModel && !battleModels.includes(savedCustomModel)) battleModels.push(savedCustomModel);
     const fallbackA = (s.default_chat_models || [])[0] || battleModels[0] || "";
     const fallbackB = savedCustomModel || (s.default_chat_models || [])[1] || fallbackA;
     fillModelSelect(document.getElementById("battleModelA"), battleModels, battleModels.includes(savedBattleA) ? savedBattleA : fallbackA);
     fillModelSelect(document.getElementById("battleModelB"), battleModels, battleModels.includes(savedBattleB) ? savedBattleB : fallbackB);
 
-    setProviderMode(isDefault);
-
+    fillModelSelect(document.getElementById("customChatModelSelect"), !chatUsesDefault && s.chat_model ? [s.chat_model] : [], s.chat_model);
+    fillModelSelect(document.getElementById("customEmbeddingModelSelect"), !embeddingUsesDefault && s.embedding_model ? [s.embedding_model] : [], s.embedding_model);
     DISCOVERED_CUSTOM_MODELS = [];
     DISCOVERED_EMBEDDING_MODELS = [];
-    fillModelSelect(document.getElementById("customChatModelSelect"), !isDefault && s.chat_model ? [s.chat_model] : [], s.chat_model);
-    fillModelSelect(document.getElementById("customEmbeddingModelSelect"), !isDefault && s.embedding_model ? [s.embedding_model] : [], s.embedding_model);
-    document.getElementById("modelDiscoveryStatus").textContent = isDefault
-      ? ""
-      : "برای نمایش مدل‌های این سرویس، روی «دریافت مدل‌ها» بزن.";
+    DISCOVERED_CUSTOM_MODEL_INFO = Object.create(null);
+    document.getElementById("modelDiscoveryStatus").textContent = chatUsesDefault ? "" : "برای دریافت مدل‌های چت این اتصال، روی «دریافت مدل‌های چت» بزن.";
     document.getElementById("modelDiscoveryStatus").className = "status-line";
+    document.getElementById("embeddingModelDiscoveryStatus").textContent = embeddingUsesDefault ? "" : "برای یافتن مدل embedding سازگار، روی «دریافت مدل‌های Embedding» بزن.";
+    document.getElementById("embeddingModelDiscoveryStatus").className = "status-line";
   } catch (err) {
     toastError(err);
   }
@@ -409,60 +384,69 @@ async function saveProvider(payload, successMessage, reload = true) {
   if (reload) await loadProviderSettings();
 }
 
-document.getElementById("saveProviderBtn").addEventListener("click", async () => {
-  const btn = document.getElementById("saveProviderBtn");
-  btn.disabled = true;
-  try {
-    await saveProvider(
-      {
-        use_default_provider: true,
-        chat_model: document.getElementById("chatModelSelect").value,
-        embedding_model: document.getElementById("embeddingModelSelect").value,
-      },
-      "اتصال آماده ذخیره شد."
-    );
-  } catch (err) {
-    toastError(err);
-  } finally {
-    btn.disabled = false;
-  }
-});
-
-document.getElementById("saveCustomProviderBtn").addEventListener("click", async () => {
-  const btn = document.getElementById("saveCustomProviderBtn");
+async function saveSelectedProvider(button) {
+  const chatUsesDefault = document.getElementById("defaultProviderModeBtn").classList.contains("active");
+  const embeddingUsesDefault = document.getElementById("embeddingDefaultProviderModeBtn").classList.contains("active");
   const baseUrl = document.getElementById("baseUrlInput").value.trim();
   const apiKey = document.getElementById("apiKeyInput").value.trim();
-  const separate = document.getElementById("separateModelKeyBtn").classList.contains("active");
   const embeddingBaseUrl = document.getElementById("embeddingBaseUrlInput").value.trim();
   const embeddingApiKey = document.getElementById("embeddingApiKeyInput").value.trim();
-  const chatModel = document.getElementById("customChatModelSelect").value;
-  const embeddingModel = document.getElementById("customEmbeddingModelSelect").value;
+  const chatModel = chatUsesDefault
+    ? document.getElementById("chatModelSelect").value
+    : document.getElementById("customChatModelSelect").value;
+  const embeddingModel = embeddingUsesDefault
+    ? document.getElementById("embeddingModelSelect").value
+    : document.getElementById("customEmbeddingModelSelect").value;
 
-  if (!baseUrl) return toast("Base URL را وارد کن.", "error");
-  if (!apiKey && !(CURRENT_SETTINGS && CURRENT_SETTINGS.api_key_set)) return toast("API Key را وارد کن.", "error");
-  if (separate && !embeddingBaseUrl) return toast("Embedding Base URL را وارد کن.", "error");
-  if (separate && !embeddingApiKey && !(CURRENT_SETTINGS && CURRENT_SETTINGS.embedding_api_key_set)) return toast("Embedding API Key را وارد کن.", "error");
-  if (!chatModel) return toast("ابتدا لیست مدل‌های سرویس را دریافت کن.", "error");
-  if (!embeddingModel) return toast("این سرویس مدل embedding سازگار با پروژه ارائه نمی‌کند.", "error");
+  if (!chatUsesDefault) {
+    if (!baseUrl) return toast("Chat Base URL را وارد کن.", "error");
+    if (!apiKey && !(CURRENT_SETTINGS && CURRENT_SETTINGS.api_key_set)) return toast("Chat API Key را وارد کن.", "error");
+    if (!chatModel) return toast("ابتدا مدل‌های چت را دریافت و یک مدل انتخاب کن.", "error");
+  }
+  if (embeddingUsesDefault) {
+    if (!embeddingModel) return toast("یک مدل embedding آماده انتخاب کن.", "error");
+  } else {
+    if (!embeddingBaseUrl) return toast("Embedding Base URL را وارد کن.", "error");
+    const savedEmbeddingKey = Boolean(CURRENT_SETTINGS && CURRENT_SETTINGS.embedding_api_key_set);
+    const savedChatKey = Boolean(CURRENT_SETTINGS && CURRENT_SETTINGS.api_key_set);
+    if (!embeddingApiKey && !savedEmbeddingKey && (chatUsesDefault || (!apiKey && !savedChatKey))) {
+      return toast("Embedding API Key را وارد کن.", "error");
+    }
+    if (!embeddingModel) return toast("ابتدا مدل‌های embedding را دریافت و مدلی سازگار انتخاب کن.", "error");
+  }
 
-  btn.disabled = true;
+  const payload = {
+    use_default_provider: chatUsesDefault,
+    embedding_use_default_provider: embeddingUsesDefault,
+    // Keep a saved custom embedding endpoint/key when temporarily switching to
+    // the ready embedding source; only set the separate-provider flag in custom mode.
+    ...(!embeddingUsesDefault ? { separate_embedding_provider: true } : {}),
+    chat_model: chatModel,
+    embedding_model: embeddingModel,
+  };
+  if (baseUrl) payload.base_url = baseUrl;
+  if (apiKey) payload.api_key = apiKey;
+  if (!embeddingUsesDefault && embeddingBaseUrl) payload.embedding_base_url = embeddingBaseUrl;
+  if (!embeddingUsesDefault && embeddingApiKey) payload.embedding_api_key = embeddingApiKey;
+
+  button.disabled = true;
+  const oldText = button.textContent;
+  button.textContent = "در حال ذخیره…";
   try {
-    const payload = {
-      use_default_provider: false,
-      base_url: baseUrl,
-      chat_model: chatModel,
-      embedding_model: embeddingModel,
-      separate_embedding_provider: separate,
-      ...(separate && embeddingBaseUrl ? { embedding_base_url: embeddingBaseUrl } : {}),
-    };
-    if (apiKey) payload.api_key = apiKey;
-    if (separate && embeddingApiKey) payload.embedding_api_key = embeddingApiKey;
-    await saveProvider(payload, "اتصال API اختصاصی ذخیره شد.");
+    await saveProvider(payload, "منبع چت و embedding جداگانه ذخیره شد.");
   } catch (err) {
     toastError(err);
   } finally {
-    btn.disabled = false;
+    button.disabled = false;
+    button.textContent = oldText;
   }
+}
+
+document.getElementById("saveProviderBtn").addEventListener("click", function () {
+  saveSelectedProvider(this);
+});
+document.getElementById("saveCustomProviderBtn").addEventListener("click", function () {
+  saveSelectedProvider(this);
 });
 
 async function testSelectedProvider(btn, useDefault) {
@@ -507,7 +491,18 @@ document.getElementById("testCustomConnectionBtn").addEventListener("click", asy
   try {
     const result = await apiCall("/api/settings/test-custom-connection", {
       method: "POST",
-      body: { base_url: baseUrl, chat_model: chatModel, ...(apiKey ? { api_key: apiKey } : {}) },
+      body: {
+        base_url: baseUrl,
+        chat_model: chatModel,
+        embedding_model: document.getElementById("embeddingDefaultProviderModeBtn").classList.contains("active")
+          ? document.getElementById("embeddingModelSelect").value
+          : document.getElementById("customEmbeddingModelSelect").value,
+        embedding_use_default_provider: document.getElementById("embeddingDefaultProviderModeBtn").classList.contains("active"),
+        separate_embedding_provider: document.getElementById("embeddingCustomProviderModeBtn").classList.contains("active"),
+        ...(document.getElementById("embeddingBaseUrlInput").value.trim() ? { embedding_base_url: document.getElementById("embeddingBaseUrlInput").value.trim() } : {}),
+        ...(document.getElementById("embeddingApiKeyInput").value.trim() ? { embedding_api_key: document.getElementById("embeddingApiKeyInput").value.trim() } : {}),
+        ...(apiKey ? { api_key: apiKey } : {}),
+      },
     });
     toast(result.message, result.ok ? "success" : "error");
   } catch (err) {
@@ -939,7 +934,7 @@ async function importFiles(fileList) {
   let completedFiles = 0;
   try {
     try {
-      await Lazy.script("/assets/js/extract.js?v=2.7.5");
+      await Lazy.script("/assets/js/extract.js?v=2.7.8");
     } catch (err) {
       return toastError(err);
     }
@@ -1475,7 +1470,7 @@ async function loadWidgetSection() {
     const [cfg, embed] = await Promise.all([
       apiCall("/api/widget/config"),
       apiCall("/api/widget/embed-code"),
-      Lazy.script("/assets/js/pets.js?v=2.7.5").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+      Lazy.script("/assets/js/pets.js?v=2.7.8").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
     ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";

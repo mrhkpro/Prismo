@@ -78,6 +78,9 @@ async def lifespan(app: FastAPI):
                 connection.execute(text("ALTER TABLE user_settings ADD COLUMN embedding_api_key VARCHAR(255)"))
             if "embedding_base_url" not in columns:
                 connection.execute(text("ALTER TABLE user_settings ADD COLUMN embedding_base_url VARCHAR(255)"))
+            if "embedding_use_default_provider" not in columns:
+                connection.execute(text("ALTER TABLE user_settings ADD COLUMN embedding_use_default_provider BOOLEAN"))
+                connection.execute(text("UPDATE user_settings SET embedding_use_default_provider = use_default_provider WHERE embedding_use_default_provider IS NULL"))
 
         # Only local SQLite needs the bootstrap admin on every fresh project.
         db = SessionLocal()

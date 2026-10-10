@@ -23,10 +23,19 @@ def _settings_for_user(db, current_user):
 def _to_out(settings: user_settings_compat.SettingsSnapshot, language: str = "fa") -> schemas.SettingsOut:
     return schemas.SettingsOut(
         use_default_provider=settings.use_default_provider,
+        embedding_use_default_provider=(
+            settings.embedding_use_default_provider
+            if settings.embedding_use_default_provider is not None
+            else settings.use_default_provider
+        ),
         api_key_set=bool(settings.api_key),
         base_url=settings.base_url,
         separate_embedding_provider=bool(settings.separate_embedding_provider),
-        embedding_api_key_set=bool(settings.embedding_api_key) if settings.separate_embedding_provider else bool(settings.api_key),
+        embedding_api_key_set=(
+            bool(settings.embedding_api_key)
+            if settings.separate_embedding_provider
+            else (bool(settings.api_key) if not settings.use_default_provider else False)
+        ),
         embedding_base_url=settings.embedding_base_url if settings.separate_embedding_provider else settings.base_url,
         chat_model=settings.chat_model,
         embedding_model=settings.embedding_model,
@@ -85,7 +94,14 @@ def discover_models(
             "embedding_base_url": embedding_base_url or None,
             "embedding_api_key": embedding_api_key or None,
         }
-    result = llm_client.discover_model_capabilities(base_url, api_key, **discover_kwargs)
+    # Keep the historical call shape for the default full-discovery mode so
+    # integrations/mocks implementing the previous signature remain compatible.
+    if payload.discover_embeddings:
+        result = llm_client.discover_model_capabilities(base_url, api_key, **discover_kwargs)
+    else:
+        result = llm_client.discover_model_capabilities(
+            base_url, api_key, include_embeddings=False, **discover_kwargs
+        )
     result.setdefault("chat_probe_ok", bool(result.get("chat_models")))
     result.setdefault("embedding_probe_ok", bool(result.get("embedding_models")))
     result.setdefault(
@@ -108,8 +124,8 @@ def discover_embedding_models(
     provider, and a user should be able to test/populate it on its own.
     """
     settings = _settings_for_user(db, current_user)
-    fallback_base = settings.embedding_base_url if settings.separate_embedding_provider else settings.base_url
-    fallback_key = settings.embedding_api_key if settings.separate_embedding_provider else settings.api_key
+    fallback_base = settings.embedding_base_url if settings.separate_embedding_provider and settings.embedding_base_url else settings.base_url
+    fallback_key = settings.embedding_api_key or settings.api_key
     base_url = (payload.base_url or fallback_base or "").strip()
     api_key = (payload.api_key or fallback_key or "").strip()
     result = llm_client.discover_embedding_models(base_url, api_key)
@@ -125,14 +141,29 @@ def test_custom_connection(
 ):
     settings = user_settings_compat.get(db, current_user.id)
     api_key = (payload.api_key or settings.api_key or "").strip()
+    embed_default = payload.embedding_use_default_provider
+    if embed_default is None:
+        embed_default = settings.embedding_use_default_provider
+    if embed_default is None:
+        embed_default = settings.use_default_provider
+
+    if embed_default:
+        embedding_base = config.AI_PROXY_BASE_URL or config.DEFAULT_PROVIDER_BASE_URL
+        embedding_key = config.AI_PROXY_API_KEY or config.DEFAULT_PROVIDER_API_KEY
+    elif payload.separate_embedding_provider:
+        embedding_base = (payload.embedding_base_url or settings.embedding_base_url or "").strip()
+        embedding_key = (payload.embedding_api_key or settings.embedding_api_key or "").strip()
+    else:
+        embedding_base, embedding_key = payload.base_url.strip(), api_key
+
     provider = llm_client.ProviderConfig(
         base_url=payload.base_url.strip(),
         api_key=api_key,
         chat_model=payload.chat_model.strip(),
-        embedding_model=settings.embedding_model,
+        embedding_model=(payload.embedding_model or settings.embedding_model or config.DEFAULT_EMBEDDING_MODEL).strip(),
         is_default=False,
-        embedding_base_url=settings.embedding_base_url if settings.separate_embedding_provider else payload.base_url.strip(),
-        embedding_api_key=settings.embedding_api_key if settings.separate_embedding_provider else api_key,
+        embedding_base_url=embedding_base,
+        embedding_api_key=embedding_key,
     )
     ok, message = llm_client.test_connection(provider)
     return schemas.TestConnectionResult(ok=ok, message=message)
