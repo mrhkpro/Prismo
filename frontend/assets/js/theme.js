@@ -17,10 +17,10 @@
   function setTheme(theme, persist) {
     const next = THEMES.includes(theme) ? theme : "dark";
     root.dataset.theme = next;
-    document.dispatchEvent(new CustomEvent("qz-theme-change", { detail: { theme: next } }));
     if (persist) {
       try { localStorage.setItem(STORAGE_KEY, next); } catch (_) {}
     }
+    document.dispatchEvent(new CustomEvent("qz-theme-change", { detail: { theme: next } }));
     const btn = document.getElementById("themeToggle");
     if (!btn) return;
     const isLight = next === "light";
@@ -31,7 +31,20 @@
     btn.title = btn.getAttribute("aria-label");
   }
 
-  window.QZTheme = { set: setTheme, get: () => root.dataset.theme || getInitialTheme(), themes: THEMES.slice() };
+  window.QZTheme = {
+    set: setTheme,
+    get: () => THEMES.includes(root.dataset.theme) ? root.dataset.theme : getInitialTheme(),
+    themes: THEMES.slice(),
+  };
+
+  document.addEventListener("qz-theme-change", function (event) {
+    const activeTheme = event && event.detail && THEMES.includes(event.detail.theme) ? event.detail.theme : getInitialTheme();
+    document.querySelectorAll("[data-theme-preset]").forEach(function (el) {
+      const active = el.dataset.themePreset === activeTheme;
+      el.classList.toggle("active", active);
+      el.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  });
 
   function ensureToggle() {
     // داشبورد 2.7 مدیریت تم را به «تنظیمات» منتقل کرده و نباید دکمه‌ی شناور بسازد.

@@ -63,6 +63,31 @@ class ThemeTokenTests(unittest.TestCase):
         self.assertFalse(REQUIRED_TOKENS - set(self.dark), REQUIRED_TOKENS - set(self.dark))
         self.assertFalse(REQUIRED_TOKENS - set(self.light), REQUIRED_TOKENS - set(self.light))
 
+    def test_nord_amber_and_rose_define_full_distinct_palettes(self):
+        palettes = {
+            name: tokens(f':root[data-theme="{name}"]')
+            for name in ("nord", "amber", "rose")
+        }
+        for name, palette in palettes.items():
+            self.assertFalse(REQUIRED_TOKENS - set(palette), (name, REQUIRED_TOKENS - set(palette)))
+            self.assertGreaterEqual(contrast(palette["--text"], palette["--bg"]), 7, name)
+            self.assertGreaterEqual(contrast(palette["--text"], palette["--bg-elevated"]), 7, name)
+            self.assertGreaterEqual(contrast(palette["--accent-text"], palette["--bg-elevated"]), 4.5, name)
+        self.assertTrue(180 <= hue_deg(palettes["nord"]["--accent"]) <= 215, "Nord باید آبی یخی باشد")
+        self.assertTrue(25 <= hue_deg(palettes["amber"]["--accent"]) <= 55, "Amber باید کهربایی باشد")
+        self.assertTrue(315 <= hue_deg(palettes["rose"]["--accent"]) <= 350, "Rose باید صورتی/رز باشد")
+
+    def test_theme_selection_has_one_shared_authority_and_all_three_presets(self):
+        theme_js = (FRONTEND / "assets" / "js" / "theme.js").read_text(encoding="utf-8")
+        settings_js = (FRONTEND / "assets" / "js" / "settings.js").read_text(encoding="utf-8")
+        dashboard = (FRONTEND / "dashboard.html").read_text(encoding="utf-8")
+        for name in ("nord", "amber", "rose"):
+            self.assertIn(f'data-theme="{name}"', CSS)
+            self.assertIn(f'data-theme-preset="{name}"', dashboard)
+            self.assertIn(f'"{name}"', theme_js)
+        self.assertIn("window.QZTheme.set(theme", settings_js)
+        self.assertIn('setAttribute("aria-pressed"', settings_js)
+
     def test_dark_theme_matches_gentelella_dna(self):
         self.assertLess(luminance(self.dark["--bg"]), 0.03)
         self.assertTrue(155 <= hue_deg(self.dark["--accent"]) <= 175)
