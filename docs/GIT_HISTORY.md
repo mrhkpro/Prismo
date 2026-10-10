@@ -20,9 +20,10 @@ main
 
 ## v2.8.0 release chain
 
-- `fix/ai-provider-connection-ux-v2.8.0` → guided chat/embedding selection, final save/test action area, accessible source selectors and responsive layout.
-- `test/docs/ai-provider-ux-v2.8.0` → order/responsive/i18n regression tests and release documentation.
-- Both branches were merged into `main` with `--no-ff`; release tag: `v2.8.0`.
+- `fix/ai-provider-connection-ux-v2.8.0` → guided chat/embedding selection, final save/test action area, contextual hints, responsive layout and i18n coverage.
+- `fix/ai-provider-tab-accessibility-v2.8.0` → clearer “Model setup” tab label, tab roles/states and keyboard navigation.
+- `docs/v2.8.0-git-history-correction` → align this release record with the actual branches.
+- All feature/documentation branches were merged into `main` with `--no-ff`; release tag: `v2.8.0`.
 
 ## Convention
 
