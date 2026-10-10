@@ -1,3 +1,9 @@
+# v2.7.9 — Remove Google sign-in
+
+Google OAuth UI, JavaScript handlers, API endpoints, server configuration and the Google verification dependency have been removed. Username/password registration, login and logout remain the supported application auth flow. Migration `006_remove_oauth_identities.sql` removes only the obsolete OAuth identity-mapping table on Supabase/PostgreSQL.
+
+See `CHANGELOG_2.7.9.md` for details and verification.
+
 # v2.7.8 — Independent chat/embedding sources and Supabase auth recovery
 
 See `CHANGELOG_2.7.8.md` for the complete release notes.

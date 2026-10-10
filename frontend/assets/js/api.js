@@ -3,23 +3,19 @@
 
 const TOKEN_KEY = "rag_saas_token";
 const IMPERSONATE_STASH_KEY = "rag_saas_admin_token_stash";
-const COOKIE_SESSION_KEY = "rag_saas_cookie_session";
+const LEGACY_COOKIE_SESSION_KEY = "rag_saas_cookie_session";
 
 const Auth = {
   getToken() { return localStorage.getItem(TOKEN_KEY); },
   setToken(t) {
     localStorage.setItem(TOKEN_KEY, t);
-    localStorage.removeItem(COOKIE_SESSION_KEY);
-  },
-  setCookieSession(active = true) {
-    if (active) localStorage.setItem(COOKIE_SESSION_KEY, "1");
-    else localStorage.removeItem(COOKIE_SESSION_KEY);
+    localStorage.removeItem(LEGACY_COOKIE_SESSION_KEY);
   },
   clear() {
     localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(COOKIE_SESSION_KEY);
+    localStorage.removeItem(LEGACY_COOKIE_SESSION_KEY);
   },
-  isLoggedIn() { return !!localStorage.getItem(TOKEN_KEY) || localStorage.getItem(COOKIE_SESSION_KEY) === "1"; },
+  isLoggedIn() { return !!localStorage.getItem(TOKEN_KEY); },
 
   // برای حالت «ورود به‌جای کاربر»: توکن فعلیِ ادمین را کنار می‌گذاریم تا بتوانیم برگردیم
   stashAdminTokenAndSwitch(newToken) {

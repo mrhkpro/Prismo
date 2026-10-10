@@ -39,40 +39,9 @@ IS_VERCEL = bool(os.getenv("VERCEL"))
 
 APP_TITLE = "Prismo — RAG Widget Platform"
 
-# Authentication supports either direct Google OIDC or Google through Supabase Auth.
-# The Supabase anon/publishable key is designed for public client use, but the
-# service-role key must never be used here or sent to the browser.
-GOOGLE_CLIENT_ID = (
-    os.getenv("GOOGLE_CLIENT_ID") or os.getenv("GOOGLE_OAUTH_CLIENT_ID") or ""
-).strip()
-GOOGLE_CLIENT_SECRET = (
-    os.getenv("GOOGLE_CLIENT_SECRET") or os.getenv("GOOGLE_OAUTH_CLIENT_SECRET") or ""
-).strip()
-GOOGLE_REDIRECT_URI = (
-    os.getenv("GOOGLE_REDIRECT_URI") or os.getenv("GOOGLE_OAUTH_REDIRECT_URI") or ""
-).strip()
 APP_PUBLIC_URL = (
     os.getenv("APP_PUBLIC_URL") or os.getenv("PUBLIC_APP_URL") or os.getenv("NEXT_PUBLIC_SITE_URL") or ""
 ).strip().rstrip("/")
-GOOGLE_OAUTH_ENABLED = bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
-SUPABASE_URL = (
-    os.getenv("SUPABASE_URL")
-    or os.getenv("SUPABASE_PROJECT_URL")
-    or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-    or os.getenv("PUBLIC_SUPABASE_URL")
-    or ""
-).strip().rstrip("/")
-SUPABASE_ANON_KEY = (
-    os.getenv("SUPABASE_ANON_KEY")
-    or os.getenv("SUPABASE_PUBLISHABLE_KEY")
-    or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-    or os.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
-    or os.getenv("PUBLIC_SUPABASE_ANON_KEY")
-    or ""
-).strip()
-SUPABASE_AUTH_ENABLED = bool(SUPABASE_URL and SUPABASE_ANON_KEY)
-ACCESS_TOKEN_COOKIE_NAME = "prismo_access_token"
-GOOGLE_OAUTH_COOKIE_PREFIX = "prismo_google_oauth_"
 
 # Logging is intentionally quiet by default in local development.
 # This prevents high-frequency request logs from consuming CPU/disk while the UI boots.

@@ -10,4 +10,3 @@ numpy==1.26.4
 python-multipart==0.0.9
 psycopg[binary]
 pgvector
-google-auth[requests]>=2.35.0,<3.0.0

@@ -151,49 +151,14 @@ https://openrouter.ai/api/v1
 
 The project uses a simple embedded vector store because the target deployment does not require a separate vector service. Prompt-injection detection is deliberately heuristic and is a monitoring/control layer, not a claim of complete model security. The public-widget rate limiter is currently in-memory per process.
 
-## ورود با گوگل (اختیاری)
+## احراز هویت
 
-ورود نام کاربری/رمز عبور فعلی برنامه حفظ شده است. ورود گوگل دو روش دارد؛ **یکی از این دو روش را انتخاب کنید**:
+ورود و ثبت‌نام برنامه با **نام کاربری و رمز عبور** انجام می‌شود. Supabase در استقرار ابری نقش پایگاه‌دادهٔ PostgreSQL را دارد؛ برای ورود به برنامه به Google OAuth یا Supabase Auth نیاز نیست. مسیرهای قدیمی Google OAuth در نسخهٔ 2.7.9 حذف شده‌اند.
 
-### روش پیشنهادی: Google Provider در Supabase Auth
+برای تنظیم پایگاه‌دادهٔ ابری، `DATABASE_URL` و `DATABASE_MODE=supabase` (یا `DATABASE_MODE=auto` همراه با `DATABASE_URL`) را در محیط سرور قرار دهید. جزئیات اتصال و محدودیت‌های شبکه در [راهنمای استقرار](docs/DEPLOYMENT.md) آمده است. `APP_PUBLIC_URL` برای هدرهای انتساب سرویس‌دهنده‌های API استفاده می‌شود و کلید ورود یا Supabase Auth نیست.
 
-اگر Google از قبل در Supabase → Authentication → Providers فعال است، متغیرهای زیر را در Environment Variables سرور یا `.env` محلی اضافه کنید:
+## مدل چت و embedding مستقل
 
-```env
-SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co
-SUPABASE_ANON_KEY=YOUR-ANON-OR-PUBLISHABLE-KEY
-APP_PUBLIC_URL=http://localhost:8000
-```
+در تنظیمات اتصال هوش مصنوعی، منبع و مدل چت و منبع و مدل embedding جداگانه انتخاب می‌شوند. برای ذخیرهٔ انتخاب مستقل روی پایگاه‌دادهٔ Supabase/PostgreSQL، فایل `supabase/migrations/005_independent_embedding_provider.sql` را یک بار در SQL Editor اجرا کنید.
 
-در محیط عملیاتی `APP_PUBLIC_URL` را روی دامنهٔ HTTPS واقعی قرار دهید. متغیرهای متداول `NEXT_PUBLIC_SUPABASE_URL` و `NEXT_PUBLIC_SUPABASE_ANON_KEY` هم پشتیبانی می‌شوند تا در استقرارهایی که این نام‌ها از قبل وجود دارند، نیاز به کپی مجدد نباشد. کلید عمومی anon/publishable برای این مسیر است؛ **هرگز `service_role` یا secret key را به‌جای آن نگذارید**.
-
-در Google Cloud، Redirect URI مربوط به Google باید callback خود Supabase باشد: `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`. همان Client ID و Client Secret را در Supabase → Authentication → Providers → Google ثبت و Provider را فعال کنید. سپس در Supabase → Authentication → URL Configuration، Site URL را روی دامنهٔ برنامه قرار دهید و این Redirect URL را مجاز کنید:
-
-- توسعه محلی: `http://localhost:8000/api/auth/google/supabase-callback`
-- محیط عملیاتی: `https://YOUR-DOMAIN/api/auth/google/supabase-callback`
-
-### روش جایگزین: OAuth مستقیم از Google به برنامه
-
-در Google Cloud یک OAuth Client از نوع Web application بسازید و این مقادیر را فقط سمت سرور تنظیم کنید:
-
-```env
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/google/callback
-APP_PUBLIC_URL=http://localhost:8000
-```
-
-در این روش Redirect URI خود Google باید callback برنامه باشد: `http://localhost:8000/api/auth/google/callback` یا `https://YOUR-DOMAIN/api/auth/google/callback`. `GOOGLE_CLIENT_SECRET` هرگز به HTML یا JavaScript فرستاده نمی‌شود.
-
-### migrationهای لازم برای Supabase PostgreSQL
-
-اگر دیتابیس برنامه روی Supabase/PostgreSQL است، فایل‌های زیر را هرکدام **یک بار** در SQL Editor همان پروژه اجرا کنید:
-
-1. `supabase/migrations/004_google_oauth_identity.sql` — جدول نگاشت هویت‌های OAuth را می‌سازد و جدول قدیمی `users` را دست‌نخورده نگه می‌دارد.
-2. `supabase/migrations/005_independent_embedding_provider.sql` — انتخاب منبع embedding را جدا از منبع چت ذخیره می‌کند.
-
-اگر متغیرهای OAuth سمت سرور تنظیم نشده باشند، کد برنامه نمی‌تواند اطلاعات پروژه یا کلید عمومی را از `DATABASE_URL` حدس بزند؛ باید URL پروژه و anon/publishable key را در تنظیمات سرور قرار دهید. خروجی `service_role` را هرگز در فرانت‌اند استفاده نکنید.
-
-### Independent chat and embedding providers
-
-In Settings → AI connection, the chat source and embedding source have separate selectors. You can use a custom/OpenRouter chat model with the project's ready embedding model, or use the ready chat model with a custom embedding endpoint. Custom embedding discovery is a separate action and validates vector dimensions. On an existing Supabase database, run migration `005_independent_embedding_provider.sql` once so the new selection persists.
+برای پاک‌سازی جدول نگاشت OAuth که در نسخه‌های قدیمی ساخته شده بود، فایل `supabase/migrations/006_remove_oauth_identities.sql` را در صورت وجود جدول قدیمی، یک بار اجرا کنید. این migration فقط جدول نگاشت OAuth را حذف می‌کند؛ جدول کاربران، تنظیمات، اسناد و تاریخچهٔ چت را حذف نمی‌کند.
