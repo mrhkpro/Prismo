@@ -138,7 +138,7 @@ echo ================================================================
 echo   Prismo is running at http://127.0.0.1:8000/
 echo.
 echo   Default admin username: admin
-echo   Default admin password: Admin@12345
+echo   Admin password: check ADMIN_PASSWORD in .env
 echo.
 echo   Set provider settings in your local .env before using AI calls.
 echo   Never commit .env or real API keys to Git.
