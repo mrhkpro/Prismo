@@ -12,6 +12,7 @@ from sqlalchemy import (
     String,
     Text,
     JSON,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -80,12 +81,6 @@ class User(Base):
         nullable=False,
     )
 
-    # Nullable identity fields keep password accounts backwards-compatible.
-    # Google sub is the stable provider identity; email is only used for safe
-    # verified-email account linking and must never be treated as a password.
-    email = Column(String(320), nullable=True, unique=True, index=True)
-    google_sub = Column(String(255), nullable=True, unique=True, index=True)
-
     org_name = Column(
         String(120),
         nullable=True,
@@ -139,6 +134,26 @@ class User(Base):
         back_populates="owner",
         cascade="all, delete-orphan",
     )
+
+
+# ============================================================
+# EXTERNAL AUTH IDENTITIES
+# ============================================================
+
+class OAuthIdentity(Base):
+    """External identities live separately so legacy Supabase users tables stay compatible."""
+
+    __tablename__ = "oauth_identities"
+    __table_args__ = (
+        UniqueConstraint("provider", "subject", name="uq_oauth_identities_provider_subject"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    provider = Column(String(32), nullable=False, index=True)
+    subject = Column(String(255), nullable=False)
+    email = Column(String(320), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
 
 
 # ============================================================

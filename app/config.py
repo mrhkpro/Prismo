@@ -39,14 +39,17 @@ IS_VERCEL = bool(os.getenv("VERCEL"))
 
 APP_TITLE = "Prismo — RAG Widget Platform"
 
-# Native Google OpenID Connect (the project currently uses Supabase as its
-# PostgreSQL host, not Supabase Auth; keeping this provider in FastAPI preserves
-# the same identity/session behaviour for local SQLite and hosted deployments).
+# Authentication supports either direct Google OIDC or Google through Supabase Auth.
+# The Supabase anon/publishable key is designed for public client use, but the
+# service-role key must never be used here or sent to the browser.
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "").strip()
 APP_PUBLIC_URL = os.getenv("APP_PUBLIC_URL", "").strip().rstrip("/")
 GOOGLE_OAUTH_ENABLED = bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+SUPABASE_ANON_KEY = (os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_PUBLISHABLE_KEY") or "").strip()
+SUPABASE_AUTH_ENABLED = bool(SUPABASE_URL and SUPABASE_ANON_KEY)
 ACCESS_TOKEN_COOKIE_NAME = "prismo_access_token"
 GOOGLE_OAUTH_COOKIE_PREFIX = "prismo_google_oauth_"
 
