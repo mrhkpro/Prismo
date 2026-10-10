@@ -153,8 +153,24 @@ class DiscoverModelsRequest(BaseModel):
         return value
 
 
+class DiscoveredModelCatalogEntry(BaseModel):
+    id: str
+    name: str = ""
+    context_length: Optional[int] = None
+    prompt_price: Optional[str] = None
+    completion_price: Optional[str] = None
+    price_tier: Literal["free", "paid", "unknown"] = "unknown"
+    input_modalities: List[str] = Field(default_factory=list)
+    output_modalities: List[str] = Field(default_factory=list)
+    supports_chat: bool = False
+    supports_embeddings: bool = False
+
+
 class DiscoverModelsResponse(BaseModel):
     models: List[str]
+    model_catalog: List[DiscoveredModelCatalogEntry] = Field(default_factory=list)
+    free_chat_models_count: int = 0
+    paid_chat_models_count: int = 0
     chat_models: List[str] = Field(default_factory=list)
     embedding_models: List[str] = Field(default_factory=list)
     unknown_models: List[str] = Field(default_factory=list)

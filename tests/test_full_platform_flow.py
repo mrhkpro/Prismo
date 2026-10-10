@@ -185,7 +185,7 @@ class AuthFlowTests(PlatformTestCase):
         self.assertEqual(self.client.get("/api/health").json(), {"status": "ok"})
         index = self.client.get("/index.html")
         self.assertEqual(index.status_code, 200)
-        self.assertIn("style.css?v=2.7.6", index.text)
+        self.assertIn("style.css?v=2.7.7", index.text)
         self.assertEqual(self.client.get("/assets/css/style.css").status_code, 200)
         self.assertEqual(self.client.get("/widget.js").status_code, 200)
 
@@ -339,7 +339,9 @@ class SettingsFlowTests(PlatformTestCase):
         found = self.client.post("/api/settings/discover-models", headers=h(token),
                                  json={"base_url": "https://api.example.com/v1/", "api_key": "k"})
         self.assertEqual(found.json(), {
-            "models": ["gpt-b", "GPT-a"], "chat_models": ["gpt-b", "GPT-a"],
+            "models": ["gpt-b", "GPT-a"], "model_catalog": [],
+            "free_chat_models_count": 0, "paid_chat_models_count": 0,
+            "chat_models": ["gpt-b", "GPT-a"],
             "embedding_models": ["embed-1"], "unknown_models": [], "chat_probe_ok": True,
             "embedding_probe_ok": True, "dual_capable_models": [],
             "total_models_found": 0, "chat_candidates_probed": 0,

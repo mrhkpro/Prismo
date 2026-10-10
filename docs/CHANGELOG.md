@@ -1,3 +1,7 @@
+# v2.7.7 — Google OAuth, theme repair and complete OpenRouter catalogue
+
+See `CHANGELOG_2.7.7.md` for the complete release notes.
+
 # v2.7.3 — English UI, Streaming Model Battle & Knowledge Progress
 
 See `CHANGELOG_2.7.3.md` for the complete release notes.

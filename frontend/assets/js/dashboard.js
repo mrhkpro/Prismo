@@ -130,14 +130,45 @@ async function loadOverview() {
 // ---------------------------------------------------------------------------
 let DISCOVERED_CUSTOM_MODELS = [];
 let DISCOVERED_EMBEDDING_MODELS = [];
+let DISCOVERED_CUSTOM_MODEL_INFO = Object.create(null);
 
-function fillModelSelect(selectEl, models, selected) {
+function formatOpenRouterPrice(value) {
+  const price = Number(value);
+  if (!Number.isFinite(price) || price < 0) return null;
+  const perMillion = price * 1_000_000;
+  return `$${perMillion.toLocaleString("en-US", { maximumFractionDigits: 4 })}`;
+}
+
+function modelOptionLabel(modelId, info = null) {
+  if (!info) return modelId;
+  const name = info.name && info.name !== modelId ? `${info.name} (${modelId})` : modelId;
+  let priceLabel = "قیمت نامشخص";
+  if (info.price_tier === "free") {
+    priceLabel = "رایگان";
+  } else if (info.price_tier === "paid") {
+    const inputPrice = formatOpenRouterPrice(info.prompt_price);
+    const outputPrice = formatOpenRouterPrice(info.completion_price);
+    if (inputPrice !== null && outputPrice !== null) {
+      priceLabel = `${inputPrice}/${outputPrice} دلار به‌ازای هر ۱M توکن (ورودی/خروجی)`;
+    } else {
+      priceLabel = "پولی";
+    }
+  }
+  const contextLabel = info.context_length
+    ? ` · زمینه ${Number(info.context_length).toLocaleString("en-US")}`
+    : "";
+  return `${name} · ${priceLabel}${contextLabel}`;
+}
+
+function fillModelSelect(selectEl, models, selected, modelInfoById = null) {
   selectEl.innerHTML = "";
-  (models || []).forEach((m) => {
+  (models || []).forEach((model) => {
+    const modelId = typeof model === "string" ? model : model && model.id;
+    if (!modelId) return;
     const opt = document.createElement("option");
-    opt.value = m;
-    opt.textContent = m;
-    if (m === selected) opt.selected = true;
+    opt.value = modelId;
+    opt.textContent = modelOptionLabel(modelId, modelInfoById && modelInfoById[modelId]);
+    if (modelId === selected) opt.selected = true;
     selectEl.appendChild(opt);
   });
   selectEl.disabled = !(models && models.length);
@@ -211,22 +242,40 @@ document.getElementById("discoverModelsBtn").addEventListener("click", async () 
         ...(separate && embeddingApiKey ? { embedding_api_key: embeddingApiKey } : {}),
       },
     });
+    const modelCatalog = Array.isArray(result.model_catalog) ? result.model_catalog : [];
+    DISCOVERED_CUSTOM_MODEL_INFO = Object.create(null);
+    modelCatalog.forEach((entry) => {
+      if (entry && entry.id) DISCOVERED_CUSTOM_MODEL_INFO[entry.id] = entry;
+    });
+    const isOpenRouter = /(^|\.)openrouter\.ai$/i.test(new URL(baseUrl).hostname);
     DISCOVERED_CUSTOM_MODELS = result.chat_models || result.models || [];
     DISCOVERED_EMBEDDING_MODELS = result.embedding_models || [];
     const currentChat = document.getElementById("customChatModelSelect").value;
     const currentEmbedding = document.getElementById("customEmbeddingModelSelect").value;
-    fillModelSelect(document.getElementById("customChatModelSelect"), DISCOVERED_CUSTOM_MODELS, currentChat);
+    fillModelSelect(document.getElementById("customChatModelSelect"), DISCOVERED_CUSTOM_MODELS, currentChat, DISCOVERED_CUSTOM_MODEL_INFO);
     fillModelSelect(document.getElementById("customEmbeddingModelSelect"), DISCOVERED_EMBEDDING_MODELS, currentEmbedding);
     const dual = result.dual_capable_models || [];
     const truncNote = result.chat_candidates_truncated || result.embedding_candidates_truncated
-      ? ` (از مجموع ${result.total_models_found || "؟"} مدل موجود، ${result.chat_candidates_probed || 0} برای چت و ${result.embedding_candidates_probed || 0} برای embedding تست شد؛ بقیه برای سریع‌تر شدن بررسی نشدند — دوباره بزن تا بیشتر بررسی شود)`
+      ? ` (از مجموع ${result.total_models_found || "؟"} مدل موجود، ${result.chat_candidates_probed || 0} برای چت و ${result.embedding_candidates_probed || 0} برای embedding تست شد؛ بخشی از مدل‌ها به‌دلیل سقف بررسی تست نشدند)`
       : "";
-    if (DISCOVERED_CUSTOM_MODELS.length && DISCOVERED_EMBEDDING_MODELS.length) {
+    if (isOpenRouter && modelCatalog.length) {
+      const freeCount = Number(result.free_chat_models_count || 0);
+      const paidCount = Number(result.paid_chat_models_count || 0);
+      const knownCount = freeCount + paidCount;
+      const unknownCount = Math.max(0, DISCOVERED_CUSTOM_MODELS.length - knownCount);
+      const dims = (CURRENT_SETTINGS && CURRENT_SETTINGS.embedding_dimensions) || "تنظیم‌شده در سرور";
+      status.textContent = `کاتالوگ کامل OpenRouter دریافت شد: ${result.total_models_found || modelCatalog.length} مدل در کل • ${DISCOVERED_CUSTOM_MODELS.length} مدل چت قابل انتخاب (${freeCount} رایگان، ${paidCount} پولی${unknownCount ? `، ${unknownCount} با قیمت نامشخص` : ""}) • ${DISCOVERED_EMBEDDING_MODELS.length} مدل embedding با ابعاد موردنیاز ${dims} تأیید شد. مدل‌های چت با متادیتای رسمی فهرست شده‌اند؛ برای اطمینان از دسترسی حساب به مدل انتخابی از «تست اتصال» استفاده کن.`;
+      if (!DISCOVERED_EMBEDDING_MODELS.length) {
+        status.textContent += " در این دور هیچ embeddingای با ابعاد ذخیره‌سازی پروژه تأیید نشد؛ بررسی کن که کاتالوگ embedding در دسترس باشد و مدل دقیقاً با ابعاد پروژه سازگار باشد.";
+      }
+      status.className = "status-line success-text";
+      toast("فهرست کامل مدل‌های OpenRouter دریافت شد.", "success");
+    } else if (DISCOVERED_CUSTOM_MODELS.length && DISCOVERED_EMBEDDING_MODELS.length) {
       status.textContent = `${DISCOVERED_CUSTOM_MODELS.length} مدل چت تأیید شد • ${DISCOVERED_EMBEDDING_MODELS.length} مدل embedding تأیید شد${dual.length ? ` • ${dual.length} مدل هر دو قابلیت را دارد` : ""}.${truncNote}`;
       status.className = "status-line success-text";
       toast("فهرست مدل‌ها با probe واقعی تأیید شد.", "success");
     } else if (!DISCOVERED_CUSTOM_MODELS.length) {
-      status.textContent = "هیچ مدل چتی که probe موفق داشته باشد پیدا نشد.";
+      status.textContent = "هیچ مدل چتی پیدا نشد. Base URL، کلید API و مجوزهای سرویس را بررسی کن.";
       status.className = "status-line error-text";
       toast("مدل چت قابل استفاده پیدا نشد.", "error");
     } else {
@@ -238,6 +287,7 @@ document.getElementById("discoverModelsBtn").addEventListener("click", async () 
   } catch (err) {
     DISCOVERED_CUSTOM_MODELS = [];
     DISCOVERED_EMBEDDING_MODELS = [];
+    DISCOVERED_CUSTOM_MODEL_INFO = Object.create(null);
     fillModelSelect(document.getElementById("customChatModelSelect"), [], "");
     fillModelSelect(document.getElementById("customEmbeddingModelSelect"), [], "");
     status.textContent = err.message;

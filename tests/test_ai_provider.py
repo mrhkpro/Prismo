@@ -332,10 +332,111 @@ class ProviderCapabilityTests(unittest.TestCase):
             )),
         )
         with patch("app.services.llm_client._client", return_value=fake_client), \
+             patch("app.services.llm_client._fetch_openrouter_model_catalog", return_value=[{
+                 "id": "vendor/chat-only", "name": "Chat only", "context_length": 8192,
+                 "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]},
+                 "pricing": {"prompt": "0", "completion": "0"},
+             }]), \
              patch("app.services.llm_client._fetch_openrouter_embedding_catalog",
                    return_value=["openai/text-embedding-3-small"]):
             result = llm_client.discover_model_capabilities("https://openrouter.ai/api/v1", "secret")
         self.assertIn("openai/text-embedding-3-small", result["embedding_models"])
+        self.assertEqual(result["chat_models"], ["vendor/chat-only"])
+        self.assertEqual(result["free_chat_models_count"], 1)
+        self.assertEqual(result["total_models_found"], 2)
+        response_schema = schemas.DiscoverModelsResponse(**result)
+        self.assertEqual(response_schema.model_catalog[0].price_tier, "free")
+
+    def test_openrouter_lists_all_text_chat_models_with_free_and_paid_metadata_without_chat_probes(self):
+        raw_catalog = [
+            {
+                "id": "sample/free-chat:free", "name": "Free Chat", "context_length": 32768,
+                "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]},
+                "pricing": {"prompt": "0", "completion": "0"},
+            },
+            {
+                "id": "sample/paid-chat", "name": "Paid Chat", "context_length": 128000,
+                "architecture": {"input_modalities": ["text", "image"], "output_modalities": ["text"]},
+                "pricing": {"prompt": "0.000001", "completion": "0.000004"},
+            },
+            {
+                "id": "sample/image-gen", "name": "Image Generator", "context_length": 1024,
+                "architecture": {"input_modalities": ["text"], "output_modalities": ["image"]},
+                "pricing": {"prompt": "0.000001", "completion": "0.001"},
+            },
+        ]
+        fake_client = SimpleNamespace(
+            embeddings=SimpleNamespace(create=lambda **kwargs: SimpleNamespace(data=[])),
+            chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kwargs: (_ for _ in ()).throw(
+                AssertionError("OpenRouter discovery must not send a paid chat probe to every catalogue entry")
+            ))),
+        )
+        with patch("app.services.llm_client._fetch_openrouter_model_catalog", return_value=raw_catalog), \
+             patch("app.services.llm_client._fetch_openrouter_embedding_catalog", return_value=[]), \
+             patch("app.services.llm_client._client", return_value=fake_client):
+            result = llm_client.discover_model_capabilities("https://openrouter.ai/api/v1", "secret")
+
+        self.assertEqual(result["total_models_found"], 3)
+        self.assertEqual(result["chat_models"], ["sample/free-chat:free", "sample/paid-chat"])
+        self.assertEqual(result["free_chat_models_count"], 1)
+        self.assertEqual(result["paid_chat_models_count"], 1)
+        self.assertEqual(result["chat_candidates_probed"], 0)
+        catalog = {item["id"]: item for item in result["model_catalog"]}
+        self.assertEqual(catalog["sample/free-chat:free"]["price_tier"], "free")
+        self.assertEqual(catalog["sample/paid-chat"]["price_tier"], "paid")
+        self.assertFalse(catalog["sample/image-gen"]["supports_chat"])
+
+    def test_openrouter_embedding_is_only_selected_when_dimension_matches_project(self):
+        raw_catalog = [{
+            "id": "sample/chat", "name": "Chat", "architecture": {
+                "input_modalities": ["text"], "output_modalities": ["text"]
+            }, "pricing": {"prompt": "0", "completion": "0"},
+        }]
+        fake_client = SimpleNamespace(
+            embeddings=SimpleNamespace(create=lambda **kwargs: SimpleNamespace(data=[
+                SimpleNamespace(embedding=[0.0] * (llm_client.config.EMBEDDING_DIMENSIONS - 1))
+            ])),
+            chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kwargs: SimpleNamespace(choices=[]))),
+        )
+        with patch("app.services.llm_client._fetch_openrouter_model_catalog", return_value=raw_catalog), \
+             patch("app.services.llm_client._fetch_openrouter_embedding_catalog", return_value=["openai/text-embedding-3-small"]), \
+             patch("app.services.llm_client._client", return_value=fake_client):
+            result = llm_client.discover_model_capabilities("https://openrouter.ai/api/v1", "secret")
+        self.assertEqual(result["embedding_models"], [])
+        self.assertFalse(result["embedding_probe_ok"])
+
+    def test_openrouter_raw_catalog_keeps_metadata_and_uses_server_side_authorization(self):
+        from unittest.mock import MagicMock
+
+        payload = {"data": [{
+            "id": "sample/model", "name": "Sample", "context_length": 32768,
+            "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]},
+            "pricing": {"prompt": "0", "completion": "0"},
+        }]}
+        response = SimpleNamespace(status_code=200, json=lambda: payload)
+        request_client = SimpleNamespace(get=lambda url, headers: (self.assertEqual(
+            url, "https://openrouter.ai/api/v1/models"), self.assertEqual(
+            headers["Authorization"], "Bearer test-secret"), response)[-1])
+        client_factory = MagicMock()
+        client_factory.return_value.__enter__.return_value = request_client
+        with patch("app.services.llm_client.httpx.Client", client_factory):
+            result = llm_client._fetch_openrouter_model_catalog("https://openrouter.ai/api/v1", "test-secret")
+        self.assertEqual(result[0]["name"], "Sample")
+        self.assertEqual(result[0]["pricing"]["completion"], "0")
+        self.assertNotIn("test-secret", repr(result))
+
+    def test_openrouter_raw_catalog_redacts_unauthorized_error(self):
+        from unittest.mock import MagicMock
+
+        response = SimpleNamespace(status_code=401, json=lambda: self.fail("401 response body should not be parsed"))
+        request_client = SimpleNamespace(get=lambda *args, **kwargs: response)
+        client_factory = MagicMock()
+        client_factory.return_value.__enter__.return_value = request_client
+        with patch("app.services.llm_client.httpx.Client", client_factory):
+            with self.assertRaises(llm_client.LLMError) as caught:
+                llm_client._fetch_openrouter_model_catalog("https://openrouter.ai/api/v1", "test-secret")
+        self.assertNotIn("test-secret", str(caught.exception))
+        self.assertIn("کلید API", str(caught.exception))
 
     def test_discover_embedding_models_never_touches_chat_endpoint(self):
         def fail_if_called(**kwargs):
