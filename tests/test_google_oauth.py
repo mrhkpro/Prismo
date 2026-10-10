@@ -35,6 +35,7 @@ class GoogleOAuthTests(unittest.TestCase):
             patch.object(config, "GOOGLE_REDIRECT_URI", "http://testserver/api/auth/google/callback"),
             patch.object(config, "APP_ENV", "development"),
             patch.object(config, "IS_VERCEL", False),
+            patch.object(config, "SUPABASE_AUTH_ENABLED", False),
         ]
         for patcher in self.config_patchers:
             patcher.start()
@@ -89,7 +90,7 @@ class GoogleOAuthTests(unittest.TestCase):
 
         db = self.Session()
         try:
-            self.assertEqual(db.query(func.count(models.User.id)).filter(models.User.google_sub == "google-sub-123").scalar(), 1)
+            self.assertEqual(db.query(func.count(models.OAuthIdentity.id)).filter(models.OAuthIdentity.provider == "google", models.OAuthIdentity.subject == "google-sub-123").scalar(), 1)
             self.assertEqual(db.query(func.count(models.UserSettings.id)).scalar(), 1)
         finally:
             db.close()
@@ -112,7 +113,7 @@ class GoogleOAuthTests(unittest.TestCase):
         self.assertEqual(second.status_code, 303)
         db = self.Session()
         try:
-            self.assertEqual(db.query(func.count(models.User.id)).filter(models.User.google_sub == "stable-sub").scalar(), 1)
+            self.assertEqual(db.query(func.count(models.OAuthIdentity.id)).filter(models.OAuthIdentity.provider == "google", models.OAuthIdentity.subject == "stable-sub").scalar(), 1)
         finally:
             db.close()
 
@@ -134,8 +135,26 @@ class GoogleOAuthTests(unittest.TestCase):
         self.assertEqual(logout.status_code, 204)
         self.assertEqual(self.client.get("/api/auth/me").status_code, 401)
 
+
+    def test_google_identity_is_stored_without_changing_legacy_user_columns(self):
+        columns = {column.name for column in models.User.__table__.columns}
+        self.assertNotIn("email", columns)
+        self.assertNotIn("google_sub", columns)
+        self.assertIn("oauth_identities", Base.metadata.tables)
+
+    def test_supabase_google_flow_uses_pkce_and_server_side_key(self):
+        with patch.object(config, "GOOGLE_OAUTH_ENABLED", False), patch.object(config, "SUPABASE_AUTH_ENABLED", True), patch.object(config, "SUPABASE_URL", "https://example.supabase.co"), patch.object(config, "SUPABASE_ANON_KEY", "public-anon-key"), patch(
+            "app.routers.auth.httpx.Client"
+        ) as client_cls:
+            response_obj = type("Response", (), {"status_code": 302, "headers": {"location": "https://accounts.google.com/o/oauth2/v2/auth?test=1"}, "content": b""})()
+            client_cls.return_value.__enter__.return_value.get.return_value = response_obj
+            response = self.client.get("/api/auth/google/start", follow_redirects=False)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("accounts.google.com", response.headers["location"])
+        self.assertTrue(self.client.cookies.get("prismo_google_oauth_verifier"))
+
     def test_google_login_is_gracefully_disabled_without_credentials(self):
-        with patch.object(config, "GOOGLE_OAUTH_ENABLED", False):
+        with patch.object(config, "GOOGLE_OAUTH_ENABLED", False), patch.object(config, "SUPABASE_AUTH_ENABLED", False):
             response = self.client.get("/api/auth/google/start", follow_redirects=False)
         self.assertEqual(response.status_code, 303)
         self.assertIn("auth_error=google_not_configured", response.headers["location"])

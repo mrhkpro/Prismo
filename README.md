@@ -173,3 +173,9 @@ APP_PUBLIC_URL=http://localhost:8000
 3. Client ID و Client Secret را فقط در `.env` محلی یا تنظیمات رمزنگاری‌شده‌ی محیط اجرا ثبت کنید. در Vercel/میزبانی، `GOOGLE_REDIRECT_URI` باید مانند `https://YOUR-DOMAIN/api/auth/google/callback` باشد و همان مقدار عیناً در Google Cloud مجاز شده باشد.
 4. اگر دیتابیس روی Supabase است، migration شماره 004 را در SQL Editor اجرا کنید. چون این نسخه مستقیماً با Google OIDC کار می‌کند، callback ثبت‌شده در Google Cloud به برنامه اشاره می‌کند، نه به `https://<project-ref>.supabase.co/auth/v1/callback`. تنظیم callback در Supabase Auth برای این جریان لازم نیست.
 5. بعد از تنظیم، ورود با Google را روی همان دامنه‌ی HTTPS تست کنید. برای محیط تولید، یک `SECRET_KEY` قوی و یکتا نیز لازم است.
+
+## Google sign-in with Supabase Auth
+
+If the Google provider is already enabled in Supabase Auth, add `SUPABASE_URL` and `SUPABASE_ANON_KEY` to the server-side `.env` (or Vercel environment variables). The public anon/publishable key is expected here; **never use the service-role key**. Configure the app origin in Supabase Auth URL Configuration and allow the callback `https://YOUR-DOMAIN/api/auth/google/supabase-callback` (local example: `http://localhost:8000/api/auth/google/supabase-callback`). Run `supabase/migrations/004_google_oauth_identity.sql` once to create the external identity mapping table. Existing username/password accounts and the legacy `users` table remain unchanged.
+
+Alternatively, configure direct Google OAuth using `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` with the callback `https://YOUR-DOMAIN/api/auth/google/callback`. Keep the client secret server-side only.

@@ -7,7 +7,7 @@ import logging
 import re
 import secrets
 from datetime import timedelta
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urljoin
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -29,7 +29,7 @@ GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_OAUTH_TIMEOUT_SECONDS = 15.0
 GOOGLE_OAUTH_COOKIE_MAX_AGE = 10 * 60
 GOOGLE_OAUTH_ERROR_MESSAGES = {
-    "google_not_configured": "ورود با گوگل هنوز پیکربندی نشده است. تنظیمات سرور را بررسی کنید.",
+    "google_not_configured": "ورود گوگل فعال نشده است. یا GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET را تنظیم کنید، یا در صورت استفاده از Google در Supabase، متغیرهای SUPABASE_URL و SUPABASE_ANON_KEY را تنظیم کنید.",
     "google_denied": "ورود با گوگل لغو شد.",
     "google_state": "اعتبار درخواست ورود با گوگل تأیید نشد؛ دوباره تلاش کنید.",
     "google_exchange": "تبادل امن کد ورود با گوگل ناموفق بود. تنظیمات callback را بررسی کنید.",
@@ -49,6 +49,88 @@ def _google_redirect_uri(request: Request) -> str:
         return config.GOOGLE_REDIRECT_URI
     base = config.APP_PUBLIC_URL or str(request.base_url).rstrip("/")
     return f"{base}/api/auth/google/callback"
+
+
+def _supabase_google_redirect_uri(request: Request) -> str:
+    base = config.APP_PUBLIC_URL or str(request.base_url).rstrip("/")
+    return f"{base}/api/auth/google/supabase-callback"
+
+
+def _start_supabase_google_oauth(request: Request) -> RedirectResponse:
+    """Start Google OAuth using the Google provider configured in Supabase Auth."""
+    verifier = secrets.token_urlsafe(64)
+    challenge = _pkce_challenge(verifier)
+    callback_uri = _supabase_google_redirect_uri(request)
+    query = urlencode({
+        "provider": "google",
+        "redirect_to": callback_uri,
+        "code_challenge": challenge,
+        "code_challenge_method": "s256",
+    })
+    auth_url = f"{config.SUPABASE_URL}/auth/v1/authorize?{query}"
+    try:
+        with httpx.Client(timeout=GOOGLE_OAUTH_TIMEOUT_SECONDS, follow_redirects=False) as client:
+            result = client.get(auth_url, headers={"apikey": config.SUPABASE_ANON_KEY, "Accept": "application/json"})
+        location = result.headers.get("location")
+        if 300 <= result.status_code < 400 and location:
+            destination = urljoin(config.SUPABASE_URL + "/", location)
+        else:
+            payload = result.json() if result.content else {}
+            destination = payload.get("url") if isinstance(payload, dict) else None
+            if result.status_code >= 400 or not destination:
+                logger.warning("Supabase Auth refused OAuth initialization (HTTP %s)", result.status_code)
+                raise ValueError("supabase_oauth_init_rejected")
+    except (httpx.HTTPError, ValueError) as exc:
+        raise ValueError("supabase_oauth_init_failed") from exc
+
+    response = RedirectResponse(url=destination, status_code=302)
+    response.headers["Cache-Control"] = "no-store"
+    response.set_cookie(
+        f"{config.GOOGLE_OAUTH_COOKIE_PREFIX}verifier", verifier,
+        max_age=GOOGLE_OAUTH_COOKIE_MAX_AGE, path="/", secure=_cookie_secure(request),
+        httponly=True, samesite="lax",
+    )
+    return response
+
+
+def _exchange_supabase_auth_code(code: str, verifier: str) -> dict:
+    """Exchange Supabase Auth's one-time PKCE code server-side."""
+    endpoint = f"{config.SUPABASE_URL}/auth/v1/token"
+    try:
+        response = httpx.post(
+            endpoint,
+            params={"grant_type": "pkce"},
+            json={"auth_code": code, "code_verifier": verifier},
+            headers={"apikey": config.SUPABASE_ANON_KEY, "Accept": "application/json"},
+            timeout=GOOGLE_OAUTH_TIMEOUT_SECONDS,
+        )
+    except httpx.HTTPError as exc:
+        raise ValueError("supabase_token_exchange_network_error") from exc
+    if response.status_code >= 400:
+        logger.warning("Supabase Auth code exchange rejected (HTTP %s)", response.status_code)
+        raise ValueError("supabase_token_exchange_rejected")
+    payload = response.json()
+    if not isinstance(payload, dict) or not payload.get("access_token"):
+        raise ValueError("supabase_access_token_missing")
+    user = payload.get("user")
+    if not isinstance(user, dict):
+        try:
+            profile_response = httpx.get(
+                f"{config.SUPABASE_URL}/auth/v1/user",
+                headers={
+                    "apikey": config.SUPABASE_ANON_KEY,
+                    "Authorization": f"Bearer {payload['access_token']}",
+                    "Accept": "application/json",
+                },
+                timeout=GOOGLE_OAUTH_TIMEOUT_SECONDS,
+            )
+            profile_response.raise_for_status()
+            user = profile_response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise ValueError("supabase_profile_fetch_failed") from exc
+    if not isinstance(user, dict):
+        raise ValueError("supabase_user_missing")
+    return user
 
 
 def _clear_oauth_cookies(response: Response, secure: bool) -> None:
@@ -125,30 +207,44 @@ def _google_username(db: Session, email: str) -> str:
     return candidate
 
 
-def _get_or_create_google_user(db: Session, claims: dict) -> models.User:
-    subject = str(claims.get("sub") or "").strip()
-    email = str(claims.get("email") or "").strip().lower()
-    verified = claims.get("email_verified") is True or str(claims.get("email_verified", "")).lower() == "true"
+def _get_or_create_oauth_user(
+    db: Session,
+    *,
+    provider: str,
+    subject: str,
+    email: str,
+    verified: bool,
+) -> models.User:
+    subject = str(subject or "").strip()
+    email = str(email or "").strip().lower()
     if not subject or not email or not verified or "@" not in email:
         raise ValueError("verified_email_required")
 
-    user = db.query(models.User).filter(models.User.google_sub == subject).first()
+    identity = db.query(models.OAuthIdentity).filter(
+        models.OAuthIdentity.provider == provider,
+        models.OAuthIdentity.subject == subject,
+    ).first()
+    user = db.query(models.User).filter(models.User.id == identity.user_id).first() if identity else None
+
     if user is None:
-        user = db.query(models.User).filter(
-            or_(func.lower(models.User.email) == email, func.lower(models.User.username) == email)
+        existing_identity = db.query(models.OAuthIdentity).filter(
+            models.OAuthIdentity.provider == provider,
+            func.lower(models.OAuthIdentity.email) == email,
         ).first()
-        if user is not None and user.google_sub and user.google_sub != subject:
+        if existing_identity and existing_identity.subject != subject:
             raise PermissionError("email_already_linked")
-        if user is not None:
-            # Google verifies this address; linking is safe only when it matches
-            # the user's stored email or their existing email-style username.
-            user.email = email
-            user.google_sub = subject
-        else:
+
+        # The legacy users schema has no email column. Only auto-link an account
+        # when its username is explicitly the same email; otherwise create a new
+        # account rather than guessing which existing account owns that mailbox.
+        user = db.query(models.User).filter(func.lower(models.User.username) == email).first()
+        if user is not None and existing_identity is None:
+            identity = models.OAuthIdentity(provider=provider, subject=subject, email=email, user_id=user.id)
+            db.add(identity)
+        elif user is None:
             user = models.User(
                 username=_google_username(db, email),
-                email=email,
-                google_sub=subject,
+                org_name=email.split("@", 1)[0][:120],
                 password_hash=security.hash_password(secrets.token_urlsafe(48)),
                 role=models.UserRole.user,
                 is_active=True,
@@ -156,6 +252,11 @@ def _get_or_create_google_user(db: Session, claims: dict) -> models.User:
             db.add(user)
             db.flush()
             user_settings_compat.ensure_settings(db, user.id, email.split("@", 1)[0][:120])
+            identity = models.OAuthIdentity(provider=provider, subject=subject, email=email, user_id=user.id)
+            db.add(identity)
+        elif existing_identity is not None:
+            # A consistent email identity exists but its user row disappeared.
+            raise ValueError("oauth_identity_orphaned")
 
     if not user.is_active:
         raise PermissionError("account_inactive")
@@ -165,9 +266,49 @@ def _get_or_create_google_user(db: Session, claims: dict) -> models.User:
     return user
 
 
+def _get_or_create_google_user(db: Session, claims: dict) -> models.User:
+    subject = str(claims.get("sub") or "").strip()
+    email = str(claims.get("email") or "").strip().lower()
+    verified = claims.get("email_verified") is True or str(claims.get("email_verified", "")).lower() == "true"
+    return _get_or_create_oauth_user(
+        db, provider="google", subject=subject, email=email, verified=verified
+    )
+
+
+def _get_or_create_supabase_google_user(db: Session, supabase_user: dict) -> models.User:
+    email = str(supabase_user.get("email") or "").strip().lower()
+    verified = bool(
+        supabase_user.get("email_confirmed_at")
+        or supabase_user.get("email_confirmed")
+        or supabase_user.get("confirmed_at")
+    )
+    identities = supabase_user.get("identities") or []
+    google_identity = next(
+        (item for item in identities if isinstance(item, dict) and item.get("provider") == "google"),
+        None,
+    )
+    identity_data = (google_identity or {}).get("identity_data") or {}
+    subject = str(
+        identity_data.get("sub")
+        or identity_data.get("user_id")
+        or (google_identity or {}).get("id")
+        or supabase_user.get("id")
+        or ""
+    )
+    provider = "google" if google_identity else "supabase_google"
+    return _get_or_create_oauth_user(
+        db, provider=provider, subject=subject, email=email, verified=verified
+    )
+
+
 @router.get("/google/start", name="google_oauth_start")
 def google_oauth_start(request: Request):
     if not config.GOOGLE_OAUTH_ENABLED:
+        if config.SUPABASE_AUTH_ENABLED:
+            try:
+                return _start_supabase_google_oauth(request)
+            except ValueError:
+                return _auth_error_redirect("google_exchange", request)
         return _auth_error_redirect("google_not_configured", request)
 
     state = secrets.token_urlsafe(32)
@@ -249,6 +390,51 @@ def google_oauth_callback(
         secure=secure,
         httponly=True,
         samesite="lax",
+    )
+    _clear_oauth_cookies(response, secure)
+    return response
+
+
+@router.get("/google/supabase-callback", name="supabase_google_oauth_callback")
+def supabase_google_oauth_callback(
+    request: Request,
+    code: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    secure = _cookie_secure(request)
+    if error:
+        return _auth_error_redirect("google_denied", request)
+    verifier = request.cookies.get(f"{config.GOOGLE_OAUTH_COOKIE_PREFIX}verifier", "")
+    if not code or not verifier or not config.SUPABASE_AUTH_ENABLED:
+        return _auth_error_redirect("google_not_configured" if not config.SUPABASE_AUTH_ENABLED else "google_state", request)
+
+    try:
+        supabase_user = _exchange_supabase_auth_code(code, verifier)
+    except Exception as exc:  # noqa: BLE001 - never expose auth tokens or provider bodies.
+        logger.warning("Supabase Google OAuth exchange failed (%s)", type(exc).__name__)
+        return _auth_error_redirect("google_exchange", request)
+
+    try:
+        user = _get_or_create_supabase_google_user(db, supabase_user)
+    except PermissionError as exc:
+        db.rollback()
+        return _auth_error_redirect("google_blocked" if str(exc) == "account_inactive" else "google_email_conflict", request)
+    except IntegrityError:
+        db.rollback()
+        return _auth_error_redirect("google_failed", request)
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        logger.warning("Could not persist Supabase OAuth identity (%s)", type(exc).__name__)
+        return _auth_error_redirect("google_failed", request)
+
+    token = security.create_access_token(user.id)
+    response = RedirectResponse(url="/index.html?oauth=success", status_code=303)
+    response.headers["Cache-Control"] = "no-store"
+    response.set_cookie(
+        config.ACCESS_TOKEN_COOKIE_NAME, token,
+        max_age=config.ACCESS_TOKEN_EXPIRE_MINUTES * 60, path="/", secure=secure,
+        httponly=True, samesite="lax",
     )
     _clear_oauth_cookies(response, secure)
     return response
