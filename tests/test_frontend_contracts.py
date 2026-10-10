@@ -5,15 +5,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_auth_page_uses_versioned_assets_and_theme_support():
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert "/assets/css/style.css?v=2.7.9" in html
-    assert "/assets/js/theme.js?v=2.7.9" in html
-    assert "/assets/js/auth.js?v=2.7.9" in html
+    assert "/assets/css/style.css?v=2.8.0" in html
+    assert "/assets/js/theme.js?v=2.8.0" in html
+    assert "/assets/js/auth.js?v=2.8.0" in html
 
 
 def test_admin_page_loads_theme_support():
     html = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
-    assert "/assets/js/theme.js?v=2.7.9" in html
-    assert "/assets/css/style.css?v=2.7.9" in html
+    assert "/assets/js/theme.js?v=2.8.0" in html
+    assert "/assets/css/style.css?v=2.8.0" in html
     assert 'id="sessionModalBody" class="chat-stream" aria-live="polite"' in html
     css = (ROOT / "frontend" / "assets" / "css" / "style.css").read_text(encoding="utf-8")
     assert "#sessionModal .modal-box" in css
@@ -158,7 +158,7 @@ def test_saved_custom_model_is_rehydrated_for_battle_and_english_widget_labels()
     assert 'fillModelSelect(document.getElementById("battleModelB"), battleModels' in dashboard
     assert '{ dog: "Dog", cat: "Cat", raccoon: "Raccoon" }' in dashboard
     assert 'embedCodeBox.textContent = english ? "Loading…" : "در حال بارگذاری…";' in dashboard
-    assert 'dashboard.js?v=2.7.9' in html
+    assert 'dashboard.js?v=2.8.0' in html
 
 
 def test_widget_quick_replies_do_not_keep_the_streaming_caret():
@@ -168,3 +168,44 @@ def test_widget_quick_replies_do_not_keep_the_streaming_caret():
     quick_branch = widget[start:end]
     assert 'pending.classList.remove("pending", "streaming")' in quick_branch
     assert 'pending.classList.add("streaming")' not in quick_branch
+
+
+def test_ai_connection_actions_appear_after_chat_and_embedding_configuration():
+    html = (ROOT / "frontend" / "dashboard.html").read_text(encoding="utf-8")
+    js = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    start = html.index('id="aitab-connect"')
+    end = html.index('id="aitab-battle"', start)
+    connection = html[start:end]
+    actions = connection.index('class="ai-connection-actions"')
+    for control in (
+        'id="chatModelSelect"',
+        'id="customChatModelSelect"',
+        'id="embeddingModelSelect"',
+        'id="customEmbeddingModelSelect"',
+    ):
+        assert connection.index(control) < actions, f"{control} must come before the final action area"
+    for action in ("saveProviderBtn", "saveCustomProviderBtn", "testConnectionBtn", "testCustomConnectionBtn"):
+        assert connection.index(f'id="{action}"') > actions, f"{action} must appear at the end of the form"
+    assert 'style.display = useDefault ? "inline-flex" : "none"' in js
+    assert 'style.display = useDefault ? "none" : "inline-flex"' in js
+    assert 'aria-pressed' in connection
+    assert 'مرحله ۳ · پایان تنظیمات' in connection
+
+
+def test_ai_connection_layout_has_mobile_responsive_styles():
+    css = (ROOT / "frontend" / "assets" / "css" / "style.css").read_text(encoding="utf-8")
+    assert '#aitab-connect .ai-config-card' in css
+    assert '#aitab-connect .ai-connection-actions' in css
+    assert '@media (max-width:760px)' in css
+    assert '#aitab-connect .ai-action-buttons .btn { flex:1 1 100%; }' in css
+
+
+def test_ai_connection_copy_is_translated_for_english_ui():
+    settings = (ROOT / "frontend" / "assets" / "js" / "settings.js").read_text(encoding="utf-8")
+    for source, target in (
+        ("اتصال مدل چت", "Connect chat model"),
+        ("مدل جست‌وجوی دانشنامه (Embedding)", "Knowledge retrieval model (Embedding)"),
+        ("ذخیره و فعال‌سازی", "Save and activate"),
+        ("همه‌چیز آماده است؟", "Ready to go?"),
+    ):
+        assert source in settings and target in settings

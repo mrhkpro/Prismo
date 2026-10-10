@@ -1,3 +1,12 @@
+# Changelog
+
+## 2.8.0 — AI connection UX
+
+- Rebuilt the AI provider settings flow into ordered steps: chat source/model, independent embedding source/model, then save/test at the bottom.
+- Consolidated save/test actions into a single final action area; only actions for the active chat source are shown.
+- Improved independent chat/embedding cards, contextual hints, accessible pressed states, and responsive mobile layout.
+- Bumped front-end asset cache versions to 2.8.0.
+
 # v2.7.9 — Remove Google sign-in
 
 Google OAuth UI, JavaScript handlers, API endpoints, server configuration and the Google verification dependency have been removed. Username/password registration, login and logout remain the supported application auth flow. Migration `006_remove_oauth_identities.sql` removes only the obsolete OAuth identity-mapping table on Supabase/PostgreSQL.

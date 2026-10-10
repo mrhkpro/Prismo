@@ -179,8 +179,23 @@ function setProviderMode(useDefault) {
   if (checkbox) checkbox.checked = useDefault;
   document.getElementById("defaultProviderInfo").style.display = useDefault ? "block" : "none";
   document.getElementById("customProviderPanel").style.display = useDefault ? "none" : "block";
-  document.getElementById("defaultProviderModeBtn").classList.toggle("active", useDefault);
-  document.getElementById("customProviderModeBtn").classList.toggle("active", !useDefault);
+
+  const defaultButton = document.getElementById("defaultProviderModeBtn");
+  const customButton = document.getElementById("customProviderModeBtn");
+  defaultButton.classList.toggle("active", useDefault);
+  customButton.classList.toggle("active", !useDefault);
+  defaultButton.setAttribute("aria-pressed", String(useDefault));
+  customButton.setAttribute("aria-pressed", String(!useDefault));
+
+  // There is one action area after both model selectors. Show only the actions
+  // belonging to the chosen chat source, without duplicating controls beside
+  // the fields where they interrupt the selection flow.
+  ["saveProviderBtn", "testConnectionBtn"].forEach((id) => {
+    document.getElementById(id).style.display = useDefault ? "inline-flex" : "none";
+  });
+  ["saveCustomProviderBtn", "testCustomConnectionBtn"].forEach((id) => {
+    document.getElementById(id).style.display = useDefault ? "none" : "inline-flex";
+  });
 
   const badge = document.getElementById("providerStatusBadge");
   badge.textContent = useDefault ? "چت آماده" : "چت اختصاصی";
@@ -188,10 +203,14 @@ function setProviderMode(useDefault) {
 }
 
 function setEmbeddingProviderMode(useDefault) {
-  document.getElementById("defaultEmbeddingProviderPanel").style.display = useDefault ? "grid" : "none";
-  document.getElementById("customEmbeddingProviderPanel").style.display = useDefault ? "none" : "grid";
-  document.getElementById("embeddingDefaultProviderModeBtn").classList.toggle("active", useDefault);
-  document.getElementById("embeddingCustomProviderModeBtn").classList.toggle("active", !useDefault);
+  document.getElementById("defaultEmbeddingProviderPanel").style.display = useDefault ? "block" : "none";
+  document.getElementById("customEmbeddingProviderPanel").style.display = useDefault ? "none" : "block";
+  const defaultButton = document.getElementById("embeddingDefaultProviderModeBtn");
+  const customButton = document.getElementById("embeddingCustomProviderModeBtn");
+  defaultButton.classList.toggle("active", useDefault);
+  customButton.classList.toggle("active", !useDefault);
+  defaultButton.setAttribute("aria-pressed", String(useDefault));
+  customButton.setAttribute("aria-pressed", String(!useDefault));
 }
 
 document.querySelectorAll("#view-ai-settings [data-aitab]").forEach((btn) => {
@@ -934,7 +953,7 @@ async function importFiles(fileList) {
   let completedFiles = 0;
   try {
     try {
-      await Lazy.script("/assets/js/extract.js?v=2.7.9");
+      await Lazy.script("/assets/js/extract.js?v=2.8.0");
     } catch (err) {
       return toastError(err);
     }
@@ -1470,7 +1489,7 @@ async function loadWidgetSection() {
     const [cfg, embed] = await Promise.all([
       apiCall("/api/widget/config"),
       apiCall("/api/widget/embed-code"),
-      Lazy.script("/assets/js/pets.js?v=2.7.9").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+      Lazy.script("/assets/js/pets.js?v=2.8.0").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
     ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";

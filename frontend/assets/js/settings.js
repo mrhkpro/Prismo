@@ -367,6 +367,47 @@
     } catch (_) {}
     return allowedThemes.indexOf(state.theme) !== -1 ? state.theme : "dark";
   }
+  // AI provider setup (v2.8.0): keep the new ordered configuration flow bilingual.
+  Object.assign(dict, {
+    'اول مدل چت را انتخاب کن، بعد مدل embedding را؛ وقتی همه‌چیز آماده شد، تنظیمات را از انتهای صفحه ذخیره کن.': 'Choose your chat model first, then your embedding model. When everything is ready, save your settings at the bottom.',
+    'مراحل تنظیم مدل': 'Model setup steps',
+    'منبع مدل چت': 'Chat model source',
+    'منبع مدل embedding': 'Embedding model source',
+    'مدل چت': 'Chat model',
+    'منبع و مدل پاسخ‌گویی': 'Provider and response model',
+    'مدل embedding': 'Embedding model',
+    'جست‌وجوی دانشنامه': 'Knowledge-base retrieval',
+    'ذخیره و تست': 'Save and test',
+    'در انتهای صفحه': 'At the bottom',
+    'مرحله ۱': 'STEP 1',
+    'مرحله ۲': 'STEP 2',
+    'مرحله ۳ · پایان تنظیمات': 'STEP 3 · FINALIZE',
+    'اتصال مدل چت': 'Connect chat model',
+    'مدلی که پاسخ‌های دستیار را تولید می‌کند انتخاب کن.': 'Choose the model that generates assistant replies.',
+    'چت آماده': 'Ready chat',
+    'چت اختصاصی': 'Custom chat',
+    'آدرس API چت (Base URL)': 'Chat API URL (Base URL)',
+    'آدرس پایهٔ سرویس سازگار با OpenAI؛ برای OpenRouter از آدرس بالا استفاده کن.': 'Base URL for an OpenAI-compatible provider. For OpenRouter, use the URL above.',
+    'کلید API چت': 'Chat API key',
+    'کلید فقط سمت سرور ذخیره می‌شود.': 'The API key is stored server-side only.',
+    'مدل چت این سرویس': 'Chat model for this provider',
+    'بعد از واردکردن آدرس و کلید، «دریافت مدل‌ها» را بزن و مدل موردنظر را انتخاب کن.': 'Enter the URL and key, choose Discover models, then select the model you want.',
+    'مدل جست‌وجوی دانشنامه (Embedding)': 'Knowledge retrieval model (Embedding)',
+    'این مدل مستقل از مدل چت است و می‌تواند از سرویس دیگری استفاده کند.': 'This model is independent of the chat model and can use a different provider.',
+    'مدل چت و embedding را می‌توانی از دو سرویس متفاوت انتخاب کنی. مدل embedding باید با بُعد برداری ذخیره‌شده در پروژه سازگار باشد.': 'Chat and embedding can use different providers. The embedding vector dimension must match the project’s configured dimension.',
+    'مدل embedding آماده': 'Ready embedding model',
+    'آدرس API embedding': 'Embedding API URL',
+    'کلید API embedding': 'Embedding API key',
+    'در صورت یکسان‌بودن سرویس‌ها می‌توانی کلید چت را هم استفاده کنی.': 'When both models use the same provider, you can reuse the chat key.',
+    'مدل embedding این سرویس': 'Embedding model for this provider',
+    'فقط مدل‌هایی نمایش داده می‌شوند که آزمون سازگاری بُعد بردار را گذرانده باشند.': 'Only models compatible with the configured vector dimension are shown.',
+    'همه‌چیز آماده است؟': 'Ready to go?',
+    'تنظیمات مدل چت و embedding با هم ذخیره می‌شوند. بعد از ذخیره، اتصال را تست کن.': 'Chat and embedding settings are saved together. Test the connection after saving.',
+    'ذخیره و فعال‌سازی': 'Save and activate',
+    'API اختصاصی': 'Custom API',
+    'مدل آماده': 'Ready model',
+  });
+
   function getLanguage() { return state.language === "en" ? "en" : "fa"; }
 
   function latinizeUiNumbers(text, language) {

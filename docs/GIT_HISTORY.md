@@ -18,6 +18,12 @@ main
 └─ docs/vercel-chat-runbook
 ```
 
+## v2.8.0 release chain
+
+- `fix/ai-provider-connection-ux-v2.8.0` → guided chat/embedding selection, final save/test action area, accessible source selectors and responsive layout.
+- `test/docs/ai-provider-ux-v2.8.0` → order/responsive/i18n regression tests and release documentation.
+- Both branches were merged into `main` with `--no-ff`; release tag: `v2.8.0`.
+
 ## Convention
 
 - `feat:` برای قابلیت جدید

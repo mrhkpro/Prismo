@@ -9,6 +9,7 @@ Each user can create a private knowledge base, configure an OpenAI-compatible mo
 - User registration, login, JWT sessions, logout and account blocking.
 - User-scoped documents, chunks, conversations and settings.
 - Custom OpenAI-compatible provider configuration, connection testing and model discovery.
+- Independent chat and embedding providers with a guided, responsive setup flow (v2.8.0).
 - RAG with chunking, embeddings, cosine retrieval, configurable `top_k` and similarity threshold.
 - Bounded conversation history and explicit retrieved-context boundaries.
 - Knowledge-base CRUD plus explicit document reindexing.
@@ -19,6 +20,10 @@ Each user can create a private knowledge base, configure an OpenAI-compatible mo
 - Admin dashboard, pagination, statistics, security flags, role management and safe impersonation.
 - Centralized API errors, request IDs and request timing logs.
 - Light/dark frontend theme support, responsive UI, accessible toast notifications and fetch timeouts.
+
+## Latest release
+
+See [`docs/CHANGELOG_2.8.0.md`](docs/CHANGELOG_2.8.0.md) for the AI connection UX refresh. Model selection now comes before a shared save/test action area at the bottom of the form.
 
 ## Architecture
 
