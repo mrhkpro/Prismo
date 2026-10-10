@@ -1,15 +1,10 @@
-(async function () {
-  const params = new URLSearchParams(location.search);
-  const oauthResult = params.get("oauth");
-  const oauthError = params.get("auth_error");
-
+(function () {
   const tabs = document.querySelectorAll(".auth-tab");
   const loginForm = document.getElementById("loginForm");
   const registerForm = document.getElementById("registerForm");
   const authTitle = document.getElementById("authTitle");
   const authSub = document.getElementById("authSub");
   const errorBox = document.getElementById("authError");
-  const googleButton = document.getElementById("googleLoginBtn");
 
   function showError(msg) {
     errorBox.textContent = msg;
@@ -19,60 +14,8 @@
     errorBox.classList.remove("show");
     errorBox.textContent = "";
   }
-  function isEnglish() {
-    return !!(window.QZI18n && window.QZI18n.isEnglish && window.QZI18n.isEnglish());
-  }
-  function oauthErrorMessage(code) {
-    const en = {
-      google_not_configured: "Google sign-in is not configured. Set the Supabase Project URL and anon/publishable key in the server environment (SUPABASE_URL and SUPABASE_ANON_KEY), and enable Google under Supabase Auth → Providers. Alternatively, set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for direct Google OAuth.",
-      google_denied: "Google sign-in was cancelled.",
-      google_state: "Google sign-in could not verify this request. Please try again.",
-      google_exchange: "Google could not complete the secure sign-in exchange. Check the callback configuration.",
-      google_profile: "Google did not return a verified profile.",
-      google_blocked: "This account is disabled.",
-      google_email_conflict: "This email is already linked to another account. Sign in using your previous method.",
-      google_failed: "Google sign-in could not be completed. Please try again.",
-    };
-    const fa = {
-      google_not_configured: "ورود گوگل پیکربندی نشده است. آدرس پروژه و کلید عمومی anon/publishable سوپابیس را در متغیرهای سرور SUPABASE_URL و SUPABASE_ANON_KEY وارد و Google را در Supabase Auth ← Providers فعال کنید؛ یا برای OAuth مستقیم، GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET را تنظیم کنید. کلید service_role قابل استفاده نیست.",
-      google_denied: "فرایند ورود با گوگل لغو شد.",
-      google_state: "اعتبار درخواست ورود با گوگل تأیید نشد؛ دوباره تلاش کنید.",
-      google_exchange: "تبادل امن کد ورود با گوگل ناموفق بود؛ تنظیمات callback را بررسی کنید.",
-      google_profile: "پروفایل تأییدشده‌ای از گوگل دریافت نشد.",
-      google_blocked: "این حساب کاربری غیرفعال است.",
-      google_email_conflict: "این ایمیل به حساب دیگری متصل است؛ با روش قبلی وارد شوید.",
-      google_failed: "ورود با گوگل کامل نشد؛ دوباره تلاش کنید.",
-    };
-    const dict = isEnglish() ? en : fa;
-    return dict[code] || (isEnglish() ? "Google sign-in failed. Please try again." : "ورود با گوگل ناموفق بود؛ دوباره تلاش کنید.");
-  }
-  function cleanOAuthQuery() {
-    params.delete("oauth");
-    params.delete("auth_error");
-    const query = params.toString();
-    history.replaceState({}, document.title, location.pathname + (query ? `?${query}` : "") + location.hash);
-  }
 
-  // Google callback sets an HttpOnly cookie; verify that cookie by asking the API
-  // before marking this browser as using cookie-backed auth and opening dashboard.
-  if (oauthResult === "success") {
-    try {
-      await apiCallRaw("/api/auth/me", { method: "GET", auth: false, timeoutMs: 10000 });
-      Auth.setCookieSession(true);
-      cleanOAuthQuery();
-      location.replace("/dashboard.html");
-      return;
-    } catch (_) {
-      cleanOAuthQuery();
-      showError(isEnglish() ? "Google sign-in returned, but the session could not be verified." : "از گوگل بازگشتید، اما نشست ورود تأیید نشد. دوباره تلاش کنید.");
-    }
-  } else if (oauthError) {
-    cleanOAuthQuery();
-    showError(oauthErrorMessage(oauthError));
-  }
-
-  // If an existing bearer or cookie-backed session is already present, preserve
-  // the original fast redirect behaviour for both login and registration views.
+  // Keep login/register fast: a stored bearer token redirects without extra requests.
   if (Auth.isLoggedIn()) {
     location.replace("/dashboard.html");
     return;
@@ -144,13 +87,4 @@
     }
   });
 
-  if (googleButton) {
-    googleButton.addEventListener("click", () => {
-      clearError();
-      googleButton.disabled = true;
-      const label = googleButton.querySelector("span");
-      if (label) label.textContent = isEnglish() ? "Redirecting to Google…" : "در حال انتقال به گوگل…";
-      location.assign("/api/auth/google/start");
-    });
-  }
 })();

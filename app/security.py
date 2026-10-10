@@ -11,7 +11,7 @@ from datetime import timedelta
 from typing import Optional
 
 import jwt
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -88,13 +88,8 @@ def decode_token(token: str) -> dict:
 def get_current_user(
     token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
-    access_token_cookie: Optional[str] = Cookie(default=None, alias=config.ACCESS_TOKEN_COOKIE_NAME),
 ) -> models.User:
-    # Email/password clients continue using bearer JWTs. Google OAuth sets the
-    # same signed token in an HttpOnly, SameSite=Lax cookie so it is not exposed
-    # to browser JavaScript. Prefer explicit bearer credentials for compatibility
-    # with admin impersonation and existing API clients.
-    token = token or access_token_cookie
+    # Application authentication uses the bearer JWT returned by username/password login.
     if not token:
         raise HTTPException(status_code=401, detail="برای ادامه وارد حساب شوید.", headers={"WWW-Authenticate": "Bearer"})
     payload = decode_token(token)

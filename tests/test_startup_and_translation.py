@@ -152,7 +152,7 @@ def test_prismo_brand_and_login_language_switch_are_present():
     index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
     assert 'data-language="fa"' in index and 'data-language="en"' in index
     assert 'data-theme-settings-center="1"' in index
-    assert 'prismo-icon.svg?v=2.7.8' in index
+    assert 'prismo-icon.svg?v=2.7.9' in index
     assert '<title>Prismo — ویجت هوشمند دانش‌محور</title>' in index
     assert 'Prismo — Knowledge-powered AI widget' in (ROOT / 'frontend' / 'assets' / 'js' / 'settings.js').read_text(encoding='utf-8')
     assert "themeToggle" not in index
@@ -182,4 +182,4 @@ def test_test_lab_uses_explicit_bilingual_labels_not_mixed_rag_phrases():
 
 def test_prismo_login_favicon_is_configured():
     index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert '<link rel="icon" type="image/svg+xml" href="/assets/prismo-icon.svg?v=2.7.8">' in index
+    assert '<link rel="icon" type="image/svg+xml" href="/assets/prismo-icon.svg?v=2.7.9">' in index

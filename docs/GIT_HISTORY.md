@@ -143,3 +143,9 @@ All branches in the release line are merged into `main` with `--no-ff` to preser
 - `chore/release-2.7.8` — bump app asset cache keys, update release docs, and verify frontend contracts.
 - Release is merged to `main` with `--no-ff` and tagged `v2.7.8`; `.env` and API keys are excluded from deliverables.
 - Verification: 238 Python tests passed; `compileall`, JavaScript `node --check`, and `git diff --check` passed. Live Google/Supabase OAuth and external model APIs were not exercised because valid production credentials/network access were not available in this environment.
+
+
+## v2.7.9 — remove Google sign-in
+
+- `fix/remove-google-oauth-v2.7.9` — remove Google controls and client logic, delete the server-side Google/Supabase OAuth routes and configuration, remove Google-only dependencies/model, retain username/password auth, add a forward migration for the obsolete identity table, and replace OAuth tests with removal/route-preservation regression tests.
+- The previous v2.7.7–v2.7.8 release notes remain as historical changelog entries; the active app no longer exposes or implements Google login.
