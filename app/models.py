@@ -178,10 +178,18 @@ class UserSettings(Base):
         nullable=False,
     )
 
+    # Chat and embedding providers can be chosen independently. Nullable is
+    # intentional for older hosted schemas before migration 005 is applied.
     use_default_provider = Column(
         Boolean,
         default=True,
         nullable=False,
+    )
+
+    embedding_use_default_provider = Column(
+        Boolean,
+        default=True,
+        nullable=True,
     )
 
     api_key = Column(

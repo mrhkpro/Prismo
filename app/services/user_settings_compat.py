@@ -19,6 +19,7 @@ OPTIONAL_COLUMNS = {
     "separate_embedding_provider",
     "embedding_api_key",
     "embedding_base_url",
+    "embedding_use_default_provider",
 }
 
 LEGACY_FIELDS = (
@@ -47,6 +48,7 @@ class SettingsSnapshot:
     api_key: str | None = None
     base_url: str | None = None
     separate_embedding_provider: bool = False
+    embedding_use_default_provider: bool | None = None
     embedding_api_key: str | None = None
     embedding_base_url: str | None = None
     chat_model: str = config.DEFAULT_CHAT_MODEL
@@ -107,7 +109,7 @@ def optional_columns(db: Session) -> set[str]:
                 "FROM information_schema.columns "
                 "WHERE table_schema = current_schema() "
                 "AND table_name = 'user_settings' "
-                "AND column_name IN ('separate_embedding_provider','embedding_api_key','embedding_base_url')"
+                "AND column_name IN ('separate_embedding_provider','embedding_api_key','embedding_base_url','embedding_use_default_provider')"
             )
         ).scalars().all()
         _schema_optional_cache = set(rows)
@@ -148,6 +150,8 @@ def ensure_settings(db: Session, user_id: int, widget_title: str | None = None) 
     for name in optional:
         if name == "separate_embedding_provider":
             insert_values[name] = False
+        elif name == "embedding_use_default_provider":
+            insert_values[name] = True
         else:
             insert_values[name] = None
 
@@ -173,6 +177,10 @@ def snapshot_from_mapping(user_id: int, row: Any) -> SettingsSnapshot:
         api_key=data.get("api_key"),
         base_url=data.get("base_url"),
         separate_embedding_provider=bool(data.get("separate_embedding_provider", False)),
+        embedding_use_default_provider=(
+            bool(data.get("embedding_use_default_provider"))
+            if data.get("embedding_use_default_provider") is not None else None
+        ),
         embedding_api_key=data.get("embedding_api_key"),
         embedding_base_url=data.get("embedding_base_url"),
         chat_model=data.get("chat_model") or config.DEFAULT_CHAT_MODEL,

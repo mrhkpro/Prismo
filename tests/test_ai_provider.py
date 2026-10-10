@@ -44,6 +44,49 @@ class FakeUser:
 
 
 class AIProviderTests(unittest.TestCase):
+    def test_chat_and_embedding_provider_modes_are_independent(self):
+        with patch.object(llm_client.config, "AI_PROXY_BASE_URL", ""), patch.object(llm_client.config, "AI_PROXY_API_KEY", ""), patch.object(llm_client.config, "DEFAULT_PROVIDER_BASE_URL", "https://ready.example/v1"), patch.object(llm_client.config, "DEFAULT_PROVIDER_API_KEY", "ready-key"):
+            custom_chat_ready_embedding = llm_client.resolve_provider(SimpleNamespace(
+                use_default_provider=False,
+                api_key="custom-chat-key",
+                base_url="https://chat.example/v1",
+                embedding_use_default_provider=True,
+                separate_embedding_provider=False,
+                embedding_base_url=None,
+                embedding_api_key=None,
+                chat_model="my-chat-model",
+                embedding_model="ready-embedding-model",
+            ))
+            self.assertEqual(custom_chat_ready_embedding.base_url, "https://chat.example/v1")
+            self.assertEqual(custom_chat_ready_embedding.api_key, "custom-chat-key")
+            self.assertEqual(custom_chat_ready_embedding.embedding_base_url, "https://ready.example/v1")
+            self.assertEqual(custom_chat_ready_embedding.embedding_api_key, "ready-key")
+
+            ready_chat_custom_embedding = llm_client.resolve_provider(SimpleNamespace(
+                use_default_provider=True,
+                api_key=None,
+                base_url=None,
+                embedding_use_default_provider=False,
+                separate_embedding_provider=True,
+                embedding_base_url="https://embed.example/v1",
+                embedding_api_key="custom-embedding-key",
+                chat_model="ready-chat-model",
+                embedding_model="my-embedding-model",
+            ))
+            self.assertEqual(ready_chat_custom_embedding.base_url, "https://ready.example/v1")
+            self.assertEqual(ready_chat_custom_embedding.embedding_base_url, "https://embed.example/v1")
+            self.assertEqual(ready_chat_custom_embedding.embedding_api_key, "custom-embedding-key")
+
+    def test_legacy_provider_mode_without_migration_keeps_previous_behavior(self):
+        with patch.object(llm_client.config, "AI_PROXY_BASE_URL", ""), patch.object(llm_client.config, "AI_PROXY_API_KEY", ""), patch.object(llm_client.config, "DEFAULT_PROVIDER_BASE_URL", "https://ready.example/v1"), patch.object(llm_client.config, "DEFAULT_PROVIDER_API_KEY", "ready-key"):
+            provider = llm_client.resolve_provider(SimpleNamespace(
+                use_default_provider=False, api_key="chat-key", base_url="https://chat.example/v1",
+                embedding_use_default_provider=None, separate_embedding_provider=False,
+                embedding_base_url=None, embedding_api_key=None, chat_model="chat", embedding_model="embed",
+            ))
+        self.assertEqual(provider.embedding_base_url, "https://chat.example/v1")
+        self.assertEqual(provider.embedding_api_key, "chat-key")
+
     def test_normalize_base_url(self):
         self.assertEqual(llm_client.normalize_base_url(" https://example.com/v1/// "), "https://example.com/v1")
 
@@ -170,6 +213,35 @@ class AIProviderTests(unittest.TestCase):
         with self.assertRaises(llm_client.LLMError):
             llm_client.list_models("https://example.com/v1", "")
 
+
+    def test_resolve_provider_can_mix_custom_chat_with_ready_embedding(self):
+        fake = FakeSettings()
+        fake.use_default_provider = False
+        fake.embedding_use_default_provider = True
+        fake.api_key = "chat-key"
+        fake.base_url = "https://chat.example/v1"
+        with patch.object(llm_client.config, "DEFAULT_PROVIDER_BASE_URL", "https://ready.example/v1"), patch.object(llm_client.config, "DEFAULT_PROVIDER_API_KEY", "ready-key"), patch.object(llm_client.config, "AI_PROXY_BASE_URL", ""), patch.object(llm_client.config, "AI_PROXY_API_KEY", ""):
+            provider = llm_client.resolve_provider(fake)
+        self.assertEqual(provider.base_url, "https://chat.example/v1")
+        self.assertEqual(provider.api_key, "chat-key")
+        self.assertEqual(provider.embedding_base_url, "https://ready.example/v1")
+        self.assertEqual(provider.embedding_api_key, "ready-key")
+        self.assertFalse(provider.is_default)
+
+    def test_resolve_provider_can_mix_ready_chat_with_custom_embedding(self):
+        fake = FakeSettings()
+        fake.use_default_provider = True
+        fake.embedding_use_default_provider = False
+        fake.separate_embedding_provider = True
+        fake.embedding_base_url = "https://embed.example/v1"
+        fake.embedding_api_key = "embedding-key"
+        with patch.object(llm_client.config, "DEFAULT_PROVIDER_BASE_URL", "https://ready.example/v1"), patch.object(llm_client.config, "DEFAULT_PROVIDER_API_KEY", "ready-key"), patch.object(llm_client.config, "AI_PROXY_BASE_URL", ""), patch.object(llm_client.config, "AI_PROXY_API_KEY", ""):
+            provider = llm_client.resolve_provider(fake)
+        self.assertEqual(provider.base_url, "https://ready.example/v1")
+        self.assertEqual(provider.api_key, "ready-key")
+        self.assertEqual(provider.embedding_base_url, "https://embed.example/v1")
+        self.assertEqual(provider.embedding_api_key, "embedding-key")
+        self.assertTrue(provider.is_default)
 
     def test_resolve_provider_supports_separate_embedding_credentials(self):
         fake = FakeSettings()
@@ -460,6 +532,18 @@ class ProviderCapabilityTests(unittest.TestCase):
                 llm_client._fetch_openrouter_model_catalog("https://openrouter.ai/api/v1", "test-secret")
         self.assertNotIn("test-secret", str(caught.exception))
         self.assertIn("کلید API", str(caught.exception))
+
+    def test_chat_discovery_can_skip_slow_embedding_probes(self):
+        raw = [SimpleNamespace(id="chat-basic"), SimpleNamespace(id="text-embedding-custom")]
+        with patch("app.services.llm_client._list_models_raw", return_value=raw), patch(
+            "app.services.llm_client._client", return_value=object()
+        ), patch("app.services.llm_client._probe_chat_model", return_value=True), patch(
+            "app.services.llm_client._probe_embedding_model", side_effect=AssertionError("embedding probe should be skipped")
+        ), patch("app.services.llm_client._fetch_openrouter_embedding_catalog", return_value=[]):
+            result = llm_client.discover_model_capabilities("https://example.com/v1", "test-key", include_embeddings=False)
+        self.assertEqual(result["chat_models"], ["chat-basic"])
+        self.assertEqual(result["embedding_models"], [])
+        self.assertEqual(result["embedding_candidates_probed"], 0)
 
     def test_discover_embedding_models_never_touches_chat_endpoint(self):
         def fail_if_called(**kwargs):

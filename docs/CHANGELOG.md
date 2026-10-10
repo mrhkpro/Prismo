@@ -1,3 +1,7 @@
+# v2.7.8 — Independent chat/embedding sources and Supabase auth recovery
+
+See `CHANGELOG_2.7.8.md` for the complete release notes.
+
 # v2.7.7 — Google OAuth, theme repair and complete OpenRouter catalogue
 
 See `CHANGELOG_2.7.7.md` for the complete release notes.

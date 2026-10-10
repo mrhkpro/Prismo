@@ -7,7 +7,7 @@ import logging
 import re
 import secrets
 from datetime import timedelta
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -57,7 +57,13 @@ def _supabase_google_redirect_uri(request: Request) -> str:
 
 
 def _start_supabase_google_oauth(request: Request) -> RedirectResponse:
-    """Start Google OAuth using the Google provider configured in Supabase Auth."""
+    """Start Google OAuth using the Google provider configured in Supabase Auth.
+
+    Redirect the browser directly to Supabase instead of making a server-side
+    preflight request. This is the standard OAuth redirect flow, avoids one
+    extra network round-trip, and works even when the app server cannot make
+    outbound HTTP requests before redirecting the browser.
+    """
     verifier = secrets.token_urlsafe(64)
     challenge = _pkce_challenge(verifier)
     callback_uri = _supabase_google_redirect_uri(request)
@@ -68,22 +74,7 @@ def _start_supabase_google_oauth(request: Request) -> RedirectResponse:
         "code_challenge_method": "s256",
     })
     auth_url = f"{config.SUPABASE_URL}/auth/v1/authorize?{query}"
-    try:
-        with httpx.Client(timeout=GOOGLE_OAUTH_TIMEOUT_SECONDS, follow_redirects=False) as client:
-            result = client.get(auth_url, headers={"apikey": config.SUPABASE_ANON_KEY, "Accept": "application/json"})
-        location = result.headers.get("location")
-        if 300 <= result.status_code < 400 and location:
-            destination = urljoin(config.SUPABASE_URL + "/", location)
-        else:
-            payload = result.json() if result.content else {}
-            destination = payload.get("url") if isinstance(payload, dict) else None
-            if result.status_code >= 400 or not destination:
-                logger.warning("Supabase Auth refused OAuth initialization (HTTP %s)", result.status_code)
-                raise ValueError("supabase_oauth_init_rejected")
-    except (httpx.HTTPError, ValueError) as exc:
-        raise ValueError("supabase_oauth_init_failed") from exc
-
-    response = RedirectResponse(url=destination, status_code=302)
+    response = RedirectResponse(url=auth_url, status_code=302)
     response.headers["Cache-Control"] = "no-store"
     response.set_cookie(
         f"{config.GOOGLE_OAUTH_COOKIE_PREFIX}verifier", verifier,

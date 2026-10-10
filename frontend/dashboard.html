@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, noarchive, nosnippet, noimageindex">
-<link rel="icon" type="image/svg+xml" href="/assets/prismo-icon.svg?v=2.7.7">
+<link rel="icon" type="image/svg+xml" href="/assets/prismo-icon.svg?v=2.7.8">
 <title>داشبورد — Prismo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +16,7 @@
     if (["light","dark","ocean","forest","sunset","lavender","mono","nord","amber","rose"].includes(theme)) document.documentElement.dataset.theme = theme;
   } catch (_) {}
 </script>
-<link rel="stylesheet" href="/assets/css/style.css?v=2.7.7">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.7.8">
 </head>
 <body data-theme-settings-center="1">
 
@@ -102,7 +102,7 @@
     <!-- ---------- خانه ---------- -->
     <section class="view active" id="view-overview">
       <div class="page-head">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span class="badge badge-accent">PRISMO 2.7.7</span><span class="badge badge-success"><span class="badge-dot"></span> سیستم آماده</span></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span class="badge badge-accent">PRISMO 2.7.8</span><span class="badge badge-success"><span class="badge-dot"></span> سیستم آماده</span></div>
         <h1>سلام 👋</h1>
         <p>یک نگاه سریع به وضعیت دستیار هوشمند و دانشنامه‌ات</p>
       </div>
@@ -160,63 +160,69 @@
             </div>
           </div>
 
-          <!-- حالت آماده -->
+          <!-- منبع مدل چت مستقل از embedding انتخاب می‌شود -->
           <div id="defaultProviderInfo">
             <div class="form-grid">
-              <div class="field"><label>مدل چت</label><select id="chatModelSelect"></select></div>
-              <div class="field"><label>مدل Embedding</label><select id="embeddingModelSelect"></select></div>
+              <div class="field"><label>مدل چت آماده</label><select id="chatModelSelect"></select></div>
             </div>
             <div class="panel-foot">
-              <button class="btn btn-primary" id="saveProviderBtn">ذخیره</button>
+              <button class="btn btn-primary" id="saveProviderBtn">ذخیره تنظیمات مدل‌ها</button>
               <button class="btn btn-ghost" id="testConnectionBtn">تست اتصال</button>
             </div>
           </div>
 
-          <!-- حالت اختصاصی -->
+          <!-- منبع چت اختصاصی -->
           <div id="customProviderPanel" style="display:none;">
             <div class="form-grid">
               <div class="field span-2">
-                <label>Base URL</label>
+                <label>Chat Base URL</label>
                 <input type="url" id="baseUrlInput" placeholder="https://api.example.com/v1" dir="ltr" autocomplete="url">
               </div>
               <div class="field span-2">
-                <label>API Key چت</label>
+                <label>Chat API Key</label>
                 <div class="input-action">
                   <input type="password" id="apiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
-                  <button class="btn btn-soft" id="discoverModelsBtn" type="button">دریافت مدل‌ها</button>
+                  <button class="btn btn-soft" id="discoverModelsBtn" type="button">دریافت مدل‌های چت</button>
                 </div>
                 <span class="field-hint" id="apiKeyStatusHint"></span>
               </div>
-              <div class="field span-2 model-credential-mode">
-                <label>اعتبار اتصال Embedding</label>
-                <div class="segmented" id="modelCredentialMode" role="tablist" aria-label="کلید مدل چت و embedding">
-                  <button type="button" class="seg-btn active" id="sharedModelKeyBtn">همان API Key چت</button>
-                  <button type="button" class="seg-btn" id="separateModelKeyBtn">API Key جداگانه</button>
-                </div>
-                <span class="field-hint">در حالت جدا، Base URL و API Key embedding مستقل بررسی می‌شوند.</span>
-              </div>
-              <div id="separateEmbeddingProviderPanel" class="field-grid span-2" style="display:none;">
-                <div class="field">
-                  <label>Embedding Base URL</label>
-                  <input type="url" id="embeddingBaseUrlInput" placeholder="https://embedding.example.com/v1" dir="ltr" autocomplete="url">
-                </div>
-                <div class="field">
-                  <label>Embedding API Key</label>
-                  <div class="input-action">
-                    <input type="password" id="embeddingApiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
-                    <button class="btn btn-soft" id="discoverEmbeddingModelsBtn" type="button">دریافت مدل‌های Embedding</button>
-                  </div>
-                  <span class="field-hint" id="embeddingApiKeyStatusHint"></span>
-                  <div class="status-line" id="embeddingModelDiscoveryStatus"></div>
-                </div>
-              </div>
-              <div class="field"><label>مدل چت تأییدشده</label><select id="customChatModelSelect" disabled></select></div>
-              <div class="field"><label>مدل Embedding تأییدشده</label><select id="customEmbeddingModelSelect" disabled></select><span class="field-hint">فقط مدل‌هایی نمایش داده می‌شوند که واقعاً endpoint مربوطه را پاسخ دهند و ابعاد embedding آن‌ها با پروژه برابر باشد.</span></div>
+              <div class="field span-2"><label>مدل چت سرویس اختصاصی</label><select id="customChatModelSelect" disabled></select></div>
               <div class="field span-2"><div class="status-line" id="modelDiscoveryStatus"></div></div>
             </div>
             <div class="panel-foot">
-              <button class="btn btn-primary" id="saveCustomProviderBtn">ذخیره</button>
+              <button class="btn btn-primary" id="saveCustomProviderBtn">ذخیره تنظیمات مدل‌ها</button>
               <button class="btn btn-ghost" id="testCustomConnectionBtn">تست اتصال</button>
+            </div>
+          </div>
+
+          <!-- منبع embedding مستقل از منبع چت -->
+          <div class="field-grid span-2 provider-source-section" id="embeddingProviderSection">
+            <div class="field span-2">
+              <label>منبع مدل Embedding</label>
+              <div class="segmented" role="tablist" aria-label="منبع مدل embedding">
+                <button type="button" class="seg-btn active" id="embeddingDefaultProviderModeBtn">مدل آماده</button>
+                <button type="button" class="seg-btn" id="embeddingCustomProviderModeBtn">API اختصاصی</button>
+              </div>
+              <span class="field-hint">مدل چت و embedding می‌توانند از دو سرویس متفاوت باشند. حالت آماده از مدل‌های تعریف‌شده برای پروژه استفاده می‌کند.</span>
+            </div>
+            <div id="defaultEmbeddingProviderPanel" class="form-grid span-2">
+              <div class="field"><label>مدل Embedding آماده</label><select id="embeddingModelSelect"></select></div>
+            </div>
+            <div id="customEmbeddingProviderPanel" class="form-grid span-2" style="display:none;">
+              <div class="field">
+                <label>Embedding Base URL</label>
+                <input type="url" id="embeddingBaseUrlInput" placeholder="https://embedding.example.com/v1" dir="ltr" autocomplete="url">
+              </div>
+              <div class="field">
+                <label>Embedding API Key</label>
+                <div class="input-action">
+                  <input type="password" id="embeddingApiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
+                  <button class="btn btn-soft" id="discoverEmbeddingModelsBtn" type="button">دریافت مدل‌های Embedding</button>
+                </div>
+                <span class="field-hint" id="embeddingApiKeyStatusHint"></span>
+              </div>
+              <div class="field span-2"><label>مدل Embedding سرویس اختصاصی</label><select id="customEmbeddingModelSelect" disabled></select><span class="field-hint">فقط مدل‌هایی نمایش داده می‌شوند که بُعد بردارشان با تنظیم پروژه سازگار باشد.</span></div>
+              <div class="field span-2"><div class="status-line" id="embeddingModelDiscoveryStatus"></div></div>
             </div>
           </div>
         </div>
@@ -603,10 +609,10 @@
   </div>
 </div>
 
-<script src="/assets/js/api.js?v=2.7.7"></script>
-<script src="/assets/js/theme.js?v=2.7.7"></script>
-<script src="/assets/js/settings.js?v=2.7.7"></script>
-<script src="/assets/js/shell.js?v=2.7.7" defer></script>
-<script src="/assets/js/dashboard.js?v=2.7.7"></script>
+<script src="/assets/js/api.js?v=2.7.8"></script>
+<script src="/assets/js/theme.js?v=2.7.8"></script>
+<script src="/assets/js/settings.js?v=2.7.8"></script>
+<script src="/assets/js/shell.js?v=2.7.8" defer></script>
+<script src="/assets/js/dashboard.js?v=2.7.8"></script>
 </body>
 </html>
