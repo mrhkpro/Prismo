@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "qz_theme";
   const root = document.documentElement;
-  const THEMES = ["light", "dark", "ocean", "forest", "sunset", "lavender", "mono"];
+  const THEMES = ["light", "dark", "ocean", "forest", "sunset", "lavender", "mono", "nord", "amber", "rose"];
 
   function getInitialTheme() {
     try {

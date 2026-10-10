@@ -79,13 +79,39 @@ def _cached_client(base_url: str, api_key: str) -> OpenAI:
     )
 
 
-def _client(base_url: str, api_key: str) -> OpenAI:
-    """Create/reuse an OpenAI-compatible client with serverless-friendly timeouts."""
+@lru_cache(maxsize=16)
+def _cached_probe_client(base_url: str, api_key: str) -> OpenAI:
+    """Short-timeout, no-retry client used only for model-discovery probes.
+
+    Discovery may need to probe dozens of candidate models (large catalogs
+    such as OpenRouter list hundreds). Reusing the long-lived AI_REQUEST
+    timeout here would let a single slow/hanging model stall a whole probe
+    batch; a short dedicated timeout keeps discovery fast and bounded.
+    """
+    timeout = httpx.Timeout(
+        config.MODEL_PROBE_TIMEOUT_SECONDS,
+        connect=config.MODEL_PROBE_CONNECT_TIMEOUT_SECONDS,
+    )
+    return OpenAI(
+        base_url=base_url,
+        api_key=api_key,
+        timeout=timeout,
+        max_retries=0,
+    )
+
+
+def _client(base_url: str, api_key: str, *, short_timeout: bool = False) -> OpenAI:
+    """Create/reuse an OpenAI-compatible client with serverless-friendly timeouts.
+
+    short_timeout=True returns the probe-tuned client (see _cached_probe_client).
+    """
     normalized = normalize_base_url(base_url)
     if not normalized:
         raise LLMError("آدرس سرویس (Base URL) را وارد کنید.")
     if not api_key:
         raise LLMError("API Key سرویس را وارد کنید.")
+    if short_timeout:
+        return _cached_probe_client(normalized, api_key)
     return _cached_client(normalized, api_key)
 
 
@@ -94,12 +120,136 @@ _EMBEDDING_NAME_HINTS = (
     "embedding", "embed", "text-embedding", "bge", "e5-", "e5_", "gte-", "gte_",
     "jina-embeddings", "nomic-embed", "mxbai-embed", "arctic-embed", "snowflake-arctic-embed",
     "multilingual-e5", "voyage-", "cohere-embed", "uae-large-v1",
+    # Gateways such as OpenRouter re-slug embedding models per-vendor; cover the
+    # identifiers that actually show up in the wild so they are not missed.
+    "mistral-embed", "qwen-embedding", "gte-qwen", "nv-embed",
+    "embed-english", "embed-multilingual", "amazon-embeddings",
+    "granite-embedding", "stella_en", "stella-en", "gemini-embedding",
+    "models/embedding", "text-embedding-3", "text-embedding-ada", "embedding-001",
+    "embedding-gecko", "all-minilm", "paraphrase-multilingual",
+)
+
+# Name hints for models that are clearly not text-chat/text-embedding (image,
+# audio, moderation, rerank...). These never hard-exclude a candidate — a
+# provider's naming can be unreliable — they only push a candidate to the
+# back of the probe queue so a limited probe budget is spent on the models
+# most likely to actually answer chat requests first.
+_NON_TEXT_OUTPUT_HINTS = (
+    "dall-e", "dalle", "stable-diffusion", "stablediffusion", "midjourney",
+    "flux", "sdxl", "imagen", "whisper", "-tts", "/tts", "text-to-speech",
+    "speech-to-text", "transcribe", "moderation", "rerank", "image-gen",
+    "/image", "-image", "video-gen", "sora", "/video", ":free-image",
 )
 
 
 def _looks_like_embedding_model(model_id: str) -> bool:
     value = (model_id or "").strip().casefold()
     return any(hint in value for hint in _EMBEDDING_NAME_HINTS)
+
+
+def _looks_non_text_output(model_id: str) -> bool:
+    value = (model_id or "").strip().casefold()
+    return any(hint in value for hint in _NON_TEXT_OUTPUT_HINTS)
+
+
+def _dedup_keep_order(*groups: List[str]) -> List[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for group in groups:
+        for item in group:
+            if item not in seen:
+                seen.add(item)
+                result.append(item)
+    return result
+
+
+def _architecture_info(item) -> Optional[dict]:
+    """Best-effort read of OpenRouter-style architecture metadata.
+
+    The OpenAI SDK's Model schema allows unknown extra fields through
+    (model_config extra="allow"), so gateways like OpenRouter that annotate
+    each model with input/output modalities expose that data here even
+    though the base OpenAI API does not define it. Plain OpenAI-compatible
+    servers simply omit it and this returns None.
+    """
+    arch = getattr(item, "architecture", None) if item is not None else None
+    if arch is None:
+        return None
+    try:
+        if isinstance(arch, dict):
+            output = arch.get("output_modalities") or []
+            input_ = arch.get("input_modalities") or []
+        else:
+            output = list(getattr(arch, "output_modalities", None) or [])
+            input_ = list(getattr(arch, "input_modalities", None) or [])
+        return {
+            "output_modalities": {str(m).strip().casefold() for m in output},
+            "input_modalities": {str(m).strip().casefold() for m in input_},
+        }
+    except Exception:
+        return None
+
+
+def _classify_by_architecture(architecture: Optional[dict]) -> str:
+    """Return 'embedding' | 'chat' | 'excluded' | 'unknown' from declared modalities."""
+    if not architecture:
+        return "unknown"
+    outputs = architecture.get("output_modalities") or set()
+    if not outputs:
+        return "unknown"
+    if "embeddings" in outputs or "embedding" in outputs:
+        return "embedding"
+    if "text" in outputs:
+        return "chat"
+    # The provider explicitly declared this model's only outputs are
+    # something else (image/audio/video/rerank/...); it cannot serve chat
+    # or embedding requests, so skip probing it entirely.
+    return "excluded"
+
+
+def _is_openrouter_host(base_url: str) -> bool:
+    try:
+        host = (urlparse(base_url).netloc or "").lower()
+    except Exception:
+        return False
+    return host == "openrouter.ai" or host.endswith(".openrouter.ai")
+
+
+def _fetch_openrouter_embedding_catalog(chat_base_url: str, api_key: str) -> List[str]:
+    """Pull OpenRouter's dedicated embedding-model catalog.
+
+    OpenRouter serves embedding-capable models from a separate
+    `/embeddings/models` endpoint — they are intentionally left out of the
+    general `/models` chat catalog that `list_models()` reads. Without this,
+    no amount of name-matching on `/models` would ever surface them. This is
+    best-effort: any failure (non-OpenRouter host, network error, unexpected
+    shape) silently yields no extra candidates and the regular heuristic
+    path still runs.
+    """
+    if not _is_openrouter_host(chat_base_url) or not api_key:
+        return []
+    try:
+        parsed = urlparse(chat_base_url)
+        path = parsed.path.rstrip("/") or "/api/v1"
+        url = f"{parsed.scheme}://{parsed.netloc}{path}/embeddings/models"
+        with httpx.Client(
+            timeout=httpx.Timeout(
+                config.MODEL_PROBE_TIMEOUT_SECONDS,
+                connect=config.MODEL_PROBE_CONNECT_TIMEOUT_SECONDS,
+            )
+        ) as http_client:
+            response = http_client.get(url, headers={"Authorization": f"Bearer {api_key}"})
+        if response.status_code != 200:
+            return []
+        payload = response.json()
+        entries = payload.get("data") or []
+        return [
+            str(entry.get("id")).strip()
+            for entry in entries
+            if isinstance(entry, dict) and entry.get("id") and str(entry.get("id")).strip()
+        ]
+    except Exception:  # noqa: BLE001 — best-effort enrichment, never fatal
+        return []
 
 
 def _probe_embedding_model(client: OpenAI, model_id: str) -> tuple[bool, int | None]:
@@ -122,29 +272,111 @@ def _probe_chat_model(client: OpenAI, model_id: str) -> bool:
     return bool(list(getattr(response, "choices", []) or []))
 
 
+def _list_models_raw(base_url: str, api_key: str) -> List:
+    """Fetch the raw /models catalog (SDK Model objects, not just ids)."""
+    client = _client(base_url, api_key)
+    try:
+        response = client.models.list()
+    except Exception as exc:  # noqa: BLE001
+        if isinstance(exc, APIConnectionError):
+            _log_connection_error(base_url, exc)
+        raise LLMError(_friendly_error(exc)) from exc
+    return list(getattr(response, "data", None) or [])
+
+
+def _classify_catalog(models_list: List[str], by_id: dict) -> tuple:
+    """Split a model-id list into (declared_chat, declared_embedding, excluded, unclassified)
+    using provider-declared architecture metadata when available."""
+    declared_chat, declared_embedding, excluded, unclassified = [], [], [], []
+    for model_id in models_list:
+        architecture = _architecture_info(by_id.get(model_id))
+        verdict = _classify_by_architecture(architecture)
+        if verdict == "embedding":
+            declared_embedding.append(model_id)
+        elif verdict == "chat":
+            declared_chat.append(model_id)
+        elif verdict == "excluded":
+            excluded.append(model_id)
+        else:
+            unclassified.append(model_id)
+    return declared_chat, declared_embedding, excluded, unclassified
+
+
 def discover_model_capabilities(
     base_url: str,
     api_key: str,
     embedding_base_url: Optional[str] = None,
     embedding_api_key: Optional[str] = None,
 ) -> dict:
-    """Discover only verified chat/embedding models with bounded concurrent probes."""
+    """Discover verified chat/embedding models with bounded concurrent probes.
+
+    Large gateways (OpenRouter and similar) can list hundreds of models, and
+    OpenRouter publishes its embedding-capable models through a *separate*
+    catalog endpoint entirely. To cover that without the discovery call
+    taking forever or hammering the provider:
+      1. Provider-declared architecture metadata (when present) classifies
+         most candidates for free, with no probe needed to rule models out.
+      2. Remaining candidates are probed for real (never trusted from
+         metadata alone), bounded by MAX_CHAT_MODEL_PROBES /
+         MAX_EMBEDDING_MODEL_PROBES so a very large catalog still returns
+         promptly, with the most-likely candidates probed first.
+      3. OpenRouter's dedicated embeddings catalog is queried in addition to
+         `/models`, so embedding models that never appear there are not
+         silently dropped.
+    """
     chat_base = normalize_base_url(base_url)
     chat_key = (api_key or "").strip()
     if not chat_base or not chat_key:
         raise LLMError("Base URL و API Key سرویس چت را وارد کنید.")
 
-    models_list = list_models(chat_base, chat_key)
-    chat_client = _client(chat_base, chat_key)
+    raw_items = _list_models_raw(chat_base, chat_key)
+    models_list = sorted(
+        {str(item.id).strip() for item in raw_items if getattr(item, "id", None) and str(item.id).strip()},
+        key=str.casefold,
+    )
+    if not models_list:
+        raise LLMError("سرویس متصل شد، اما هیچ مدلی در /models برنگرداند.")
+
+    by_id = {}
+    for item in raw_items:
+        mid = str(getattr(item, "id", "") or "").strip()
+        if mid and mid not in by_id:
+            by_id[mid] = item
+
+    chat_client = _client(chat_base, chat_key, short_timeout=True)
     emb_base = normalize_base_url(embedding_base_url or chat_base)
     emb_key = (embedding_api_key or chat_key).strip()
 
-    likely_embeddings = [m for m in models_list if _looks_like_embedding_model(m)]
-    unknown = [m for m in models_list if m not in likely_embeddings]
-    chat_candidates = unknown[:16] if unknown else models_list[:4]
-    embedding_candidates = (likely_embeddings + unknown[:12])[:20]
+    declared_chat, declared_embedding, excluded, unclassified = _classify_catalog(models_list, by_id)
+    excluded_set = set(excluded)
 
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    name_hinted_embedding = [m for m in unclassified if _looks_like_embedding_model(m)]
+    remaining = [m for m in unclassified if m not in name_hinted_embedding]
+    likely_chat = [m for m in remaining if not _looks_non_text_output(m)]
+    unlikely_chat = [m for m in remaining if _looks_non_text_output(m)]
+
+    openrouter_embedding_ids = _fetch_openrouter_embedding_catalog(chat_base, emb_key)
+
+    chat_candidates_ordered = _dedup_keep_order(declared_chat, likely_chat, unlikely_chat)
+    embedding_candidates_ordered = _dedup_keep_order(
+        openrouter_embedding_ids, declared_embedding, name_hinted_embedding
+    )
+
+    # The probe budget bounds the *uncertain* tail (name-guessed candidates on
+    # providers that give no metadata at all) so a huge, metadata-free catalog
+    # can't make discovery hang forever. It must never cut into candidates a
+    # provider already confirmed (via architecture metadata or OpenRouter's own
+    # embeddings catalog) -- those are cheap to verify and are exactly the
+    # models this fix exists to stop silently dropping.
+    chat_cap = max(config.MAX_CHAT_MODEL_PROBES, len(declared_chat))
+    embedding_cap = max(config.MAX_EMBEDDING_MODEL_PROBES, len(declared_embedding) + len(openrouter_embedding_ids))
+
+    total_chat_candidates = len(chat_candidates_ordered)
+    total_embedding_candidates = len(embedding_candidates_ordered)
+    chat_candidates = chat_candidates_ordered[:chat_cap]
+    embedding_candidates = embedding_candidates_ordered[:embedding_cap]
+
+    from concurrent.futures import ThreadPoolExecutor
 
     chat_verified: list[str] = []
     embedding_verified: list[str] = []
@@ -157,14 +389,14 @@ def discover_model_capabilities(
 
     def probe_embedding(model_id: str):
         try:
-            emb_client = _client(emb_base, emb_key)
+            emb_client = _client(emb_base, emb_key, short_timeout=True)
             ok, dim = _probe_embedding_model(emb_client, model_id)
             return model_id, bool(ok and dim == config.EMBEDDING_DIMENSIONS), dim
         except Exception:
             return model_id, False, None
 
-    task_count = max(len(chat_candidates), len(embedding_candidates), 1)
-    with ThreadPoolExecutor(max_workers=min(6, task_count)) as pool:
+    task_count = max(len(chat_candidates) + len(embedding_candidates), 1)
+    with ThreadPoolExecutor(max_workers=min(config.MODEL_DISCOVERY_CONCURRENCY, task_count)) as pool:
         futures = [("chat", pool.submit(probe_chat, model_id)) for model_id in chat_candidates]
         futures += [("embedding", pool.submit(probe_embedding, model_id)) for model_id in embedding_candidates]
         for kind, future in futures:
@@ -185,11 +417,86 @@ def discover_model_capabilities(
         "models": models_list,
         "chat_models": chat_verified,
         "embedding_models": embedding_verified,
-        "unknown_models": sorted([m for m in models_list if m not in chat_set and m not in embedding_set], key=str.casefold),
+        "unknown_models": sorted(
+            [m for m in models_list if m not in chat_set and m not in embedding_set and m not in excluded_set],
+            key=str.casefold,
+        ),
         "chat_probe_ok": bool(chat_verified),
         "embedding_probe_ok": bool(embedding_verified),
         "dual_capable_models": sorted(chat_set & embedding_set, key=str.casefold),
+        "total_models_found": len(models_list),
+        "chat_candidates_probed": len(chat_candidates),
+        "embedding_candidates_probed": len(embedding_candidates),
+        "chat_candidates_truncated": total_chat_candidates > len(chat_candidates),
+        "embedding_candidates_truncated": total_embedding_candidates > len(embedding_candidates),
     }
+
+
+def discover_embedding_models(base_url: str, api_key: str) -> dict:
+    """Discover embedding models for a provider independently of any chat key.
+
+    Powers the dedicated "discover embedding models" action for the separate
+    embedding API key: it must work even when the chat key/base URL are
+    empty or invalid, since the embedding provider can be entirely different
+    from the chat provider.
+    """
+    emb_base = normalize_base_url(base_url)
+    emb_key = (api_key or "").strip()
+    if not emb_base or not emb_key:
+        raise LLMError("Base URL و API Key سرویس embedding را وارد کنید.")
+
+    raw_items = _list_models_raw(emb_base, emb_key)
+    models_list = sorted(
+        {str(item.id).strip() for item in raw_items if getattr(item, "id", None) and str(item.id).strip()},
+        key=str.casefold,
+    )
+    if not models_list:
+        raise LLMError("سرویس متصل شد، اما هیچ مدلی در /models برنگرداند.")
+
+    by_id = {}
+    for item in raw_items:
+        mid = str(getattr(item, "id", "") or "").strip()
+        if mid and mid not in by_id:
+            by_id[mid] = item
+
+    _declared_chat, declared_embedding, _excluded, unclassified = _classify_catalog(models_list, by_id)
+    name_hinted = [m for m in unclassified if _looks_like_embedding_model(m)]
+    other_unclassified = [m for m in unclassified if m not in name_hinted]
+
+    openrouter_ids = _fetch_openrouter_embedding_catalog(emb_base, emb_key)
+    candidates_ordered = _dedup_keep_order(openrouter_ids, declared_embedding, name_hinted, other_unclassified)
+
+    embedding_cap = max(config.MAX_EMBEDDING_MODEL_PROBES, len(declared_embedding) + len(openrouter_ids))
+    total_candidates = len(candidates_ordered)
+    candidates = candidates_ordered[:embedding_cap]
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    verified: list[str] = []
+
+    def probe(model_id: str):
+        try:
+            client = _client(emb_base, emb_key, short_timeout=True)
+            ok, dim = _probe_embedding_model(client, model_id)
+            return model_id, bool(ok and dim == config.EMBEDDING_DIMENSIONS), dim
+        except Exception:
+            return model_id, False, None
+
+    with ThreadPoolExecutor(max_workers=min(config.MODEL_DISCOVERY_CONCURRENCY, max(len(candidates), 1))) as pool:
+        for model_id, ok, _dim in pool.map(probe, candidates):
+            if ok:
+                verified.append(model_id)
+
+    verified = sorted(set(verified), key=str.casefold)
+    return {
+        "models": models_list,
+        "embedding_models": verified,
+        "embedding_probe_ok": bool(verified),
+        "total_models_found": len(models_list),
+        "embedding_candidates_probed": len(candidates),
+        "embedding_candidates_truncated": total_candidates > len(candidates),
+    }
+
 
 def list_models(base_url: str, api_key: str) -> List[str]:
     """مدل‌های موجود در یک endpoint سازگار با OpenAI را بدون ذخیره‌ی کلید می‌خواند."""
@@ -198,16 +505,9 @@ def list_models(base_url: str, api_key: str) -> List[str]:
     if not api_key:
         raise LLMError("API Key سرویس اختصاصی را وارد کنید.")
 
-    client = _client(base_url, api_key)
-    try:
-        response = client.models.list()
-    except Exception as exc:  # noqa: BLE001
-        if isinstance(exc, APIConnectionError):
-            _log_connection_error(base_url, exc)
-        raise LLMError(_friendly_error(exc)) from exc
-
+    raw_items = _list_models_raw(base_url, api_key)
     model_ids = sorted(
-        {str(item.id).strip() for item in response.data if getattr(item, "id", None) and str(item.id).strip()},
+        {str(item.id).strip() for item in raw_items if getattr(item, "id", None) and str(item.id).strip()},
         key=str.casefold,
     )
     if not model_ids:

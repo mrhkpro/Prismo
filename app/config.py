@@ -194,6 +194,24 @@ AI_MAX_RETRIES = int(
     os.getenv("AI_MAX_RETRIES", "0")
 )
 
+# ============================================================
+# کشف مدل (Discover models) برای Providerهای سفارشی
+# ============================================================
+# Gatewayهای بزرگ مثل OpenRouter می‌توانند صدها مدل برگردانند. این سقف‌ها
+# فقط روی مدل‌هایی اعمال می‌شوند که صرفاً حدسی (بر اساس نام) شناسایی شده‌اند؛
+# مدل‌هایی که خودِ provider نوع‌شان را اعلام کرده (architecture متادیتا) یا در
+# کاتالوگ اختصاصی embedding آمده‌اند، همیشه probe می‌شوند و هرگز به‌خاطر این
+# سقف حذف نمی‌شوند. probe همیشه با یک درخواست واقعی chat/embedding انجام
+# می‌شود، نه فقط حدس بر اساس نام مدل.
+MODEL_DISCOVERY_CONCURRENCY = max(1, int(os.getenv("MODEL_DISCOVERY_CONCURRENCY", "16")))
+MAX_CHAT_MODEL_PROBES = max(1, int(os.getenv("MAX_CHAT_MODEL_PROBES", "120")))
+MAX_EMBEDDING_MODEL_PROBES = max(1, int(os.getenv("MAX_EMBEDDING_MODEL_PROBES", "80")))
+
+# probeهای کشف مدل از timeout کوتاه‌تری نسبت به چت/embedding واقعی استفاده
+# می‌کنند تا یک مدل کند یا معلق، کل فرآیند کشف را کند نکند.
+MODEL_PROBE_TIMEOUT_SECONDS = float(os.getenv("MODEL_PROBE_TIMEOUT_SECONDS", "15"))
+MODEL_PROBE_CONNECT_TIMEOUT_SECONDS = float(os.getenv("MODEL_PROBE_CONNECT_TIMEOUT_SECONDS", "8"))
+
 # برای ایندکس سریع اسناد، embeddingها به batchهای بزرگ‌تر و چند درخواست
 # هم‌زمان تقسیم می‌شوند. این مقادیر از env قابل تنظیم‌اند تا با محدودیت
 # provider یا Relay مقصد هماهنگ شوند.

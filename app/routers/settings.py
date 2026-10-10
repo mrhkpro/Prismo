@@ -40,6 +40,7 @@ def _to_out(settings: user_settings_compat.SettingsSnapshot, language: str = "fa
         widget_color=settings.widget_color,
         default_chat_models=config.DEFAULT_CHAT_MODELS,
         default_embedding_models=config.DEFAULT_EMBEDDING_MODELS,
+        embedding_dimensions=config.EMBEDDING_DIMENSIONS,
     )
 
 
@@ -90,6 +91,28 @@ def discover_models(
         sorted(set(result.get("chat_models", [])) & set(result.get("embedding_models", [])), key=str.casefold),
     )
     return schemas.DiscoverModelsResponse(**result)
+
+
+@router.post("/discover-embedding-models", response_model=schemas.DiscoverEmbeddingModelsResponse)
+def discover_embedding_models(
+    payload: schemas.DiscoverEmbeddingModelsRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Discover embedding models for the embedding provider's own key.
+
+    Independent of the chat key/base URL on purpose: the embedding provider
+    (e.g. a separate OpenRouter key) can be entirely different from the chat
+    provider, and a user should be able to test/populate it on its own.
+    """
+    settings = _settings_for_user(db, current_user)
+    fallback_base = settings.embedding_base_url if settings.separate_embedding_provider else settings.base_url
+    fallback_key = settings.embedding_api_key if settings.separate_embedding_provider else settings.api_key
+    base_url = (payload.base_url or fallback_base or "").strip()
+    api_key = (payload.api_key or fallback_key or "").strip()
+    result = llm_client.discover_embedding_models(base_url, api_key)
+    result.setdefault("embedding_probe_ok", bool(result.get("embedding_models")))
+    return schemas.DiscoverEmbeddingModelsResponse(**result)
 
 
 @router.post("/test-custom-connection", response_model=schemas.TestConnectionResult)

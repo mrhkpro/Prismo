@@ -1,5 +1,4 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 
 from sqlalchemy import func
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,6 +9,7 @@ from .. import config, models, schemas
 from ..database import get_db
 from ..security import get_current_user
 from ..services import llm_client, rag_store, text_split, streaming, user_settings_compat
+from ..timeutils import utcnow
 
 router = APIRouter(prefix="/api/knowledge", tags=["دانشنامه"])
 
@@ -284,7 +284,7 @@ def update_document(
         doc.content = payload.content
         content_changed = True
 
-    doc.updated_at = datetime.utcnow()
+    doc.updated_at = utcnow()
 
     if content_changed:
         # چون متن تغییر کرده، باید تکه‌ها و بردارهای قبلی را دور ریخته و دوباره بسازیم

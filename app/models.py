@@ -1,6 +1,5 @@
 import enum
 import uuid
-from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
@@ -18,6 +17,7 @@ from sqlalchemy.orm import relationship
 
 from . import config
 from .database import Base
+from .timeutils import utcnow
 
 
 # ============================================================
@@ -107,7 +107,7 @@ class User(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
     )
 
     last_login_at = Column(
@@ -282,13 +282,13 @@ class Document(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
     )
 
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=utcnow,
+        onupdate=utcnow,
     )
 
     owner = relationship(
@@ -351,7 +351,7 @@ class Chunk(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
     )
 
     document = relationship(
@@ -398,7 +398,7 @@ class ChatSession(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
     )
 
     owner = relationship(
@@ -463,7 +463,7 @@ class ChatMessage(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=utcnow,
     )
 
     session = relationship(

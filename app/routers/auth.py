@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -7,6 +5,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas, security, config
 from ..database import get_db
 from ..services import user_settings_compat
+from ..timeutils import utcnow
 
 router = APIRouter(prefix="/api/auth", tags=["احراز هویت"])
 
@@ -54,7 +53,7 @@ def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=403, detail="حساب کاربری شما مسدود شده است.")
 
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = utcnow()
     db.commit()
 
     token = security.create_access_token(user.id)

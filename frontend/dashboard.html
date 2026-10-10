@@ -196,8 +196,12 @@
                 </div>
                 <div class="field">
                   <label>Embedding API Key</label>
-                  <input type="password" id="embeddingApiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
+                  <div class="input-action">
+                    <input type="password" id="embeddingApiKeyInput" placeholder="sk-..." dir="ltr" autocomplete="off">
+                    <button class="btn btn-soft" id="discoverEmbeddingModelsBtn" type="button">دریافت مدل‌های Embedding</button>
+                  </div>
                   <span class="field-hint" id="embeddingApiKeyStatusHint"></span>
+                  <div class="status-line" id="embeddingModelDiscoveryStatus"></div>
                 </div>
               </div>
               <div class="field"><label>مدل چت تأییدشده</label><select id="customChatModelSelect" disabled></select></div>
@@ -502,7 +506,7 @@
             </div>
             <div class="settings-section-block">
               <div class="settings-subtitle">رنگ و حال‌وهوای محیط</div>
-              <div class="settings-subdesc">هفت پوسته‌ی دست‌ساز با کنتراست، کارت و glow متفاوت برای کار طولانی.</div>
+              <div class="settings-subdesc">ده پوسته‌ی دست‌ساز با کنتراست، کارت و glow متفاوت برای کار طولانی.</div>
               <div class="theme-grid settings-theme-grid" id="themePresetGrid">
                 <button class="theme-preset" type="button" data-theme-preset="light"><span class="theme-preview theme-preview-light"></span><b>روشن کلاسیک</b><small>Clean & bright</small></button>
                 <button class="theme-preset" type="button" data-theme-preset="dark"><span class="theme-preview theme-preview-dark"></span><b>تیره کلاسیک</b><small>Deep & focused</small></button>
@@ -511,6 +515,9 @@
                 <button class="theme-preset" type="button" data-theme-preset="sunset"><span class="theme-preview theme-preview-sunset"></span><b>غروب</b><small>Warm & vivid</small></button>
                 <button class="theme-preset" type="button" data-theme-preset="lavender"><span class="theme-preview theme-preview-lavender"></span><b>لاوندر</b><small>Soft & creative</small></button>
                 <button class="theme-preset" type="button" data-theme-preset="mono"><span class="theme-preview theme-preview-mono"></span><b>مینیمال</b><small>Monochrome</small></button>
+                <button class="theme-preset" type="button" data-theme-preset="nord"><span class="theme-preview theme-preview-nord"></span><b>نورد</b><small>Arctic & crisp</small></button>
+                <button class="theme-preset" type="button" data-theme-preset="amber"><span class="theme-preview theme-preview-amber"></span><b>کهربا</b><small>Warm terminal</small></button>
+                <button class="theme-preset" type="button" data-theme-preset="rose"><span class="theme-preview theme-preview-rose"></span><b>رز</b><small>Elegant & bold</small></button>
               </div>
             </div>
           </div>

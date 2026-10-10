@@ -244,3 +244,116 @@ class ProviderCapabilityTests(unittest.TestCase):
         self.assertEqual(result["embedding_models"], ["qwen3-embedding-4b"])
         self.assertEqual(result["dual_capable_models"], [])
 
+    def test_discovery_probes_every_candidate_not_just_a_small_fixed_cap(self):
+        # Regression test for the real-world OpenRouter bug report: a provider
+        # that lists dozens/hundreds of models must not have discovery silently
+        # stop at a small arbitrary slice (the old code capped "unknown" chat
+        # candidates at 16). With the default MAX_CHAT_MODEL_PROBES (80), all
+        # 40 of these legitimate chat models must come back verified.
+        model_ids = [f"vendor-{i}/chat-model-{i}" for i in range(40)]
+        fake_client = SimpleNamespace(
+            models=SimpleNamespace(list=lambda: SimpleNamespace(
+                data=[SimpleNamespace(id=mid) for mid in model_ids]
+            )),
+            embeddings=SimpleNamespace(create=lambda **kwargs: SimpleNamespace(data=[])),
+            chat=SimpleNamespace(completions=SimpleNamespace(
+                create=lambda **kwargs: SimpleNamespace(choices=[SimpleNamespace()])
+            )),
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client):
+            result = llm_client.discover_model_capabilities("https://example.com/v1", "secret")
+        self.assertEqual(len(result["chat_models"]), 40)
+        self.assertEqual(result["total_models_found"], 40)
+        self.assertFalse(result["chat_candidates_truncated"])
+
+    def test_discovery_respects_configurable_probe_cap_and_reports_truncation(self):
+        model_ids = [f"vendor/model-{i}" for i in range(5)]
+        fake_client = SimpleNamespace(
+            models=SimpleNamespace(list=lambda: SimpleNamespace(
+                data=[SimpleNamespace(id=mid) for mid in model_ids]
+            )),
+            embeddings=SimpleNamespace(create=lambda **kwargs: SimpleNamespace(data=[])),
+            chat=SimpleNamespace(completions=SimpleNamespace(
+                create=lambda **kwargs: SimpleNamespace(choices=[SimpleNamespace()])
+            )),
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client), \
+             patch.object(llm_client.config, "MAX_CHAT_MODEL_PROBES", 2):
+            result = llm_client.discover_model_capabilities("https://example.com/v1", "secret")
+        self.assertEqual(result["chat_candidates_probed"], 2)
+        self.assertEqual(len(result["chat_models"]), 2)
+        self.assertTrue(result["chat_candidates_truncated"])
+
+    def test_discovery_uses_declared_architecture_to_skip_non_text_models(self):
+        # A provider (e.g. OpenRouter) that annotates each model with
+        # input/output modalities lets discovery skip obviously-irrelevant
+        # models (image generators, etc.) without wasting a probe call on them,
+        # and trust a declared text/embedding model without needing its name
+        # to match a heuristic.
+        probed_models = []
+
+        def fake_chat_create(**kwargs):
+            probed_models.append(kwargs["model"])
+            return SimpleNamespace(choices=[SimpleNamespace()])
+
+        fake_client = SimpleNamespace(
+            models=SimpleNamespace(list=lambda: SimpleNamespace(data=[
+                SimpleNamespace(id="vendor/text-model", architecture=SimpleNamespace(
+                    output_modalities=["text"], input_modalities=["text"],
+                )),
+                SimpleNamespace(id="vendor/image-model", architecture=SimpleNamespace(
+                    output_modalities=["image"], input_modalities=["text"],
+                )),
+            ])),
+            embeddings=SimpleNamespace(create=lambda **kwargs: SimpleNamespace(data=[])),
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_chat_create)),
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client):
+            result = llm_client.discover_model_capabilities("https://example.com/v1", "secret")
+        self.assertEqual(result["chat_models"], ["vendor/text-model"])
+        self.assertNotIn("vendor/image-model", probed_models)
+        self.assertNotIn("vendor/image-model", result["unknown_models"])
+
+    def test_discovery_merges_openrouter_specific_embedding_catalog(self):
+        # OpenRouter serves embedding-capable models from a dedicated
+        # /embeddings/models endpoint that is entirely separate from /models.
+        # A model that only exists in that catalog must still be probed and
+        # offered, even though it never appears in the general model list.
+        fake_client = SimpleNamespace(
+            models=SimpleNamespace(list=lambda: SimpleNamespace(data=[
+                SimpleNamespace(id="vendor/chat-only"),
+            ])),
+            embeddings=SimpleNamespace(create=lambda **kwargs: SimpleNamespace(
+                data=[SimpleNamespace(embedding=[0.0] * llm_client.config.EMBEDDING_DIMENSIONS)]
+                if kwargs["model"] == "openai/text-embedding-3-small" else []
+            )),
+            chat=SimpleNamespace(completions=SimpleNamespace(
+                create=lambda **kwargs: SimpleNamespace(choices=[SimpleNamespace()])
+            )),
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client), \
+             patch("app.services.llm_client._fetch_openrouter_embedding_catalog",
+                   return_value=["openai/text-embedding-3-small"]):
+            result = llm_client.discover_model_capabilities("https://openrouter.ai/api/v1", "secret")
+        self.assertIn("openai/text-embedding-3-small", result["embedding_models"])
+
+    def test_discover_embedding_models_never_touches_chat_endpoint(self):
+        def fail_if_called(**kwargs):
+            raise AssertionError("discover_embedding_models must not call chat.completions.create")
+
+        fake_client = SimpleNamespace(
+            models=SimpleNamespace(list=lambda: SimpleNamespace(data=[
+                SimpleNamespace(id="acme/embed-small"),
+                SimpleNamespace(id="acme/chat-large"),
+            ])),
+            embeddings=SimpleNamespace(create=lambda **kwargs: SimpleNamespace(
+                data=[SimpleNamespace(embedding=[0.0] * llm_client.config.EMBEDDING_DIMENSIONS)]
+                if kwargs["model"] == "acme/embed-small" else []
+            )),
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fail_if_called)),
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client):
+            result = llm_client.discover_embedding_models("https://example.com/v1", "secret")
+        self.assertEqual(result["embedding_models"], ["acme/embed-small"])
+        self.assertEqual(result["total_models_found"], 2)
+

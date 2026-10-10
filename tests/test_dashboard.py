@@ -1,7 +1,7 @@
 import sys
 import types
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 
 if "openai" not in sys.modules:
     fake_openai = types.ModuleType("openai")
@@ -54,7 +54,7 @@ class DashboardSummaryTests(unittest.TestCase):
         db.add(user)
         db.flush()
         db.add(models.UserSettings(user_id=user.id))
-        db.add(models.Document(user_id=user.id, title="Doc", content="Content", created_at=datetime.utcnow()))
+        db.add(models.Document(user_id=user.id, title="Doc", content="Content", created_at=datetime.now(timezone.utc).replace(tzinfo=None)))
         db.flush()
         db.add(models.Chunk(document_id=1, user_id=user.id, chunk_index=0, text="chunk", embedding="[1,0]"))
         playground = models.ChatSession(user_id=user.id, source=models.ChatSource.playground)

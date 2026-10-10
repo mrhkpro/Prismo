@@ -7,7 +7,7 @@ import hashlib
 import hmac
 import os
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional
 
 import jwt
@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from . import config
 from .database import get_db
 from . import models
+from .timeutils import utcnow
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=True)
 
@@ -55,8 +56,8 @@ def create_access_token(
     expires_minutes = expires_minutes or config.ACCESS_TOKEN_EXPIRE_MINUTES
     payload = {
         "sub": str(user_id),
-        "exp": datetime.utcnow() + timedelta(minutes=expires_minutes),
-        "iat": datetime.utcnow(),
+        "exp": utcnow() + timedelta(minutes=expires_minutes),
+        "iat": utcnow(),
     }
     if extra_claims:
         payload.update(extra_claims)

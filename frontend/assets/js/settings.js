@@ -437,7 +437,7 @@
   }
 
   function setTheme(theme, persist) {
-    var allowed = ["light", "dark", "ocean", "forest", "sunset", "lavender", "mono"];
+    var allowed = ["light", "dark", "ocean", "forest", "sunset", "lavender", "mono", "nord", "amber", "rose"];
     if (allowed.indexOf(theme) === -1) theme = "dark";
     root.dataset.theme = theme;
     state.theme = theme;

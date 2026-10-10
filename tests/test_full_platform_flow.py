@@ -338,7 +338,14 @@ class SettingsFlowTests(PlatformTestCase):
         token = self.register("roya")
         found = self.client.post("/api/settings/discover-models", headers=h(token),
                                  json={"base_url": "https://api.example.com/v1/", "api_key": "k"})
-        self.assertEqual(found.json(), {"models": ["gpt-b", "GPT-a"], "chat_models": ["gpt-b", "GPT-a"], "embedding_models": ["embed-1"], "unknown_models": [], "chat_probe_ok": True, "embedding_probe_ok": True, "dual_capable_models": []})
+        self.assertEqual(found.json(), {
+            "models": ["gpt-b", "GPT-a"], "chat_models": ["gpt-b", "GPT-a"],
+            "embedding_models": ["embed-1"], "unknown_models": [], "chat_probe_ok": True,
+            "embedding_probe_ok": True, "dual_capable_models": [],
+            "total_models_found": 0, "chat_candidates_probed": 0,
+            "embedding_candidates_probed": 0, "chat_candidates_truncated": False,
+            "embedding_candidates_truncated": False,
+        })
         self.assertEqual(self.client.post("/api/settings/discover-models", headers=h(token),
                                           json={"base_url": "ftp://bad"}).status_code, 422)
         custom = self.client.post("/api/settings/test-custom-connection", headers=h(token),

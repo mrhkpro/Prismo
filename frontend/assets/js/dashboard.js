@@ -215,8 +215,11 @@ document.getElementById("discoverModelsBtn").addEventListener("click", async () 
     fillModelSelect(document.getElementById("customChatModelSelect"), DISCOVERED_CUSTOM_MODELS, currentChat);
     fillModelSelect(document.getElementById("customEmbeddingModelSelect"), DISCOVERED_EMBEDDING_MODELS, currentEmbedding);
     const dual = result.dual_capable_models || [];
+    const truncNote = result.chat_candidates_truncated || result.embedding_candidates_truncated
+      ? ` (از مجموع ${result.total_models_found || "؟"} مدل موجود، ${result.chat_candidates_probed || 0} برای چت و ${result.embedding_candidates_probed || 0} برای embedding تست شد؛ بقیه برای سریع‌تر شدن بررسی نشدند — دوباره بزن تا بیشتر بررسی شود)`
+      : "";
     if (DISCOVERED_CUSTOM_MODELS.length && DISCOVERED_EMBEDDING_MODELS.length) {
-      status.textContent = `${DISCOVERED_CUSTOM_MODELS.length} مدل چت تأیید شد • ${DISCOVERED_EMBEDDING_MODELS.length} مدل embedding تأیید شد${dual.length ? ` • ${dual.length} مدل هر دو قابلیت را دارد` : ""}.`;
+      status.textContent = `${DISCOVERED_CUSTOM_MODELS.length} مدل چت تأیید شد • ${DISCOVERED_EMBEDDING_MODELS.length} مدل embedding تأیید شد${dual.length ? ` • ${dual.length} مدل هر دو قابلیت را دارد` : ""}.${truncNote}`;
       status.className = "status-line success-text";
       toast("فهرست مدل‌ها با probe واقعی تأیید شد.", "success");
     } else if (!DISCOVERED_CUSTOM_MODELS.length) {
@@ -224,7 +227,8 @@ document.getElementById("discoverModelsBtn").addEventListener("click", async () 
       status.className = "status-line error-text";
       toast("مدل چت قابل استفاده پیدا نشد.", "error");
     } else {
-      status.textContent = `${DISCOVERED_CUSTOM_MODELS.length} مدل چت تأیید شد؛ مدل embedding سازگار با ابعاد ${2560} پیدا نشد.`;
+      const dims = (CURRENT_SETTINGS && CURRENT_SETTINGS.embedding_dimensions) || "";
+      status.textContent = `${DISCOVERED_CUSTOM_MODELS.length} مدل چت تأیید شد؛ مدل embedding سازگار با ابعاد ${dims} پیدا نشد.${truncNote}`;
       status.className = "status-line error-text";
       toast("مدل embedding قابل استفاده پیدا نشد.", "error");
     }
@@ -238,6 +242,55 @@ document.getElementById("discoverModelsBtn").addEventListener("click", async () 
   } finally {
     btn.disabled = false;
     btn.textContent = "دریافت مدل‌ها";
+  }
+});
+
+// دکمهٔ اختصاصی برای کشف مدل‌های embedding با همان API Key جداگانه‌ای که برای
+// embedding وارد شده — مستقل از اعتبار Base URL/API Key بخش چت، چون provider
+// embedding می‌تواند کاملاً متفاوت باشد (مثلاً یک کلید OpenRouter جداگانه).
+document.getElementById("discoverEmbeddingModelsBtn")?.addEventListener("click", async () => {
+  const btn = document.getElementById("discoverEmbeddingModelsBtn");
+  const status = document.getElementById("embeddingModelDiscoveryStatus");
+  const embeddingBaseUrl = document.getElementById("embeddingBaseUrlInput").value.trim();
+  const embeddingApiKey = document.getElementById("embeddingApiKeyInput").value.trim();
+  const savedKey = Boolean(CURRENT_SETTINGS && CURRENT_SETTINGS.embedding_api_key_set);
+
+  if (!embeddingBaseUrl) return toast("Embedding Base URL را وارد کن.", "error");
+  if (!embeddingApiKey && !savedKey) return toast("Embedding API Key را وارد کن.", "error");
+
+  btn.disabled = true;
+  btn.textContent = "در حال دریافت…";
+  status.textContent = "در حال خواندن /models سرویس embedding…";
+  try {
+    const result = await apiCall("/api/settings/discover-embedding-models", {
+      method: "POST",
+      body: {
+        base_url: embeddingBaseUrl,
+        ...(embeddingApiKey ? { api_key: embeddingApiKey } : {}),
+      },
+    });
+    DISCOVERED_EMBEDDING_MODELS = result.embedding_models || [];
+    const currentEmbedding = document.getElementById("customEmbeddingModelSelect").value;
+    fillModelSelect(document.getElementById("customEmbeddingModelSelect"), DISCOVERED_EMBEDDING_MODELS, currentEmbedding);
+    const dims = (CURRENT_SETTINGS && CURRENT_SETTINGS.embedding_dimensions) || "";
+    const truncNote = result.embedding_candidates_truncated
+      ? ` (از مجموع ${result.total_models_found || "؟"} مدل، ${result.embedding_candidates_probed || 0} تا تست شد؛ دوباره بزن تا بیشتر بررسی شود)`
+      : "";
+    if (DISCOVERED_EMBEDDING_MODELS.length) {
+      status.textContent = `${DISCOVERED_EMBEDDING_MODELS.length} مدل embedding با ابعاد ${dims} تأیید شد.${truncNote}`;
+      status.className = "status-line success-text";
+      toast("مدل‌های embedding با probe واقعی تأیید شد.", "success");
+    } else {
+      status.textContent = `هیچ مدل embedding سازگار با ابعاد ${dims} پیدا نشد.${truncNote}`;
+      status.className = "status-line error-text";
+      toast("مدل embedding قابل استفاده پیدا نشد.", "error");
+    }
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = "status-line error-text";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "دریافت مدل‌های Embedding";
   }
 });
 

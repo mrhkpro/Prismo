@@ -80,6 +80,7 @@ class SettingsOut(BaseModel):
     widget_color: str
     default_chat_models: List[str]
     default_embedding_models: List[str]
+    embedding_dimensions: int = 0
 
 
 class SettingsUpdate(BaseModel):
@@ -160,6 +161,36 @@ class DiscoverModelsResponse(BaseModel):
     chat_probe_ok: bool = False
     embedding_probe_ok: bool = False
     dual_capable_models: List[str] = Field(default_factory=list)
+    # شفافیت نتیجه: چند مدل اصلاً پیدا شد و چند تا واقعاً probe شدند، تا اگر
+    # سقف probe باعث رد شدن تعدادی مدل شد، کاربر متوجه شود و نه اینکه فکر کند
+    # آن مدل‌ها اصلاً وجود ندارند.
+    total_models_found: int = 0
+    chat_candidates_probed: int = 0
+    embedding_candidates_probed: int = 0
+    chat_candidates_truncated: bool = False
+    embedding_candidates_truncated: bool = False
+
+
+class DiscoverEmbeddingModelsRequest(BaseModel):
+    base_url: str = Field(min_length=1, max_length=500)
+    api_key: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, value: str) -> str:
+        value = value.strip().rstrip("/")
+        if not value.startswith(("http://", "https://")):
+            raise ValueError("Base URL باید با http:// یا https:// شروع شود.")
+        return value
+
+
+class DiscoverEmbeddingModelsResponse(BaseModel):
+    models: List[str]
+    embedding_models: List[str] = Field(default_factory=list)
+    embedding_probe_ok: bool = False
+    total_models_found: int = 0
+    embedding_candidates_probed: int = 0
+    embedding_candidates_truncated: bool = False
 
 
 class CustomConnectionTestRequest(BaseModel):
