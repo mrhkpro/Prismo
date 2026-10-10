@@ -97,6 +97,12 @@ DATA_DIR.mkdir(
 )
 
 
+# Optional: allow a local development instance connected to Supabase to synchronize
+# the configured bootstrap admin credentials. Never enabled by default in deployments.
+BOOTSTRAP_ADMIN_ON_STARTUP = os.getenv(
+    "PRISMO_BOOTSTRAP_ADMIN_ON_STARTUP", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
+
 DATABASE_MODE = os.getenv("DATABASE_MODE", "auto").strip().lower()
 if DATABASE_MODE not in {"auto", "supabase", "local"}:
     raise RuntimeError("DATABASE_MODE must be one of: auto, supabase, local")

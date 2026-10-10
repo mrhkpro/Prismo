@@ -4,15 +4,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_supabase_startup_has_no_schema_mutation_or_seed_path():
+def test_supabase_startup_has_no_schema_mutation_or_default_seed_path():
     source = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
     lifespan = source.split("async def lifespan", 1)[1].split("# ============================================================\n# APPLICATION", 1)[0]
     assert "if not config.IS_POSTGRES" in lifespan
     assert lifespan.count("Base.metadata.create_all") == 1
-    assert lifespan.count("seed_admin(db)") == 1
-    # Both operations must be inside the SQLite-only branch; no Postgres schema work.
-    assert lifespan.index("Base.metadata.create_all") > lifespan.index("if not config.IS_POSTGRES")
-    assert lifespan.index("seed_admin(db)") > lifespan.index("if not config.IS_POSTGRES")
+    assert lifespan.count("seed_admin(db)") == 2
+    # Schema creation and the default admin seed remain in the SQLite-only branch.
+    sqlite_branch = lifespan.split("if not config.IS_POSTGRES", 1)[1].split(
+        'elif config.APP_ENV == "development" and config.BOOTSTRAP_ADMIN_ON_STARTUP', 1
+    )[0]
+    assert sqlite_branch.count("Base.metadata.create_all") == 1
+    assert sqlite_branch.count("seed_admin(db)") == 1
+    # Supabase bootstrap is explicit opt-in and development-only.
+    assert 'elif config.APP_ENV == "development" and config.BOOTSTRAP_ADMIN_ON_STARTUP' in lifespan
 
 
 def test_language_switch_pauses_observer_and_does_not_translate_parent_for_each_character_mutation():
@@ -42,6 +47,34 @@ def test_postgres_lifespan_does_not_touch_schema_or_seed(monkeypatch):
             return
 
     asyncio.run(run_lifespan())
+
+
+def test_local_development_can_opt_in_to_sync_admin_when_using_supabase(monkeypatch):
+    import asyncio
+    from app import config, main
+
+    monkeypatch.setattr(config, "IS_POSTGRES", True)
+    monkeypatch.setattr(config, "APP_ENV", "development")
+    monkeypatch.setattr(config, "BOOTSTRAP_ADMIN_ON_STARTUP", True)
+
+    class FakeDB:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    db = FakeDB()
+    calls = []
+    monkeypatch.setattr(main, "SessionLocal", lambda: db)
+    monkeypatch.setattr(main, "seed_admin", lambda received: calls.append(received))
+
+    async def run_lifespan():
+        async with main.lifespan(None):
+            return
+
+    asyncio.run(run_lifespan())
+    assert calls == [db]
+    assert db.closed is True
 
 
 def test_translation_dictionary_covers_admin_lab_widget_and_setup_critical_text():

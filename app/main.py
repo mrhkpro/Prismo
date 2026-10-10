@@ -88,6 +88,14 @@ async def lifespan(app: FastAPI):
             seed_admin(db)
         finally:
             db.close()
+    elif config.APP_ENV == "development" and config.BOOTSTRAP_ADMIN_ON_STARTUP:
+        # Optional one-time-use pattern for local development when DATABASE_MODE
+        # points at Supabase. This is off by default and never runs in production.
+        db = SessionLocal()
+        try:
+            seed_admin(db)
+        finally:
+            db.close()
 
     yield
 
