@@ -49,6 +49,34 @@ def test_postgres_lifespan_does_not_touch_schema_or_seed(monkeypatch):
     asyncio.run(run_lifespan())
 
 
+def test_local_development_can_opt_in_to_sync_admin_when_using_supabase(monkeypatch):
+    import asyncio
+    from app import config, main
+
+    monkeypatch.setattr(config, "IS_POSTGRES", True)
+    monkeypatch.setattr(config, "APP_ENV", "development")
+    monkeypatch.setattr(config, "BOOTSTRAP_ADMIN_ON_STARTUP", True)
+
+    class FakeDB:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    db = FakeDB()
+    calls = []
+    monkeypatch.setattr(main, "SessionLocal", lambda: db)
+    monkeypatch.setattr(main, "seed_admin", lambda received: calls.append(received))
+
+    async def run_lifespan():
+        async with main.lifespan(None):
+            return
+
+    asyncio.run(run_lifespan())
+    assert calls == [db]
+    assert db.closed is True
+
+
 def test_translation_dictionary_covers_admin_lab_widget_and_setup_critical_text():
     js = (ROOT / "frontend" / "assets" / "js" / "settings.js").read_text(encoding="utf-8")
     critical = [
