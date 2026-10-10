@@ -79,6 +79,16 @@ async def lifespan(app: FastAPI):
             if "embedding_base_url" not in columns:
                 connection.execute(text("ALTER TABLE user_settings ADD COLUMN embedding_base_url VARCHAR(255)"))
 
+            # Google OAuth identity columns are a backwards-compatible local
+            # migration; hosted Supabase/PostgreSQL uses migration 004 explicitly.
+            user_columns = {col["name"] for col in inspect(connection).get_columns("users")}
+            if "email" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(320)"))
+            if "google_sub" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN google_sub VARCHAR(255)"))
+            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users(email) WHERE email IS NOT NULL"))
+            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users(google_sub) WHERE google_sub IS NOT NULL"))
+
         # Only local SQLite needs the bootstrap admin on every fresh project.
         db = SessionLocal()
         try:

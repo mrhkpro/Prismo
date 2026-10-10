@@ -80,6 +80,12 @@ class User(Base):
         nullable=False,
     )
 
+    # Nullable identity fields keep password accounts backwards-compatible.
+    # Google sub is the stable provider identity; email is only used for safe
+    # verified-email account linking and must never be treated as a password.
+    email = Column(String(320), nullable=True, unique=True, index=True)
+    google_sub = Column(String(255), nullable=True, unique=True, index=True)
+
     org_name = Column(
         String(120),
         nullable=True,
