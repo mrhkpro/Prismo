@@ -142,16 +142,45 @@ class GoogleOAuthTests(unittest.TestCase):
         self.assertNotIn("google_sub", columns)
         self.assertIn("oauth_identities", Base.metadata.tables)
 
-    def test_supabase_google_flow_uses_pkce_and_server_side_key(self):
+    def test_supabase_google_flow_uses_pkce_and_redirects_without_preflight(self):
         with patch.object(config, "GOOGLE_OAUTH_ENABLED", False), patch.object(config, "SUPABASE_AUTH_ENABLED", True), patch.object(config, "SUPABASE_URL", "https://example.supabase.co"), patch.object(config, "SUPABASE_ANON_KEY", "public-anon-key"), patch(
-            "app.routers.auth.httpx.Client"
-        ) as client_cls:
-            response_obj = type("Response", (), {"status_code": 302, "headers": {"location": "https://accounts.google.com/o/oauth2/v2/auth?test=1"}, "content": b""})()
-            client_cls.return_value.__enter__.return_value.get.return_value = response_obj
+            "app.routers.auth.httpx.Client", side_effect=AssertionError("OAuth start must not make a preflight request")
+        ):
             response = self.client.get("/api/auth/google/start", follow_redirects=False)
         self.assertEqual(response.status_code, 302)
-        self.assertIn("accounts.google.com", response.headers["location"])
+        self.assertIn("https://example.supabase.co/auth/v1/authorize?", response.headers["location"])
+        self.assertIn("provider=google", response.headers["location"])
+        self.assertIn("code_challenge_method=s256", response.headers["location"])
         self.assertTrue(self.client.cookies.get("prismo_google_oauth_verifier"))
+
+    def test_supabase_callback_exchanges_pkce_code_and_sets_application_session(self):
+        supabase_user = {
+            "id": "supabase-auth-user-id",
+            "email": "supabase-person@example.com",
+            "email_confirmed_at": "2026-01-01T00:00:00Z",
+            "identities": [{
+                "id": "google-identity-id",
+                "provider": "google",
+                "identity_data": {"sub": "supabase-google-sub"},
+            }],
+        }
+        with patch.object(config, "GOOGLE_OAUTH_ENABLED", False), patch.object(config, "SUPABASE_AUTH_ENABLED", True), patch.object(config, "SUPABASE_URL", "https://example.supabase.co"), patch.object(config, "SUPABASE_ANON_KEY", "public-anon-key"):
+            start = self.client.get("/api/auth/google/start", follow_redirects=False)
+            self.assertEqual(start.status_code, 302)
+            with patch("app.routers.auth._exchange_supabase_auth_code", return_value=supabase_user) as exchange:
+                callback = self.client.get("/api/auth/google/supabase-callback?code=one-time-code", follow_redirects=False)
+        self.assertEqual(callback.status_code, 303)
+        self.assertEqual(callback.headers["location"], "/index.html?oauth=success")
+        self.assertEqual(exchange.call_args.args[0], "one-time-code")
+        self.assertTrue(exchange.call_args.args[1])
+        self.assertEqual(self.client.get("/api/auth/me").status_code, 200)
+        db = self.Session()
+        try:
+            identity = db.query(models.OAuthIdentity).filter_by(provider="google", subject="supabase-google-sub").first()
+            self.assertIsNotNone(identity)
+            self.assertEqual(identity.email, "supabase-person@example.com")
+        finally:
+            db.close()
 
     def test_google_login_is_gracefully_disabled_without_credentials(self):
         with patch.object(config, "GOOGLE_OAUTH_ENABLED", False), patch.object(config, "SUPABASE_AUTH_ENABLED", False):
