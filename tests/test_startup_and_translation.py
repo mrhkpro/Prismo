@@ -4,15 +4,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_supabase_startup_has_no_schema_mutation_or_seed_path():
+def test_supabase_startup_has_no_schema_mutation_or_default_seed_path():
     source = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
     lifespan = source.split("async def lifespan", 1)[1].split("# ============================================================\n# APPLICATION", 1)[0]
     assert "if not config.IS_POSTGRES" in lifespan
     assert lifespan.count("Base.metadata.create_all") == 1
-    assert lifespan.count("seed_admin(db)") == 1
-    # Both operations must be inside the SQLite-only branch; no Postgres schema work.
-    assert lifespan.index("Base.metadata.create_all") > lifespan.index("if not config.IS_POSTGRES")
-    assert lifespan.index("seed_admin(db)") > lifespan.index("if not config.IS_POSTGRES")
+    assert lifespan.count("seed_admin(db)") == 2
+    # Schema creation and the default admin seed remain in the SQLite-only branch.
+    sqlite_branch = lifespan.split("if not config.IS_POSTGRES", 1)[1].split(
+        'elif config.APP_ENV == "development" and config.BOOTSTRAP_ADMIN_ON_STARTUP', 1
+    )[0]
+    assert sqlite_branch.count("Base.metadata.create_all") == 1
+    assert sqlite_branch.count("seed_admin(db)") == 1
+    # Supabase bootstrap is explicit opt-in and development-only.
+    assert 'elif config.APP_ENV == "development" and config.BOOTSTRAP_ADMIN_ON_STARTUP' in lifespan
 
 
 def test_language_switch_pauses_observer_and_does_not_translate_parent_for_each_character_mutation():

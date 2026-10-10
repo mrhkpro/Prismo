@@ -40,16 +40,9 @@ def seed_admin(db: Session) -> None:
             admin.org_name = config.ADMIN_ORG_NAME
         db.commit()
     else:
-        # Avoid unexpectedly creating a second bootstrap administrator when the
-        # local database is already initialized with a different admin account.
-        existing_admin = (
-            db.query(models.User)
-            .filter(models.User.role == models.UserRole.admin)
-            .first()
-        )
-        if existing_admin:
-            return
-
+        # The configured bootstrap identity is authoritative for local development.
+        # If it is missing, create it even if another admin account exists; otherwise
+        # a fresh/reconfigured local installation could never use ADMIN_USERNAME.
         admin = models.User(
             username=username,
             org_name=config.ADMIN_ORG_NAME,

@@ -4,6 +4,7 @@
 
 - Fixed the mismatch between the setup script's printed admin password and `.env.example`.
 - Local bootstrap now synchronizes the configured admin password for an existing SQLite account, instead of only promoting the role.
+- A local development process may explicitly enable bootstrap synchronization when it connects to Supabase; default and production startup behavior remains unchanged.
 - Added an explicit, opt-in development-only bootstrap for local instances that use Supabase; it is disabled by default and never enabled in production.
 - Added regression tests for existing admin passwords and fresh bootstrap.
 
