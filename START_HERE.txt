@@ -1,7 +1,10 @@
-RAG Widget — Final Vercel-ready package
+Prismo v2.8.8 — Local, Local + Supabase, and Vercel
 
 1) Do NOT copy .venv into this package. Create it locally with setup.bat.
 2) Local run: setup.bat
+   - Local + Supabase: when running Uvicorn on your computer with DATABASE_URL pointing to PostgreSQL/Supabase, startup checks and adds missing optional embedding-provider columns in public.user_settings before normal requests. This is additive and preserves existing rows. The database role must have ALTER TABLE permission.
+   - If your role cannot ALTER the table, run supabase/migrations/009_repair_all_embedding_provider_columns.sql in Supabase SQL Editor as a database owner, then restart the app. If public.user_settings itself is missing, run migrations starting with 001_initial_schema.sql in order.
+   - Vercel keeps the explicit migration workflow; its startup does not alter the remote schema.
 3) Vercel Environment Variables must contain the values from your local .env, especially:
    APP_ENV=production
    DATABASE_URL=<Supabase Transaction Pooler URL>
@@ -31,4 +34,4 @@ RAG Widget — Final Vercel-ready package
 Git:
 - main is the final branch.
 - Feature branches are intentionally kept locally so git log --graph --all shows the work topology.
-- .env and .env.local are included in this delivery for local convenience but are ignored by Git.
+- .env is preserved in this private complete archive for local convenience but is ignored by Git. Do not share this archive publicly; it may contain secrets. .env.local is ignored and is not required in the archive.
