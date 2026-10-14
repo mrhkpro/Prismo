@@ -101,33 +101,73 @@
 
     <!-- ---------- خانه ---------- -->
     <section class="view active" id="view-overview">
-      <div class="page-head">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span class="badge badge-accent">PRISMO 2.8.4</span><span class="badge badge-success"><span class="badge-dot"></span> سیستم آماده</span></div>
-        <h1>سلام 👋</h1>
-        <p>یک نگاه سریع به وضعیت دستیار هوشمند و دانشنامه‌ات</p>
-      </div>
-      <div class="grid-3" id="overviewStats">
-        <div class="stat-card"><div class="label">اسناد دانشنامه</div><div class="value accent" id="ovDocCount">—</div></div>
-        <div class="stat-card"><div class="label">تکه‌های ایندکس‌شده</div><div class="value" id="ovChunkCount">—</div></div>
-        <div class="stat-card"><div class="label">پیام‌های ثبت‌شده</div><div class="value" id="ovMessageCount">—</div></div>
-        <div class="stat-card"><div class="label">نشست‌های آزمایشگاه</div><div class="value" id="ovPlaygroundSessions">—</div></div>
-        <div class="stat-card"><div class="label">نشست‌های ویجت</div><div class="value" id="ovWidgetSessions">—</div></div>
-        <div class="stat-card"><div class="label">ارائه‌دهنده‌ی مدل</div><div class="value" style="font-size:16px;" id="ovProvider">—</div></div>
-      </div>
-      <div class="panel overview-health-panel">
-        <div class="panel-title">وضعیت سرویس</div>
-        <div class="panel-desc">وضعیت فعلی ویجت و حساب کاربری را از API داشبورد می‌خوانیم.</div>
-        <span class="badge badge-success" id="ovWidgetStatus"><span class="badge-dot"></span> فعال</span>
-      </div>
-      <div class="divider"></div>
-      <div class="panel">
-        <div class="panel-title">قدم بعدی چیه؟</div>
-        <div class="panel-desc">این پروژه سه بخش اصلی داره — همه رو از منوی کناری در دسترس داری.</div>
-        <div class="grid-3">
-          <button class="btn btn-soft" onclick="Nav.go('knowledge')">افزودن سند به دانشنامه</button>
-          <button class="btn btn-soft" onclick="Nav.go('test-lab')">تست گفت‌وگو با RAG</button>
-          <button class="btn btn-soft" onclick="Nav.go('widget')">گرفتن کد ویجت</button>
+      <div class="overview-hero">
+        <div class="overview-hero-copy">
+          <div class="overview-hero-topline">
+            <span class="overview-brand-chip"><span class="overview-brand-mark" aria-hidden="true">P</span> Prismo</span>
+            <span class="badge badge-success"><span class="badge-dot"></span><span data-i18n-fa="سیستم آماده" data-i18n-en="System ready">سیستم آماده</span></span>
+            <span class="overview-version">v2.8.4</span>
+          </div>
+          <h1 data-i18n-fa="دانشت را به یک دستیار هوشمند تبدیل کن" data-i18n-en="Turn your knowledge into an AI assistant">دانشت را به یک دستیار هوشمند تبدیل کن</h1>
+          <p data-i18n-fa="اسناد خودت را وارد کن، مدل دلخواهت را تنظیم کن و یک دستیار دانش‌محور بساز؛ همه‌چیز از همین‌جا شروع می‌شود." data-i18n-en="Bring your documents, configure your preferred model, and build a knowledge-powered assistant — all from here.">اسناد خودت را وارد کن، مدل دلخواهت را تنظیم کن و یک دستیار دانش‌محور بساز؛ همه‌چیز از همین‌جا شروع می‌شود.</p>
+          <div class="overview-hero-actions">
+            <button class="btn btn-primary overview-hero-primary" type="button" onclick="Nav.go('knowledge')">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span data-i18n-fa="افزودن سند به دانشنامه" data-i18n-en="Add a knowledge document">افزودن سند به دانشنامه</span>
+            </button>
+            <button class="btn btn-soft overview-hero-secondary" type="button" onclick="Nav.go('test-lab')">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h8M9 3v4m6-4v4M7 9h10l2 11H5L7 9Z"/><path d="m9 14 2 2 4-4"/></svg>
+              <span data-i18n-fa="آزمایش دستیار" data-i18n-en="Test the assistant">آزمایش دستیار</span>
+            </button>
+          </div>
+          <div class="overview-hero-pills" aria-label="قابلیت‌های اصلی">
+            <span><i></i> RAG</span><span><i></i> Chat + Embedding</span><span><i></i> Widget</span>
+          </div>
         </div>
+        <div class="overview-hero-art" aria-hidden="true">
+          <div class="overview-orbit overview-orbit-one"></div>
+          <div class="overview-orbit overview-orbit-two"></div>
+          <div class="overview-art-core"><span class="overview-art-core-glow"></span><strong>P</strong><small>AI</small></div>
+          <div class="overview-art-node overview-node-top"><span class="node-dot node-dot-cyan"></span><span>RAG</span><small data-i18n-fa="بازیابی دانش" data-i18n-en="Knowledge retrieval">بازیابی دانش</small></div>
+          <div class="overview-art-node overview-node-side"><span class="node-dot node-dot-violet"></span><span>LLM</span><small data-i18n-fa="مدل دلخواه" data-i18n-en="Your model">مدل دلخواه</small></div>
+          <div class="overview-art-node overview-node-bottom"><span class="node-dot node-dot-gold"></span><span>Vector</span><small data-i18n-fa="دانش شخصی" data-i18n-en="Private knowledge">دانش شخصی</small></div>
+          <div class="overview-art-spark overview-spark-one">✦</div><div class="overview-art-spark overview-spark-two">✧</div>
+        </div>
+      </div>
+
+      <div class="overview-section-heading">
+        <div><span class="overview-section-kicker" data-i18n-fa="نمای کلی" data-i18n-en="AT A GLANCE">نمای کلی</span><h2 data-i18n-fa="وضعیت فضای کاری" data-i18n-en="Your workspace">وضعیت فضای کاری</h2></div>
+        <p data-i18n-fa="آمار دانشنامه و فعالیت‌های اخیرت در یک نگاه" data-i18n-en="Knowledge-base and activity stats at a glance">آمار دانشنامه و فعالیت‌های اخیرت در یک نگاه</p>
+      </div>
+      <div class="grid-3 overview-stats-grid" id="overviewStats">
+        <div class="stat-card overview-stat-card stat-docs"><div class="stat-card-top"><span class="overview-stat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v6h5M9 13h6M9 17h6"/></svg></span><span class="overview-stat-mark">01</span></div><div class="label" data-i18n-fa="اسناد دانشنامه" data-i18n-en="Knowledge documents">اسناد دانشنامه</div><div class="value accent" id="ovDocCount">—</div><div class="overview-stat-foot" data-i18n-fa="منبع دانش دستیار" data-i18n-en="Assistant knowledge sources">منبع دانش دستیار</div></div>
+        <div class="stat-card overview-stat-card stat-chunks"><div class="stat-card-top"><span class="overview-stat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="18" cy="19" r="2"/></svg></span><span class="overview-stat-mark">02</span></div><div class="label" data-i18n-fa="تکه‌های ایندکس‌شده" data-i18n-en="Indexed chunks">تکه‌های ایندکس‌شده</div><div class="value" id="ovChunkCount">—</div><div class="overview-stat-foot" data-i18n-fa="آماده برای جست‌وجوی معنایی" data-i18n-en="Ready for semantic search">آماده برای جست‌وجوی معنایی</div></div>
+        <div class="stat-card overview-stat-card stat-messages"><div class="stat-card-top"><span class="overview-stat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7l-5 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M7 10h10M7 14h6"/></svg></span><span class="overview-stat-mark">03</span></div><div class="label" data-i18n-fa="پیام‌های ثبت‌شده" data-i18n-en="Logged messages">پیام‌های ثبت‌شده</div><div class="value" id="ovMessageCount">—</div><div class="overview-stat-foot" data-i18n-fa="فعالیت‌های گفت‌وگو" data-i18n-en="Conversation activity">فعالیت‌های گفت‌وگو</div></div>
+        <div class="stat-card overview-stat-card stat-lab"><div class="stat-card-top"><span class="overview-stat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/><path d="M8 15h8"/></svg></span><span class="overview-stat-mark">04</span></div><div class="label" data-i18n-fa="نشست‌های آزمایشگاه" data-i18n-en="Lab sessions">نشست‌های آزمایشگاه</div><div class="value" id="ovPlaygroundSessions">—</div><div class="overview-stat-foot" data-i18n-fa="آزمون و بهبود پاسخ‌ها" data-i18n-en="Test and improve answers">آزمون و بهبود پاسخ‌ها</div></div>
+        <div class="stat-card overview-stat-card stat-widget"><div class="stat-card-top"><span class="overview-stat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9h10M7 13h6M7 17h3"/></svg></span><span class="overview-stat-mark">05</span></div><div class="label" data-i18n-fa="نشست‌های ویجت" data-i18n-en="Widget sessions">نشست‌های ویجت</div><div class="value" id="ovWidgetSessions">—</div><div class="overview-stat-foot" data-i18n-fa="گفت‌وگوهای سایتت" data-i18n-en="Conversations on your site">گفت‌وگوهای سایتت</div></div>
+        <div class="stat-card overview-stat-card stat-provider"><div class="stat-card-top"><span class="overview-stat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.8 9h16.4M3.8 15h16.4M12 3.5c2.2 2.3 3.3 5.1 3.3 8.5s-1.1 6.2-3.3 8.5c-2.2-2.3-3.3-5.1-3.3-8.5S9.8 5.8 12 3.5Z"/></svg></span><span class="overview-stat-mark">06</span></div><div class="label" data-i18n-fa="ارائه‌دهنده‌ی مدل" data-i18n-en="Model provider">ارائه‌دهنده‌ی مدل</div><div class="value overview-provider-value" id="ovProvider">—</div><div class="overview-stat-foot" data-i18n-fa="موتور هوش مصنوعی فعال" data-i18n-en="Active AI engine">موتور هوش مصنوعی فعال</div></div>
+      </div>
+
+      <div class="panel overview-health-panel">
+        <span class="overview-health-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 4.5 3.1 7.8 8 9 4.9-1.2 8-4.5 8-9V7l-8-4Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg></span>
+        <div class="overview-health-copy"><div class="panel-title" data-i18n-fa="وضعیت سرویس" data-i18n-en="Service status">وضعیت سرویس</div><div class="panel-desc" data-i18n-fa="وضعیت فعلی ویجت و حساب کاربری را از API داشبورد می‌خوانیم." data-i18n-en="Current widget and account status from the dashboard API.">وضعیت فعلی ویجت و حساب کاربری را از API داشبورد می‌خوانیم.</div></div>
+        <span class="badge badge-success overview-health-status" id="ovWidgetStatus"><span class="badge-dot"></span><span data-i18n-fa="فعال" data-i18n-en="Active">فعال</span></span>
+      </div>
+
+      <div class="overview-section-heading overview-actions-heading">
+        <div><span class="overview-section-kicker" data-i18n-fa="ادامه بده" data-i18n-en="KEEP BUILDING">ادامه بده</span><h2 data-i18n-fa="از کجا شروع کنیم؟" data-i18n-en="What would you like to do?">از کجا شروع کنیم؟</h2></div>
+        <p data-i18n-fa="مهم‌ترین ابزارها همیشه در دسترس تو هستند" data-i18n-en="Your key tools are always within reach">مهم‌ترین ابزارها همیشه در دسترس تو هستند</p>
+      </div>
+      <div class="overview-quick-grid">
+        <button class="overview-quick-card quick-knowledge" type="button" onclick="Nav.go('knowledge')">
+          <span class="overview-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="overview-quick-copy"><strong data-i18n-fa="دانشنامه‌ات را بساز" data-i18n-en="Build your knowledge base">دانشنامه‌ات را بساز</strong><small data-i18n-fa="PDF، Word یا متن دلخواهت را اضافه کن و برای جست‌وجو آماده‌اش کن." data-i18n-en="Add PDF, Word, or your own text and make it searchable.">PDF، Word یا متن دلخواهت را اضافه کن و برای جست‌وجو آماده‌اش کن.</small></span><span class="overview-quick-arrow" aria-hidden="true">↗</span>
+        </button>
+        <button class="overview-quick-card quick-lab" type="button" onclick="Nav.go('test-lab')">
+          <span class="overview-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/><path d="M8 15h8"/></svg></span><span class="overview-quick-copy"><strong data-i18n-fa="در آزمایشگاه امتحان کن" data-i18n-en="Try it in the lab">در آزمایشگاه امتحان کن</strong><small data-i18n-fa="پاسخ مدل و کیفیت بازیابی دانش را قبل از انتشار بررسی کن." data-i18n-en="Check model responses and retrieval quality before publishing.">پاسخ مدل و کیفیت بازیابی دانش را قبل از انتشار بررسی کن.</small></span><span class="overview-quick-arrow" aria-hidden="true">↗</span>
+        </button>
+        <button class="overview-quick-card quick-widget" type="button" onclick="Nav.go('widget')">
+          <span class="overview-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9h10M7 13h6M7 17h3"/></svg></span><span class="overview-quick-copy"><strong data-i18n-fa="دستیار را منتشر کن" data-i18n-en="Publish your assistant">دستیار را منتشر کن</strong><small data-i18n-fa="رنگ و رفتار ویجت را انتخاب کن و کد آن را در سایتت بگذار." data-i18n-en="Customize the widget and embed it on your website.">رنگ و رفتار ویجت را انتخاب کن و کد آن را در سایتت بگذار.</small></span><span class="overview-quick-arrow" aria-hidden="true">↗</span>
+        </button>
       </div>
     </section>
 

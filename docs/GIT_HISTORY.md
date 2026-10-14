@@ -156,3 +156,17 @@ All branches in the release line are merged into `main` with `--no-ff` to preser
 
 - `fix/remove-google-oauth-v2.7.9` — remove Google controls and client logic, delete the server-side Google/Supabase OAuth routes and configuration, remove Google-only dependencies/model, retain username/password auth, add a forward migration for the obsolete identity table, and replace OAuth tests with removal/route-preservation regression tests.
 - The previous v2.7.7–v2.7.8 release notes remain as historical changelog entries; the active app no longer exposes or implements Google login.
+
+## v2.8.4 — Integration back onto the v2.8.1 baseline (2026-10-14)
+
+This release is deliberately based on the `v2.8.1` source tree and its Git graph. The later v2.8.3 snapshot was not used as the new project baseline; only the Vercel-specific response behavior was ported across.
+
+- `feat/vercel-openrouter-json-path-v2.8.4` — bring over Vercel-safe bounded JSON RAG responses, non-empty response validation, structured text extraction, and one retry for provider responses with no visible text. Local and local+Supabase keep their existing SSE behavior.
+- `feature/google-supabase-auth-v2.8.4` — port only the active Google sign-in path from `final-project-feat-my-work`: Supabase Google redirect, callback page, and server-side Supabase-token validation/exchange to a Prismo JWT. Username/password auth stays intact; unrelated files from that archive were not merged.
+- `feature/admin-security-alerts-v2.8.4` — add Persian/English heuristic patterns for system prompt extraction, API-key/credential disclosure, environment data, destructive actions, disabling controls, and cross-user data access. Persist flagged messages before inference; expose message, reason, severity, source, and user in the shared-database admin review UI. Critical/high alerts notify admins even when a newer medium alert exists.
+- `feature/dashboard-home-polish-v2.8.4` — refresh the dashboard home with a richer hero, model/RAG capability chips, icon-led statistics cards, service health, and responsive quick actions while preserving existing statistics IDs and navigation routes.
+- Release documentation covers architecture, security alert storage, Google provider setup, deployment caveats, and validation results.
+
+Verification for the integrated tree: `252 passed`; `python -m compileall -q app tests`; `node --check` for non-minified frontend JavaScript; `git diff --check`; and a headless browser layout check at desktop and 390px mobile width (no horizontal overflow). Live Google/Supabase OAuth and a real OpenRouter call could not be verified end-to-end in this environment, so those remain deployment-time checks.
+
+The local `.env` stays ignored and untracked. The private full-project archive preserves the local environment file from the user's v2.8.1 base; the Git repository/history does not include it.

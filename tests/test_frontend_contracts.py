@@ -226,7 +226,7 @@ def test_vercel_rag_chat_uses_bounded_json_path_and_ready_models_are_marked_loca
     assert html.count(note) == 2
     assert note in translations
     assert "/assets/js/dashboard.js?v=2.8.4" in html
-    assert "PRISMO 2.8.4" in html
+    assert "v2.8.4" in html
 
 
 def test_empty_model_reply_is_never_rendered_as_an_empty_chat_bubble():
@@ -239,3 +239,20 @@ def test_empty_model_reply_is_never_rendered_as_an_empty_chat_bubble():
     assert 'for attempt in range(2)' in backend
     assert 'provider_empty_chat_response' in backend
     assert 'مدل پاسخ متنی برنگرداند' in backend
+
+
+def test_dashboard_home_refresh_keeps_live_bindings_and_quick_actions():
+    html = (ROOT / "frontend" / "dashboard.html").read_text(encoding="utf-8")
+    css = (ROOT / "frontend" / "assets" / "css" / "style.css").read_text(encoding="utf-8")
+    translations = (ROOT / "frontend" / "assets" / "js" / "settings.js").read_text(encoding="utf-8")
+    for element_id in ("ovDocCount", "ovChunkCount", "ovMessageCount", "ovPlaygroundSessions", "ovWidgetSessions", "ovProvider", "ovWidgetStatus"):
+        assert f'id="{element_id}"' in html
+    for section in ("overview-hero", "overview-stats-grid", "overview-health-panel", "overview-quick-grid"):
+        assert section in html
+        assert f"#view-overview .{section}" in css or section == "overview-health-panel"
+    for route in ("knowledge", "test-lab", "widget"):
+        assert f"Nav.go('{route}')" in html
+    assert 'data-i18n-en="Turn your knowledge into an AI assistant"' in html
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr))" in css
+    assert "@media (max-width: 420px)" in css
+    assert 'document.querySelectorAll("[data-i18n-fa][data-i18n-en]")' in translations

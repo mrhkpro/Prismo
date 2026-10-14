@@ -21,12 +21,12 @@ This release is based on the v2.8.1 source and Git history. It does not replace 
 ## Admin security alerts
 
 - Expanded heuristic detection for requests to disclose API keys, environment variables, credentials, database connection strings, system prompts, disable safeguards, access other users' data, or destructively alter databases/data.
-- Suspected messages from Test Lab and widget flows are persisted before inference and can be viewed by all administrators through the existing shared `/api/admin/security/flags` panel, including the submitted message, reason, severity and source.
-- If inference fails after a suspicious message is logged, the alert remains in the admin panel. This is heuristic monitoring, not a guarantee to detect or block all threats.
+- Suspected messages from Test Lab and widget flows are persisted before inference and can be viewed by all administrators authorized against the same database through `/api/admin/security/flags`, including the submitted message, reason, severity and source.
+- If inference fails after a suspicious message is logged, the alert remains in the admin panel. The alert banner/notifications cover unresolved critical and high alerts, and a newer medium flag cannot hide an actionable alert. This is heuristic monitoring, not a guarantee to detect or block all threats.
 
 ## Dashboard home
 
-- Updated the overview header and added a richer welcome/quick-launch area while preserving the original sections, statistics IDs, navigation and existing dashboard behavior.
+- Updated the overview header with a branded hero illustration, clear primary actions, capability chips, six icon-led statistics cards, a service-health panel and three quick-action cards. The statistics element IDs and navigation targets are unchanged; the layout is responsive and bilingual.
 - Bumped asset cache keys to v2.8.4 to prevent stale HTML/CSS/JavaScript from hiding the new behavior.
 
 ## Security and compatibility notes
@@ -36,5 +36,6 @@ This release is based on the v2.8.1 source and Git history. It does not replace 
 
 ## Verification
 
-- Unit/regression tests cover runtime-specific chat routing, empty provider replies, security rule coverage, alert persistence and Google callback/token exchange with mocked Supabase responses.
+- **252 automated tests passed.** The suite covers runtime-specific chat routing, empty provider replies, security-rule coverage, pre-inference alert persistence and admin visibility, and Google callback/token exchange with mocked Supabase responses.
+- `python -m compileall -q app tests`, `node --check` on non-minified JavaScript, and `git diff --check` passed. A headless-browser layout check was performed at desktop and 390px mobile width; no horizontal overflow was detected.
 - The Google OAuth provider and live OpenRouter API could not be exercised end-to-end from this build environment; live verification must be performed after configuration and deployment.

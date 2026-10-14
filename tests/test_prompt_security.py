@@ -208,8 +208,10 @@ def test_admin_security_summary_and_flags_expose_messages_across_users():
 
 
 def test_admin_security_ui_includes_credential_and_danger_categories_and_high_severity_notifications():
-    js = (ROOT / "frontend" / "assets" / "js" / "admin.js").read_text(encoding="utf-8")
-    html = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    js = (root / "frontend" / "assets" / "js" / "admin.js").read_text(encoding="utf-8")
+    html = (root / "frontend" / "admin.html").read_text(encoding="utf-8")
     assert "تلاش برای افشای کلید و رمز" in js
     assert "درخواست‌های مخرب / دورزدن امنیت" in js
     assert '["critical", "high"].includes(latest.severity)' in js
