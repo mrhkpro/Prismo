@@ -269,3 +269,33 @@ On PostgreSQL/Supabase, run `supabase/migrations/007_answer_cache.sql` once in S
 ### Security notifications
 
 The lower-left red admin button is populated from `GET /api/admin/security/summary`, which queries flagged and unresolved `ChatMessage` rows in the current database. All authorized admins sharing that database see the same unresolved report count. Repeated detected extraction attempts in one session are elevated to critical. Local SQLite and the hosted Supabase database are separate alert stores unless both environments point to the same database.
+
+### Repair: `user_settings.embedding_use_default_provider` missing
+
+If startup or login fails with PostgreSQL `UndefinedColumn` for
+`user_settings.embedding_use_default_provider`, the deployed code is newer than
+the schema in that Supabase project. Do **not** delete or recreate the database.
+Open Supabase Dashboard → SQL Editor and run
+`supabase/migrations/008_repair_embedding_provider_mode.sql` from this project.
+It is idempotent, preserves existing non-NULL provider selections, initializes old
+rows from `use_default_provider`, and does not drop or delete data.
+
+You can verify the migration with:
+
+```sql
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'user_settings'
+  AND column_name = 'embedding_use_default_provider';
+
+SELECT COUNT(*) AS remaining_nulls
+FROM public.user_settings
+WHERE embedding_use_default_provider IS NULL;
+```
+
+The first query should return the column, and the second should return `0`.
+After the migration completes, restart the local Prismo process that uses
+`DATABASE_URL` for Supabase. PostgreSQL schema migrations are intentionally not
+run automatically at app startup; this avoids hidden schema writes and keeps
+startup predictable.

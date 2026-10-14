@@ -241,3 +241,9 @@ The final suite covers API isolation, authentication, RAG, retrieval, knowledge 
 ## 2.3.0
 - Admin: fixed user inspection and chat viewing errors (chunk counting no longer loads embedding vectors, NULL-safe settings/messages, no N+1 on sessions).
 - UI: flat minimal black/violet theme (tokens + override block in style.css).
+
+## v2.8.6 — Supabase schema compatibility repair
+
+- Added idempotent migration `008_repair_embedding_provider_mode.sql` for existing Supabase databases missing `user_settings.embedding_use_default_provider`.
+- Backfilled old rows from `use_default_provider` while preserving existing non-NULL values; set a default and `NOT NULL` constraint without dropping or deleting data.
+- Documented recovery steps and SQL verification for PostgreSQL `UndefinedColumn` errors.
