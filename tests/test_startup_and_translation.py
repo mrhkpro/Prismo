@@ -35,6 +35,10 @@ def test_postgres_lifespan_does_not_touch_schema_or_seed(monkeypatch):
     from app import config, main
 
     monkeypatch.setattr(config, "IS_POSTGRES", True)
+    # The source ZIP may contain a private local .env with this opt-in enabled;
+    # this test specifically verifies the default/non-bootstrap Supabase path.
+    monkeypatch.setattr(config, "APP_ENV", "production")
+    monkeypatch.setattr(config, "BOOTSTRAP_ADMIN_ON_STARTUP", False)
 
     def fail(*_args, **_kwargs):
         raise AssertionError("Supabase startup must not mutate or inspect the schema")

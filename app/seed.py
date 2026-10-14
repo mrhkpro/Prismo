@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from . import config
 from . import models
 from . import security
+from .services import user_settings_compat
 
 
 def seed_admin(db: Session) -> None:
@@ -29,13 +30,15 @@ def seed_admin(db: Session) -> None:
         if not security.verify_password(config.ADMIN_PASSWORD, admin.password_hash):
             admin.password_hash = security.hash_password(config.ADMIN_PASSWORD)
 
-        if not admin.settings:
-            db.add(
-                models.UserSettings(
-                    user_id=admin.id,
-                    widget_title=config.ADMIN_ORG_NAME,
-                )
-            )
+        # Do not touch ``admin.settings`` here. Loading that SQLAlchemy
+        # relationship selects every mapped UserSettings column, which can
+        # crash development+Supabase startup when an older hosted schema is
+        # missing optional provider columns. The compatibility service selects
+        # only columns that actually exist and creates a narrow legacy row when
+        # needed.
+        user_settings_compat.ensure_settings(
+            db, admin.id, widget_title=config.ADMIN_ORG_NAME
+        )
         if not admin.org_name:
             admin.org_name = config.ADMIN_ORG_NAME
         db.commit()
@@ -52,11 +55,8 @@ def seed_admin(db: Session) -> None:
         )
         db.add(admin)
         db.flush()
-        db.add(
-            models.UserSettings(
-                user_id=admin.id,
-                widget_title=config.ADMIN_ORG_NAME,
-            )
+        user_settings_compat.ensure_settings(
+            db, admin.id, widget_title=config.ADMIN_ORG_NAME
         )
         db.commit()
 
