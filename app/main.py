@@ -41,6 +41,8 @@ from .seed import (
     seed_admin,
 )
 
+from .services import user_settings_compat
+
 from .routers import (
     admin,
     auth,
@@ -88,9 +90,24 @@ async def lifespan(app: FastAPI):
             seed_admin(db)
         finally:
             db.close()
+    elif config.IS_POSTGRES and not config.IS_VERCEL:
+        # Local + Supabase: repair only additive settings columns before any
+        # request can trigger a full ORM UserSettings SELECT. Vercel keeps its
+        # explicit migration flow and does not run DDL at startup.
+        added_columns = user_settings_compat.ensure_local_supabase_provider_schema(engine)
+        if added_columns:
+            logging.getLogger("prismo").warning(
+                "Local+Supabase compatibility added user_settings columns: %s",
+                ", ".join(added_columns),
+            )
+        if config.APP_ENV == "development" and config.BOOTSTRAP_ADMIN_ON_STARTUP:
+            db = SessionLocal()
+            try:
+                seed_admin(db)
+            finally:
+                db.close()
     elif config.APP_ENV == "development" and config.BOOTSTRAP_ADMIN_ON_STARTUP:
-        # Optional one-time-use pattern for local development when DATABASE_MODE
-        # points at Supabase. This is off by default and never runs in production.
+        # Preserve optional bootstrap behavior for development previews.
         db = SessionLocal()
         try:
             seed_admin(db)

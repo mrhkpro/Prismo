@@ -15,6 +15,11 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+# Capture the real platform-provided flag before reading local .env files.
+# `vercel env pull` creates .env.local; that file must not make a local
+# Uvicorn process behave as if it were deployed on Vercel.
+_IS_VERCEL_RUNTIME = bool(os.environ.get("VERCEL"))
+
 
 # ============================================================
 # PATHS
@@ -35,7 +40,7 @@ APP_ENV = os.getenv(
     "development",
 ).strip().lower()
 
-IS_VERCEL = bool(os.getenv("VERCEL"))
+IS_VERCEL = _IS_VERCEL_RUNTIME
 
 APP_TITLE = "Prismo — RAG Widget Platform"
 
