@@ -5,15 +5,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_auth_page_uses_versioned_assets_and_theme_support():
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert "/assets/css/style.css?v=2.8.0" in html
-    assert "/assets/js/theme.js?v=2.8.0" in html
-    assert "/assets/js/auth.js?v=2.8.0" in html
+    assert "/assets/css/style.css?v=2.8.4" in html
+    assert "/assets/js/theme.js?v=2.8.4" in html
+    assert "/assets/js/auth.js?v=2.8.4" in html
 
 
 def test_admin_page_loads_theme_support():
     html = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
-    assert "/assets/js/theme.js?v=2.8.0" in html
-    assert "/assets/css/style.css?v=2.8.0" in html
+    assert "/assets/js/theme.js?v=2.8.4" in html
+    assert "/assets/css/style.css?v=2.8.4" in html
     assert 'id="sessionModalBody" class="chat-stream" aria-live="polite"' in html
     css = (ROOT / "frontend" / "assets" / "css" / "style.css").read_text(encoding="utf-8")
     assert "#sessionModal .modal-box" in css
