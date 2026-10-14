@@ -2,7 +2,9 @@
 
 ## Authentication
 
-Authentication uses JWT access tokens with a `sub` claim containing the numeric user ID. Invalid, expired or malformed tokens return `401`; inactive accounts return `403`.
+Authentication uses Prismo JWT access tokens with a `sub` claim containing the numeric user ID. Invalid, expired or malformed tokens return `401`; inactive accounts return `403`. The application supports the existing username/password flow and an optional Google sign-in flow through Supabase Auth. The callback exchanges a Supabase access token for the same kind of Prismo JWT used by the rest of the application.
+
+Configure the Google provider and exact redirect allow list in Supabase. Keep Google's Client Secret inside Google Cloud/Supabase provider settings; do not put it in frontend code. `SUPABASE_ANON_KEY` is the public anon/publishable key and is not interchangeable with the `service_role` key. The backend calls Supabase's `/auth/v1/user` endpoint to validate the returned access token before it creates the Prismo session.
 
 Passwords are stored as PBKDF2-HMAC-SHA256 hashes with a per-password random salt. The project avoids a compiled password-hashing dependency so the one-click Windows setup stays reliable.
 

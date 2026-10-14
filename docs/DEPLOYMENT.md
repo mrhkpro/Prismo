@@ -218,3 +218,18 @@ vercel.cmd --prod
 - `/api/playground/free-models` → لیست مدل‌های پیش‌فرض بدون تماس با provider
 
 نکته: وجود متغیر `DEFAULT_PROVIDER_API_KEY` در Vercel کافی نیست؛ deployment باید واقعاً بتواند به Base URL متصل شود.
+
+## Google Login through Supabase Auth
+
+Google sign-in is an optional login method alongside the existing username/password route. The login button redirects to the configured Supabase project's Google provider. Supabase returns to `frontend/auth-callback.html`; the callback sends the Supabase access token to `POST /api/auth/google-supabase`. The backend verifies that token by calling the Supabase Auth user endpoint with the public project anon key, then returns Prismo's normal bearer JWT.
+
+Configure `SUPABASE_URL` and `SUPABASE_ANON_KEY` for the same project used by the frontend redirect. If not overridden, the application defaults target the Supabase project supplied with the original working Google-login flow. Set these variables explicitly when using another project.
+
+In Supabase Dashboard, enable `Authentication → Providers → Google` and enter the Google OAuth Client ID and Client Secret from Google Cloud. In `Authentication → URL Configuration`, add the exact callback URL(s) to the redirect allow list:
+
+- Local: `http://localhost:8000/auth-callback.html`
+- Hosted: `https://YOUR-DOMAIN/auth-callback.html`
+
+In Google Cloud, add the Supabase callback shown in the Supabase Google provider page as the authorized redirect URI (normally `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`). Use the exact value displayed by your Supabase project. Google Client Secret must stay in Supabase/Google Cloud configuration; never put it in browser JavaScript or `.env.example`. The `SUPABASE_ANON_KEY` is a public client key, not a service-role secret.
+
+The Google/Supabase route returns a normal Prismo JWT; the rest of the application keeps using the existing token-based authorization. The original username/password sign-in and registration endpoints remain enabled. Live OAuth must be tested with the actual Supabase Google provider and redirect allow list configured in the target deployment.

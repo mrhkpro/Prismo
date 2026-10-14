@@ -43,6 +43,18 @@ APP_PUBLIC_URL = (
     os.getenv("APP_PUBLIC_URL") or os.getenv("PUBLIC_APP_URL") or os.getenv("NEXT_PUBLIC_SITE_URL") or ""
 ).strip().rstrip("/")
 
+# Supabase Auth endpoints used by the Google OAuth redirect flow. These are
+# public project settings (not a service-role key); environment variables may
+# override the defaults supplied by the original working Google-login project.
+SUPABASE_URL = os.getenv(
+    "SUPABASE_URL",
+    "https://zvscwdqipjdoyauwkmpa.supabase.co",
+).strip().rstrip("/")
+SUPABASE_ANON_KEY = os.getenv(
+    "SUPABASE_ANON_KEY",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2c2N3ZHFpcGpkb3lhdXdrbXBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjkwOTEsImV4cCI6MjEwNjUwNTA5MX0.HWHXdYIuS1Qh9H0AuDsc1uRTxIfCyavdBmsrVA3IYwc",
+).strip()
+
 # Logging is intentionally quiet by default in local development.
 # This prevents high-frequency request logs from consuming CPU/disk while the UI boots.
 LOG_LEVEL = os.getenv("PRISMO_LOG_LEVEL", os.getenv("QUASAR_LOG_LEVEL", "WARNING")).strip().upper()

@@ -87,4 +87,15 @@
     }
   });
 
+  const googleLoginBtn = document.getElementById("googleLoginBtn");
+  if (googleLoginBtn) {
+    googleLoginBtn.addEventListener("click", () => {
+      clearError();
+      const supabaseUrl = (window.PRISMO_SUPABASE_URL || "https://zvscwdqipjdoyauwkmpa.supabase.co").replace(/\/$/, "");
+      const redirectUri = window.location.origin + "/auth-callback.html";
+      const oauthUrl = `${supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUri)}`;
+      location.href = oauthUrl;
+    });
+  }
+
 })();

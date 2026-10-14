@@ -1116,3 +1116,18 @@ body.qz-compact-chat .chat-msg{padding-top:8px;padding-bottom:8px}body.qz-compac
   #aitab-connect .ai-save-button { min-width:0; }
   #aitab-connect .ai-provider-panel .input-action { flex-direction:column; }
 }
+
+/* Google OAuth button (kept scoped to the login page). */
+.google-auth-container { margin: 0 0 1.25rem; width: 100%; }
+.google-login-btn {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 11px 16px; border-radius: var(--radius-md); border: 1px solid var(--border);
+  background: var(--bg-elevated-2); color: var(--text); font-family: var(--font-body);
+  font-size: 13.5px; font-weight: 600; cursor: pointer;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease; box-shadow: var(--shadow-card);
+}
+.google-login-btn:hover { background: var(--accent-soft); border-color: var(--accent); transform: translateY(-1px); }
+.google-login-btn svg { width: 19px; height: 19px; flex-shrink: 0; }
+.auth-divider { position: relative; display: flex; align-items: center; justify-content: center; margin: 1rem 0 .5rem; }
+.auth-divider::before { content: ""; position: absolute; inset-inline: 0; top: 50%; height: 1px; background: var(--border-soft); z-index: 1; }
+.auth-divider span { position: relative; z-index: 2; padding: 0 10px; background: var(--bg-elevated); color: var(--text-faint); font-size: 11px; font-weight: 600; }
