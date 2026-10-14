@@ -1086,23 +1086,73 @@ def embed_text(text: str, provider: ProviderConfig) -> List[float]:
     return embed_texts([text], provider)[0]
 
 
+def _visible_message_text(message) -> str:
+    """Extract user-facing text from OpenAI-compatible message content.
+
+    Some provider gateways return content as structured text parts instead of
+    a plain string. Reasoning fields are intentionally not shown as answers.
+    """
+    content = _field(message, "content", None)
+    if isinstance(content, str):
+        text = content.strip()
+        if text:
+            return text
+    elif isinstance(content, (list, tuple)):
+        parts: list[str] = []
+        for part in content:
+            if isinstance(part, str):
+                value = part.strip()
+            else:
+                value = _field(part, "text", None)
+                value = value.strip() if isinstance(value, str) else ""
+            if value:
+                parts.append(value)
+        if parts:
+            return "\n".join(parts).strip()
+    elif isinstance(content, dict):
+        value = _field(content, "text", None)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    refusal = _field(message, "refusal", None)
+    return refusal.strip() if isinstance(refusal, str) else ""
+
+
 def chat_completion(
     messages: List[dict], provider: ProviderConfig, temperature: float = 0.7, model: Optional[str] = None
 ) -> str:
     client = _client(provider.base_url, provider.api_key)
+    selected_model = model or provider.chat_model
+    empty_response_message = (
+        "مدل پاسخ متنی برنگرداند. یک بار دیگر تلاش کنید؛ اگر تکرار شد، مدل دیگری را انتخاب یا اتصال API را بررسی کنید."
+    )
     try:
-        selected_model = model or provider.chat_model
-        response = client.chat.completions.create(
-            model=selected_model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=config.AI_MAX_OUTPUT_TOKENS,
-        )
+        # Only retry an otherwise successful but empty model response once.
+        for attempt in range(2):
+            response = client.chat.completions.create(
+                model=selected_model,
+                messages=messages,
+                temperature=temperature if attempt == 0 else min(float(temperature), 0.2),
+                max_tokens=config.AI_MAX_OUTPUT_TOKENS,
+            )
+            choices = _field(response, "choices", None) or []
+            choice = choices[0] if choices else None
+            message = _field(choice, "message", None) if choice is not None else None
+            reply = _visible_message_text(message) if message is not None else ""
+            if reply:
+                return reply
+            finish_reason = _field(choice, "finish_reason", "unknown") if choice is not None else "no_choices"
+            logger.warning(
+                "provider_empty_chat_response model=%s attempt=%s finish_reason=%s",
+                selected_model, attempt + 1, finish_reason,
+            )
+    except LLMError:
+        raise
     except Exception as exc:  # noqa: BLE001
         if isinstance(exc, APIConnectionError):
             _log_connection_error(provider.base_url, exc)
         raise LLMError(format_provider_error(exc, provider, operation="chat")) from exc
-    return response.choices[0].message.content or ""
+    raise LLMError(empty_response_message)
 
 
 def stream_chat_completion(

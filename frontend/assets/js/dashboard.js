@@ -8,6 +8,22 @@ let CURRENT_USER = null;
 let CURRENT_SETTINGS = null;
 let CHAT_SESSION_ID = null;
 
+// Serverless Vercel: prefer the bounded JSON RAG route over provider SSE.
+// Local instances re-enable streaming after /api/runtime confirms they are local.
+let PRISMO_IS_VERCEL_RUNTIME = true;
+const PRISMO_RUNTIME_CONTROLLER = new AbortController();
+const PRISMO_RUNTIME_TIMEOUT = setTimeout(() => PRISMO_RUNTIME_CONTROLLER.abort(), 3000);
+const PRISMO_RUNTIME_READY = fetch("/api/runtime", {
+  cache: "no-store",
+  headers: { Accept: "application/json" },
+  signal: PRISMO_RUNTIME_CONTROLLER.signal,
+}).then(async (response) => {
+  if (!response.ok) throw new Error("Runtime detection failed");
+  const runtime = await response.json();
+  PRISMO_IS_VERCEL_RUNTIME = Boolean(runtime.vercel);
+  return runtime;
+}).catch(() => ({ vercel: true })).finally(() => clearTimeout(PRISMO_RUNTIME_TIMEOUT));
+
 // ---------------------------------------------------------------------------
 // ناوبری بین بخش‌ها
 // ---------------------------------------------------------------------------
@@ -974,7 +990,7 @@ async function importFiles(fileList) {
   let completedFiles = 0;
   try {
     try {
-      await Lazy.script("/assets/js/extract.js?v=2.8.0");
+      await Lazy.script("/assets/js/extract.js?v=2.8.4");
     } catch (err) {
       return toastError(err);
     }
@@ -1204,14 +1220,20 @@ async function chatViaStream(message, selectedModel, bubble) {
 }
 
 // مسیر پشتیبان: یک‌جا (برای سروری که استریم ندارد)
-async function chatViaRequest(message, selectedModel, bubble) {
+async function chatViaRequest(message, selectedModel, bubble, timeoutMs = 0) {
   const res = await apiCall("/api/playground/chat", {
     method: "POST",
-    timeoutMs: 0,
+    timeoutMs,
     body: { message, session_id: CHAT_SESSION_ID, ...(selectedModel ? { model: selectedModel } : {}) },
   });
+  const reply = typeof res?.reply === "string" ? res.reply.trim() : "";
+  if (!reply) {
+    const message = "مدل پاسخ متنی برنگرداند. یک بار دیگر تلاش کنید؛ اگر تکرار شد، مدل دیگری را انتخاب یا اتصال API را بررسی کنید.";
+    throw new Error(window.QZI18n ? window.QZI18n.t(message) : message);
+  }
   CHAT_SESSION_ID = res.session_id;
-  bubble.textContent = res.reply;
+  bubble.textContent = reply;
+  bubble.dataset.hasText = "1";
   bubble.classList.remove("pending");
   const badge = document.getElementById("activeChatModelBadge"); if (badge) { badge.textContent = res.model || selectedModel || "—"; badge.hidden = !!(window.QZSettings && window.QZSettings.get("showModelBadge") === false); }
   renderChatSources(res.sources);
@@ -1241,7 +1263,13 @@ async function sendChatMessage() {
 
   try {
     try {
-      if (window.QZSettings && window.QZSettings.get("streaming") === false) {
+      await PRISMO_RUNTIME_READY;
+      if (PRISMO_IS_VERCEL_RUNTIME) {
+        // Vercel serverless SSE can send metadata without a text delta. Use the
+        // ordinary RAG JSON endpoint with a bounded timeout for this runtime.
+        bubble.textContent = window.QZI18n ? window.QZI18n.t("در حال پاسخ…") : "در حال پاسخ…";
+        await chatViaRequest(message, selectedModel, bubble, 65000);
+      } else if (window.QZSettings && window.QZSettings.get("streaming") === false) {
         await chatViaRequest(message, selectedModel, bubble);
       } else {
         const streamResult = await chatViaStream(message, selectedModel, bubble);
@@ -1255,7 +1283,7 @@ async function sendChatMessage() {
         // توقف دستی، بدون تبدیل آن به خطای قرمز.
         if (bubble.dataset.hasText !== "1") bubble.textContent = "پاسخ متوقف شد.";
         bubble.classList.remove("pending");
-      } else if (window.QZSettings && window.QZSettings.get("streaming") === false) {
+      } else if (PRISMO_IS_VERCEL_RUNTIME || (window.QZSettings && window.QZSettings.get("streaming") === false)) {
         throw err;
       } else if (bubble.dataset.hasText !== "1" && (err?.streamError || STREAM_FALLBACK_STATUSES.includes(err?.status))) {
         // خطای خود Stream را مخفی می‌کنیم و مسیر معمولی را امتحان می‌کنیم.
@@ -1510,7 +1538,7 @@ async function loadWidgetSection() {
     const [cfg, embed] = await Promise.all([
       apiCall("/api/widget/config"),
       apiCall("/api/widget/embed-code"),
-      Lazy.script("/assets/js/pets.js?v=2.8.0").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
+      Lazy.script("/assets/js/pets.js?v=2.8.4").catch(() => null), // اگر نیامد، فقط انتخابگر حیوان خالی می‌ماند
     ]);
     const ex = cfg.extras || {};
     const pet = ex.pet || "dog";

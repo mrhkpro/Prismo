@@ -113,6 +113,16 @@ class CloudRAGPipelineTests(unittest.TestCase):
         self.assertIn("اطلاعاتی", reply)
         chat.assert_not_called()
 
+    def test_blank_chat_output_is_rejected_before_it_can_be_returned_or_saved(self):
+        matches = [(SimpleNamespace(text="Known information"), 0.9)]
+        with patch.object(llm_client, "resolve_provider"), patch.object(
+            llm_client, "embed_text", return_value=[1.0, 0.0]
+        ), patch.object(rag_store, "search", return_value=matches), patch.object(
+            llm_client, "chat_completion", return_value="   "
+        ):
+            with self.assertRaisesRegex(llm_client.LLMError, "پاسخ متنی برنگرداند"):
+                rag_pipeline.run_rag_chat(None, self.owner, self.session, "Question")
+
     def test_retrieved_context_reaches_the_chat_model(self):
         matches = [(SimpleNamespace(text="Known opening hours"), 0.9)]
         with patch.object(llm_client, "resolve_provider"), patch.object(
