@@ -158,7 +158,7 @@ def test_saved_custom_model_is_rehydrated_for_battle_and_english_widget_labels()
     assert 'fillModelSelect(document.getElementById("battleModelB"), battleModels' in dashboard
     assert '{ dog: "Dog", cat: "Cat", raccoon: "Raccoon" }' in dashboard
     assert 'embedCodeBox.textContent = english ? "Loading…" : "در حال بارگذاری…";' in dashboard
-    assert 'dashboard.js?v=2.8.0' in html
+    assert 'dashboard.js?v=2.8.4' in html
 
 
 def test_widget_quick_replies_do_not_keep_the_streaming_caret():
@@ -213,3 +213,29 @@ def test_ai_connection_copy_is_translated_for_english_ui():
         ("همه‌چیز آماده است؟", "Ready to go?"),
     ):
         assert source in settings and target in settings
+
+
+def test_vercel_rag_chat_uses_bounded_json_path_and_ready_models_are_marked_local_only():
+    html = (ROOT / "frontend" / "dashboard.html").read_text(encoding="utf-8")
+    js = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    translations = (ROOT / "frontend" / "assets" / "js" / "settings.js").read_text(encoding="utf-8")
+    note = "مدل‌های آماده فقط در اجرای لوکال کار می‌کنند و در سایت Vercel در دسترس نیستند؛ برای سایت از API اختصاصی استفاده کن."
+    assert "/api/runtime" in js and "PRISMO_IS_VERCEL_RUNTIME" in js
+    assert "await chatViaRequest(message, selectedModel, bubble, 65000)" in js
+    assert 'bubble.dataset.hasText = "1";' in js and 'if (!reply) {' in js
+    assert html.count(note) == 2
+    assert note in translations
+    assert "/assets/js/dashboard.js?v=2.8.4" in html
+    assert "PRISMO 2.8.4" in html
+
+
+def test_empty_model_reply_is_never_rendered_as_an_empty_chat_bubble():
+    js = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    translations = (ROOT / "frontend" / "assets" / "js" / "settings.js").read_text(encoding="utf-8")
+    assert 'typeof res?.reply === "string" ? res.reply.trim() : ""' in js
+    assert 'throw new Error(window.QZI18n ? window.QZI18n.t(message) : message)' in js
+    assert "The model returned no visible text." in translations
+    backend = (ROOT / "app" / "services" / "llm_client.py").read_text(encoding="utf-8")
+    assert 'for attempt in range(2)' in backend
+    assert 'provider_empty_chat_response' in backend
+    assert 'مدل پاسخ متنی برنگرداند' in backend

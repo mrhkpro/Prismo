@@ -189,6 +189,55 @@ class AIProviderTests(unittest.TestCase):
         self.assertEqual(kwargs["model"], "explicit-model")
         self.assertEqual(kwargs["max_tokens"], llm_client.config.AI_MAX_OUTPUT_TOKENS)
 
+
+    def test_chat_completion_extracts_text_from_content_parts(self):
+        fake_client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
+            create=lambda **kwargs: SimpleNamespace(choices=[SimpleNamespace(
+                message=SimpleNamespace(content=[
+                    SimpleNamespace(type="text", text=" First line "),
+                    {"type": "text", "text": "Second line"},
+                ])
+            )])
+        )))
+        provider = llm_client.ProviderConfig(
+            base_url="https://example.com/v1", api_key="secret", chat_model="chat",
+            embedding_model="embed", is_default=False,
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client):
+            reply = llm_client.chat_completion([{"role": "user", "content": "hello"}], provider)
+        self.assertEqual(reply, "First line\nSecond line")
+
+    def test_chat_completion_retries_once_when_provider_returns_empty_content(self):
+        responses = [
+            SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="  "), finish_reason="stop")]),
+            SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="Recovered answer"), finish_reason="stop")]),
+        ]
+        create = unittest.mock.Mock(side_effect=responses)
+        fake_client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+        provider = llm_client.ProviderConfig(
+            base_url="https://example.com/v1", api_key="secret", chat_model="chat",
+            embedding_model="embed", is_default=False,
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client):
+            reply = llm_client.chat_completion([{"role": "user", "content": "hello"}], provider)
+        self.assertEqual(reply, "Recovered answer")
+        self.assertEqual(create.call_count, 2)
+        self.assertLessEqual(create.call_args_list[1].kwargs["temperature"], 0.2)
+
+    def test_chat_completion_raises_visible_error_instead_of_returning_blank(self):
+        response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=None), finish_reason="stop")])
+        fake_client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
+            create=unittest.mock.Mock(return_value=response)
+        )))
+        provider = llm_client.ProviderConfig(
+            base_url="https://example.com/v1", api_key="secret", chat_model="chat",
+            embedding_model="embed", is_default=False,
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client):
+            with self.assertRaisesRegex(llm_client.LLMError, "پاسخ متنی برنگرداند"):
+                llm_client.chat_completion([{"role": "user", "content": "hello"}], provider)
+        self.assertEqual(fake_client.chat.completions.create.call_count, 2)
+
     def test_connection_uses_models_endpoint_before_inference(self):
         fake_client = SimpleNamespace(
             models=SimpleNamespace(

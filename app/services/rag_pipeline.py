@@ -161,6 +161,13 @@ def run_rag_chat(
     reply = llm_client.chat_completion(
         plan.messages, plan.provider, temperature=plan.temperature, model=plan.model,
     )
+    # The RAG boundary must never return or persist a blank assistant turn.
+    if not isinstance(reply, str) or not reply.strip():
+        logger.error("rag_chat_empty_reply owner_id=%s model=%s", owner.id, plan.model)
+        raise llm_client.LLMError(
+            "مدل پاسخ متنی برنگرداند. یک بار دیگر تلاش کنید؛ اگر تکرار شد، مدل دیگری را انتخاب یا اتصال API را بررسی کنید."
+        )
+    reply = reply.strip()
     log_rag_timing(owner.id, plan, int((time.perf_counter() - llm_started) * 1000))
     return reply, plan.matches
 
