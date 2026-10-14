@@ -37,11 +37,15 @@ The public widget intentionally has unauthenticated endpoints because it runs on
 
 CORS is intentionally open for the embeddable widget. A deployment that does not need cross-origin embedding should narrow CORS to known origins.
 
-## Prompt injection monitoring
+## Prompt injection monitoring and admin alerts
 
-`injection_scanner.py` is a heuristic detection layer using normalized Persian/English patterns. It categorizes suspicious input and stores the category as the flag reason rather than copying the full user prompt into the reason field.
+`app/services/injection_scanner.py` applies normalized Persian/English heuristic rules to incoming Test Lab and public-widget messages. Categories cover system-prompt extraction, instruction override/jailbreak, knowledge-base exfiltration, API keys and other credentials, environment files/variables, destructive database actions, disabling access controls, and requests to read other users' data.
 
-This is monitoring, not a complete prompt-injection defense. Suspicious messages require review or additional controls appropriate to the deployment.
+When an incoming request matches a rule, `app/services/rag_pipeline.py` persists the user message as a flagged `ChatMessage` **before model inference**. The database row stores `is_flagged`, a stable `flag_reason` made of rule codes, and the original user-submitted message. The original message is deliberately not copied into application logs. Consequently, a provider timeout or inference error does not erase the security event. Duplicate insertion is avoided when the normal chat turn is subsequently saved.
+
+The admin security endpoints (`/api/admin/security/flags` and `/api/admin/security/summary`) query flagged messages from the shared application database, so every administrator authorized against that same database can inspect the message, reason/category, severity, originating source (Test Lab or widget), user and timestamp. The UI raises a banner/live notification for the latest unresolved critical/high alert and keeps all severities in the review list; admins can open the conversation, block the account, or mark the event reviewed. A newer medium-level event does not hide a still-unresolved critical/high alert from the headline notification.
+
+This is **monitoring, not a guarantee that every attack is detected or blocked**. Pattern-based rules can generate false positives and miss novel wording. A flagged request may still be sent to the model; model-provider/system-prompt controls and ordinary authorization checks remain necessary. Review the original message in the restricted admin panel and use a shared database if alerts must be visible across several application instances. A separate Local SQLite installation has its own isolated alert store unless it is explicitly connected to the same database.
 
 ## API and logging
 

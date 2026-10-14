@@ -478,6 +478,8 @@ class SecuritySummaryOut(BaseModel):
     high: int
     medium: int
     prompt_extraction: int
+    credential_extraction: int = 0
+    dangerous_actions: int = 0
     latest: Optional[SecurityAlertOut] = None
 
 

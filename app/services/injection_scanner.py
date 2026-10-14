@@ -16,6 +16,8 @@ CATEGORY_LABELS = {
     "instruction_override": "تلاش برای نادیده‌گرفتن دستورها",
     "jailbreak": "تلاش برای دورزدن محدودیت‌ها (Jailbreak)",
     "data_exfiltration": "تلاش برای کشیدن بیرون محتوای دانشنامه",
+    "credential_extraction": "تلاش برای افشای کلید یا اطلاعات محرمانه",
+    "dangerous_action": "درخواست اقدام مخرب یا دورزدن کنترل‌های امنیتی",
 }
 
 # (code, category, severity, pattern)
@@ -59,6 +61,30 @@ _RULES = [
      r"(bypass|disable|remove)\s+(your|the)?\s*(rules|restrictions|safety)"),
     ("fa-unrestricted", "jailbreak", "high",
      r"وانمود\s+کن\s+(که\s+)?هیچ\s+محدودیتی\s+نداری"),
+
+    # --- افشای کلیدها، توکن‌ها و اسرار (بحرانی) ------------------------------
+    ("credential-extraction-en", "credential_extraction", "critical",
+     r"(reveal|show|display|print|output|dump|give|send|leak|expose|tell me|what is|paste|export)\s+(me\s+)?(your|the|stored|server|environment|all|any|my|our|internal|secret|private)?\s*(api[\s_-]*keys?|secret[\s_-]*keys?|access tokens?|refresh tokens?|bearer tokens?|credentials|passwords?|private keys?|connection strings?|environment variables?|\.env(?:\s+file)?|database urls?)"),
+    ("credential-extraction-context-en", "credential_extraction", "critical",
+     r"(api[\s_-]*key|secret[\s_-]*key|access token|refresh token|bearer token|private key|database url|connection string|environment variables?|\.env)\s*(please\s+)?(reveal|show|print|dump|give|send|expose|leak|paste|export)"),
+    ("credential-extraction-fa", "credential_extraction", "critical",
+     r"(کلید(های)?\s*(api|ای\s*پی\s*آی|مخفی|محرمانه|خصوصی|دسترسی)?|api\s*key|توکن(های)?\s*(دسترسی|مخفی|خصوصی)?|رمز(عبور|پایگاه\s*داده)?|متغیرهای\s*محیطی|فایل\s*\.env|اطلاعات\s*اتصال)\s*(ت|ات|تو)?\s*(را|رو)?\s*(بگو|بده|نشان(\s*بده)?|نمایش(\s*بده)?|چاپ(\s*کن)?|افشا(\s*کن)?|لو(\s*بده)?|استخراج(\s*کن)?)"),
+    ("credential-extraction-fa-verb", "credential_extraction", "critical",
+     r"(بگو|بده|نشان(\s*بده)?|چاپ(\s*کن)?|افشا(\s*کن)?|لو(\s*بده)?|استخراج(\s*کن)?)\s+(کلید(های)?\s*(api|مخفی|محرمانه|خصوصی|دسترسی)?|api\s*key|توکن(های)?\s*(دسترسی|مخفی|خصوصی)?|رمز(عبور|پایگاه\s*داده)?|متغیرهای\s*محیطی|فایل\s*\.env)"),
+
+    # --- درخواست اقدام مخرب یا غیرفعال‌کردن کنترل‌ها (بالا) -------------------
+    ("destructive-database-command", "dangerous_action", "high",
+     r"(drop\s+(table|database)|truncate\s+table|delete\s+from\s+\w+|wipe\s+(the\s+)?database|delete\s+(all\s+)?(users|records|tables|database)|erase\s+(all\s+)?(data|records))"),
+    ("security-control-bypass-en", "dangerous_action", "high",
+     r"(disable|turn\s+off|bypass|remove|evade)\s+(the\s+)?(authentication|authorization|security\s+checks?|audit\s+logs?|logging|rate\s*limits?|access\s+controls?)"),
+    ("destructive-database-command-fa", "dangerous_action", "high",
+     r"(همه(ی|\s+)?(کاربران|داده(ها)?|رکوردها)|دیتابیس|پایگاه\s*داده|جدول(ها)?)\s*(را|رو)?\s*(کامل\s+)?(حذف|پاک|خالی)\s*(کن|کنید|کنه)"),
+    ("security-control-bypass-fa", "dangerous_action", "high",
+     r"(احراز\s*هویت|کنترل(های)?\s*دسترسی|لاگ(ها)?|ثبت\s*رویداد|محدودیت(های)?\s*امنیتی)\s*(را|رو)?\s*(غیرفعال|خاموش|دور)\s*(کن|کنید|بزن)"),
+    ("cross-user-data-access", "dangerous_action", "high",
+     r"(access|read|dump|export|show)\s+(other users|another user's|everyone else's)\s+(data|documents|messages|secrets|settings)"),
+    ("cross-user-data-access-fa", "dangerous_action", "high",
+     r"(اطلاعات|اسناد|پیام(های)?|تنظیمات)\s+(کاربران دیگر|بقیه کاربران|حساب(های)? دیگر)\s*(را|رو)?\s*(بخوان|نشان بده|استخراج کن|بده)"),
 
     # --- کشیدن بیرون دانشنامه (متوسط) -------------------------------------
     ("kb-exfiltration", "data_exfiltration", "medium",

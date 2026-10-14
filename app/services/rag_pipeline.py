@@ -37,6 +37,47 @@ def build_messages(system_prompt: str, context_block: str, history: List[dict], 
 NO_ANSWER_TEXT = "در دانشنامه اطلاعاتی برای پاسخ به این سؤال ندارم."
 
 
+def record_suspicious_attempt(db: Session, session, user_message: str) -> bool:
+    """Persist a flagged user input before inference so alerts survive provider errors.
+
+    Only the user's message is stored as the security event. The raw content is
+    deliberately excluded from application logs; admins can inspect the message
+    through the existing security-flags endpoint and shared database.
+    """
+    if db is None or not hasattr(db, "query") or session is None or not getattr(session, "id", None):
+        return False
+    flagged, reason = injection_scanner.scan(user_message)
+    if not flagged:
+        return False
+    try:
+        db.add(models.ChatMessage(
+            session_id=session.id, role="user", content=user_message,
+            is_flagged=True, flag_reason=reason,
+        ))
+        db.commit()
+        logger.warning(
+            "security_input_flagged owner_id=%s session_id=%s reasons=%s",
+            getattr(session, "user_id", None), session.id, reason,
+        )
+        return True
+    except Exception:  # noqa: BLE001 - monitoring failure must not leak raw prompt or crash chat
+        db.rollback()
+        logger.exception("security_input_flag_persist_failed session_id=%s", getattr(session, "id", None))
+        return False
+
+
+def _history_for_current_prompt(session, user_message: str) -> List[dict]:
+    """Avoid including the current prompt twice when it was pre-logged as a flag."""
+    messages = list(getattr(session, "messages", []) or [])
+    if messages:
+        last = messages[-1]
+        if (getattr(last, "role", None) == "user"
+                and getattr(last, "content", None) == user_message
+                and bool(getattr(last, "is_flagged", False))):
+            messages = messages[:-1]
+    return [{"role": item.role, "content": item.content} for item in messages[-MAX_HISTORY_MESSAGES:]]
+
+
 @dataclass
 class RagPlan:
     """نتیجه‌ی مرحله‌ی «بازیابی»: هر چیزی که برای تماس با مدل لازم است، بدون خود تماس."""
@@ -63,6 +104,7 @@ def prepare_rag_chat(
     language: str | None = None,
 ) -> RagPlan:
     """بازیابی معنایی + ساخت پیام‌های مدل (بدون صدازدن مدل چت)."""
+    record_suspicious_attempt(db, session, user_message)
     settings = user_settings_compat.get(db, owner.id) if hasattr(db, "execute") else owner.settings
     started = time.perf_counter()
     selected_model = model or settings.chat_model
@@ -92,7 +134,7 @@ def prepare_rag_chat(
         # گفت‌وگو نباید به «خطا در پاسخ» تبدیل شود. در این حالت مدل چت
         # مستقیم با زمینهٔ خالی اجرا می‌شود؛ بخش RAG صرفاً degraded است.
         logger.warning("rag_embedding_unavailable model=%s error=%s", provider.embedding_model, exc)
-        history = [{"role": m.role, "content": m.content} for m in session.messages[-MAX_HISTORY_MESSAGES:]]
+        history = _history_for_current_prompt(session, user_message)
         return RagPlan(
             matches=[],
             messages=build_messages(effective_system_prompt, "Knowledge retrieval is temporarily unavailable." if language == "en" else "فعلاً بازیابی دانشنامه در دسترس نیست.", history, user_message),
@@ -130,7 +172,7 @@ def prepare_rag_chat(
         context_chars += len(part)
     context_block = "\n\n".join(context_parts)
 
-    history = [{"role": m.role, "content": m.content} for m in session.messages[-MAX_HISTORY_MESSAGES:]]
+    history = _history_for_current_prompt(session, user_message)
     plan.messages = build_messages(effective_system_prompt, context_block, history, user_message)
     return plan
 
@@ -176,10 +218,23 @@ def save_turn(
     db: Session, session: "models.ChatSession | str", user_message: str, assistant_reply: str
 ) -> None:
     session_id = session if isinstance(session, str) else session.id
-    is_flagged, reason = injection_scanner.scan(user_message)
-    db.add(models.ChatMessage(
-        session_id=session_id, role="user", content=user_message,
-        is_flagged=is_flagged, flag_reason=reason,
-    ))
+    last_message = (
+        db.query(models.ChatMessage)
+        .filter(models.ChatMessage.session_id == session_id)
+        .order_by(models.ChatMessage.id.desc())
+        .first()
+    )
+    already_logged_flag = bool(
+        last_message
+        and last_message.role == "user"
+        and last_message.content == user_message
+        and last_message.is_flagged
+    )
+    if not already_logged_flag:
+        is_flagged, reason = injection_scanner.scan(user_message)
+        db.add(models.ChatMessage(
+            session_id=session_id, role="user", content=user_message,
+            is_flagged=is_flagged, flag_reason=reason,
+        ))
     db.add(models.ChatMessage(session_id=session_id, role="assistant", content=assistant_reply))
     db.commit()
