@@ -5,6 +5,7 @@
 - Auto-repair missing provider columns on local + Supabase startup only.
 - Add persistent admin-only threat alert to the dashboard and deep-link it to security review.
 - Refresh internal page headers, panels, stat cards and settings surfaces.
+- Verification: 267 automated tests passed, including Local + Supabase schema compatibility and global admin alert contracts.
 
 ## v2.8.7 — Supabase provider-schema compatibility
 
