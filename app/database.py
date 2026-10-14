@@ -12,13 +12,12 @@ from . import config
 # ============================================================
 
 def resolve_postgres_connection_url(database_url: str, *, is_vercel: bool):
-    """Choose the appropriate Supavisor mode without editing DATABASE_URL.
+    """Use v2.8.1 engine behavior with the reachable local Supabase pooler.
 
-    Local Uvicorn is a long-lived process, so use the shared Supabase session
-    pooler (port 5432) when its URL was copied from the transaction pooler
-    (port 6543). Vercel remains on transaction mode (6543), which is intended
-    for short-lived serverless invocations. Direct DB URLs and non-Supabase
-    PostgreSQL URLs are left untouched.
+    A local, long-running Uvicorn process uses Supabase Session Pooler (5432)
+    when its configured URL points at the transaction pooler (6543). Vercel
+    keeps the configured transaction-pooler URL unchanged. Direct database URLs
+    and non-Supabase PostgreSQL URLs are never rewritten.
     """
     url = make_url(database_url)
     if (
@@ -30,35 +29,33 @@ def resolve_postgres_connection_url(database_url: str, *, is_vercel: bool):
         return url.set(port=5432)
     return url
 
-
 if config.IS_POSTGRES:
 
-    configured_url = make_url(config.DATABASE_URL)
-    engine_url = resolve_postgres_connection_url(
-        config.DATABASE_URL,
-        is_vercel=config.IS_VERCEL,
-    )
-    if engine_url.port != configured_url.port:
-        logging.getLogger("prismo").info(
-            "Local Supabase connection is using session pooler mode (port 5432)."
-        )
-
     connect_args = {
-        # The shared pooler on 5432 is session mode for local long-lived Uvicorn.
-        # Vercel keeps transaction mode on 6543 in the URL supplied by deployment.
+        # Supabase transaction-pooler (6543) should not receive a large local pool.
+        # A small warm pool reduces connection churn without creating CPU spikes.
         "prepare_threshold": None,
         "sslmode": "require",
         "connect_timeout": 3,
         "application_name": "prismo-local",
     }
 
-    if "sslmode=" not in str(engine_url):
+    if "sslmode=" not in config.DATABASE_URL:
         connect_args["sslmode"] = "require"
+
+
+    engine_url = resolve_postgres_connection_url(
+        config.DATABASE_URL, is_vercel=config.IS_VERCEL
+    )
+    if make_url(engine_url).port != make_url(config.DATABASE_URL).port:
+        logging.getLogger("prismo").info(
+            "Local Supabase is using session pooler port 5432."
+        )
 
     engine = create_engine(
         engine_url,
-        # Keep the existing modest connection pool to avoid opening unnecessary
-        # Supabase connections. Session pooling is appropriate for local Uvicorn.
+        # Keep a few warm connections. Large pools are counterproductive for a
+        # local app talking to Supabase and can trigger unnecessary CPU/network work.
         pool_size=3,
         max_overflow=2,
         pool_timeout=3,

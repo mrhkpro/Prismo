@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import inspect as sa_inspect, select, text, update
+from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
 from .. import config, models
@@ -226,76 +226,3 @@ def update_settings(db: Session, user_id: int, data: dict[str, Any]) -> Settings
         db.execute(update(table).where(table.c.user_id == user_id).values(**values))
     db.flush()
     return get(db, user_id)
-
-
-def ensure_local_supabase_provider_schema(engine) -> list[str]:
-    """Add optional provider columns for local processes connected to Supabase.
-
-    Vercel keeps the explicit migration workflow. Local+Supabase startup repairs
-    only additive settings columns so older PostgreSQL schemas don't crash when
-    SQLAlchemy loads the current UserSettings model.
-    """
-    added: list[str] = []
-    with engine.begin() as connection:
-        inspector = sa_inspect(connection)
-        if not inspector.has_table("user_settings"):
-            raise RuntimeError(
-                "Supabase schema is not initialized: table 'user_settings' is missing. "
-                "Run supabase/migrations/001_initial_schema.sql first."
-            )
-        column_info = {
-            column["name"]: column
-            for column in inspector.get_columns("user_settings")
-        }
-        columns = set(column_info)
-        if "separate_embedding_provider" not in columns:
-            connection.execute(text(
-                "ALTER TABLE user_settings "
-                "ADD COLUMN IF NOT EXISTS separate_embedding_provider BOOLEAN NOT NULL DEFAULT FALSE"
-            ))
-            added.append("separate_embedding_provider")
-        if "embedding_api_key" not in columns:
-            connection.execute(text(
-                "ALTER TABLE user_settings "
-                "ADD COLUMN IF NOT EXISTS embedding_api_key VARCHAR(255)"
-            ))
-            added.append("embedding_api_key")
-        if "embedding_base_url" not in columns:
-            connection.execute(text(
-                "ALTER TABLE user_settings "
-                "ADD COLUMN IF NOT EXISTS embedding_base_url VARCHAR(255)"
-            ))
-            added.append("embedding_base_url")
-
-        embedding_selector_missing = "embedding_use_default_provider" not in columns
-        if embedding_selector_missing:
-            connection.execute(text(
-                "ALTER TABLE user_settings "
-                "ADD COLUMN IF NOT EXISTS embedding_use_default_provider BOOLEAN"
-            ))
-            added.append("embedding_use_default_provider")
-
-        selector_info = column_info.get("embedding_use_default_provider", {})
-        selector_needs_normalization = (
-            embedding_selector_missing
-            or bool(selector_info.get("nullable", True))
-            or selector_info.get("default") in (None, "", "NULL")
-        )
-        if selector_needs_normalization:
-            # Preserve existing choices and initialize only NULL values.
-            connection.execute(text(
-                "UPDATE user_settings "
-                "SET embedding_use_default_provider = COALESCE(use_default_provider, TRUE) "
-                "WHERE embedding_use_default_provider IS NULL"
-            ))
-            connection.execute(text(
-                "ALTER TABLE user_settings "
-                "ALTER COLUMN embedding_use_default_provider SET DEFAULT TRUE"
-            ))
-            connection.execute(text(
-                "ALTER TABLE user_settings "
-                "ALTER COLUMN embedding_use_default_provider SET NOT NULL"
-            ))
-
-    invalidate_optional_cache()
-    return added

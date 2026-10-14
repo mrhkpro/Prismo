@@ -41,8 +41,6 @@ from .seed import (
     seed_admin,
 )
 
-from .services import user_settings_compat
-
 from .routers import (
     admin,
     auth,
@@ -63,10 +61,10 @@ from .routers import (
 async def lifespan(app: FastAPI):
     """Fast startup lifecycle.
 
-    Supabase/Postgres is treated as an already-initialized database: the app does
-    not run create_all, schema inspection, ALTER TABLE, or seed queries on boot.
-    This removes the network round-trips that previously made local+Supabase startup
-    appear frozen. SQLite keeps its local-only bootstrap/migration behavior.
+    Keep the v2.8.1 database lifecycle: schema creation and legacy SQLite repairs
+    happen only for SQLite. PostgreSQL/Supabase is already initialized externally;
+    do not inspect its schema or run ALTER TABLE at startup. Local+Supabase can
+    optionally synchronize the bootstrap admin only when explicitly enabled.
     """
     if not config.IS_POSTGRES:
         Base.metadata.create_all(bind=engine)
@@ -90,22 +88,6 @@ async def lifespan(app: FastAPI):
             seed_admin(db)
         finally:
             db.close()
-    elif config.IS_POSTGRES and not config.IS_VERCEL:
-        # Local + Supabase: repair only additive settings columns before any
-        # request can trigger a full ORM UserSettings SELECT. Vercel keeps its
-        # explicit migration flow and does not run DDL at startup.
-        added_columns = user_settings_compat.ensure_local_supabase_provider_schema(engine)
-        if added_columns:
-            logging.getLogger("prismo").warning(
-                "Local+Supabase compatibility added user_settings columns: %s",
-                ", ".join(added_columns),
-            )
-        if config.APP_ENV == "development" and config.BOOTSTRAP_ADMIN_ON_STARTUP:
-            db = SessionLocal()
-            try:
-                seed_admin(db)
-            finally:
-                db.close()
     elif config.APP_ENV == "development" and config.BOOTSTRAP_ADMIN_ON_STARTUP:
         # Preserve optional bootstrap behavior for development previews.
         db = SessionLocal()
