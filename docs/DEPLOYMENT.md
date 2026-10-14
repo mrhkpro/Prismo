@@ -270,32 +270,50 @@ On PostgreSQL/Supabase, run `supabase/migrations/007_answer_cache.sql` once in S
 
 The lower-left red admin button is populated from `GET /api/admin/security/summary`, which queries flagged and unresolved `ChatMessage` rows in the current database. All authorized admins sharing that database see the same unresolved report count. Repeated detected extraction attempts in one session are elevated to critical. Local SQLite and the hosted Supabase database are separate alert stores unless both environments point to the same database.
 
-### Repair: `user_settings.embedding_use_default_provider` missing
+### Repair: missing provider columns in `user_settings` (v2.8.7)
 
-If startup or login fails with PostgreSQL `UndefinedColumn` for
-`user_settings.embedding_use_default_provider`, the deployed code is newer than
-the schema in that Supabase project. Do **not** delete or recreate the database.
-Open Supabase Dashboard → SQL Editor and run
-`supabase/migrations/008_repair_embedding_provider_mode.sql` from this project.
-It is idempotent, preserves existing non-NULL provider selections, initializes old
-rows from `use_default_provider`, and does not drop or delete data.
+For any PostgreSQL `UndefinedColumn` error involving one of these settings fields:
+`separate_embedding_provider`, `embedding_api_key`, `embedding_base_url`, or
+`embedding_use_default_provider`, run
+`supabase/migrations/009_repair_all_embedding_provider_columns.sql` once in
+Supabase Dashboard → SQL Editor. This current repair migration supersedes running
+008 by itself; it creates every optional provider column together, backfills the
+new selector from `use_default_provider`, and is safe to re-run. It does not drop
+or delete existing data.
 
-You can verify the migration with:
+You can verify all four columns with:
 
 ```sql
 SELECT column_name, data_type, is_nullable, column_default
 FROM information_schema.columns
 WHERE table_schema = 'public'
   AND table_name = 'user_settings'
-  AND column_name = 'embedding_use_default_provider';
-
-SELECT COUNT(*) AS remaining_nulls
-FROM public.user_settings
-WHERE embedding_use_default_provider IS NULL;
+  AND column_name IN (
+    'separate_embedding_provider', 'embedding_api_key',
+    'embedding_base_url', 'embedding_use_default_provider'
+  )
+ORDER BY column_name;
 ```
 
-The first query should return the column, and the second should return `0`.
-After the migration completes, restart the local Prismo process that uses
-`DATABASE_URL` for Supabase. PostgreSQL schema migrations are intentionally not
-run automatically at app startup; this avoids hidden schema writes and keeps
-startup predictable.
+All four columns should be returned. Restart the local Prismo process that uses
+`DATABASE_URL` for Supabase afterward. PostgreSQL schema migrations are not run
+automatically at startup. In v2.8.7, the optional development bootstrap also
+uses `user_settings_compat` to avoid loading every ORM-mapped setting column, so
+an older schema will not crash on that bootstrap check before the repair runs.
+
+
+### Repair: provider columns missing from `user_settings` (v2.8.7)
+
+If local Prismo connected to Supabase reports an `UndefinedColumn` error for
+`separate_embedding_provider`, `embedding_api_key`, `embedding_base_url`, or
+`embedding_use_default_provider`, the existing database is missing one or more
+provider migrations. Run `supabase/migrations/009_repair_all_embedding_provider_columns.sql`
+once in Supabase Dashboard → SQL Editor. This one-shot migration is idempotent and
+repairs all four columns together, including databases that applied migration 008
+but skipped migration 003. It preserves existing rows and provider choices.
+
+The development-only bootstrap path also uses `user_settings_compat` now, so it
+won't eagerly load the full SQLAlchemy `UserSettings` object while checking whether
+an admin settings row exists. Older schemas can start without crashing; the new
+independent embedding-provider options become fully available after migration 009.
+Do not recreate the database or delete existing rows.

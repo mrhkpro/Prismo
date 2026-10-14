@@ -22,9 +22,9 @@ Each user can create a private knowledge base, configure an OpenAI-compatible mo
 - Centralized API errors, request IDs and request timing logs.
 - Light/dark frontend theme support, responsive UI, accessible toast notifications and fetch timeouts.
 
-## Latest release — v2.8.5
+## Latest release — v2.8.7
 
-This release fixes hosted Google OAuth redirects with PKCE and URL-token cleanup, adds an owner/provider/prompt/knowledge-scoped exact-answer cache for repeated questions, blocks detected prompt/credential-extraction attempts before model inference, escalates repeated suspicious attempts, and adds a persistent red security-alert entry point in the admin UI. The Vercel RAG path keeps bounded JSON responses while local installations retain streaming. See [`docs/CHANGELOG_2.8.5.md`](docs/CHANGELOG_2.8.5.md) and [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) before deploying.
+The v2.8.7 patch fixes Supabase compatibility when older schemas are missing provider-mode columns: the opt-in development admin bootstrap no longer loads every mapped `UserSettings` column, and migration `009_repair_all_embedding_provider_columns.sql` repairs all four optional provider columns in one safe, repeatable migration. The v2.8.5 security, OAuth PKCE, answer cache and Vercel response behavior remain in place. See [`docs/CHANGELOG_2.8.7.md`](docs/CHANGELOG_2.8.7.md) and [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) before running against Supabase.
 
 ## Architecture
 
@@ -176,6 +176,6 @@ The project uses a simple embedded vector store because the target deployment do
 
 برای پاک‌سازی جدول نگاشت OAuth که در نسخه‌های قدیمی ساخته شده بود، فایل `supabase/migrations/006_remove_oauth_identities.sql` را در صورت وجود جدول قدیمی، یک بار اجرا کنید. این migration فقط جدول نگاشت OAuth را حذف می‌کند؛ جدول کاربران، تنظیمات، اسناد و تاریخچهٔ چت را حذف نمی‌کند.
 
-### Supabase schema repair (v2.8.6)
+### Supabase schema repair (v2.8.7)
 
-If PostgreSQL reports that `user_settings.embedding_use_default_provider` does not exist, run `supabase/migrations/008_repair_embedding_provider_mode.sql` in Supabase SQL Editor and restart the local app. See `docs/DEPLOYMENT.md` for verification queries. This migration preserves existing data and is safe to re-run.
+If Supabase reports a missing provider column such as `separate_embedding_provider`, `embedding_api_key`, `embedding_base_url`, or `embedding_use_default_provider`, run `supabase/migrations/009_repair_all_embedding_provider_columns.sql` in Supabase SQL Editor and restart the local app. This one migration repairs all provider columns without deleting existing settings. The optional development admin bootstrap also now uses a schema-compatible settings helper, so it does not fail by eagerly loading those missing columns during startup.

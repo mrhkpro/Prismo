@@ -18,6 +18,13 @@ main
 └─ docs/vercel-chat-runbook
 ```
 
+## v2.8.7 release chain
+
+- `fix/supabase-settings-schema-compat-v2.8.7` → replace eager `admin.settings` ORM loading with the legacy-compatible `user_settings_compat.ensure_settings()` path during bootstrap.
+- `fix/supabase-provider-columns-repair-v2.8.7` → add migration `009_repair_all_embedding_provider_columns.sql` for all four optional provider-mode columns, preserving existing records.
+- Regression tests cover bootstrapping against the legacy settings schema and the idempotent, non-destructive migration.
+- Both commits are merged into `main` with `--no-ff`; release tag: `v2.8.7`.
+
 ## v2.8.0 release chain
 
 - `fix/ai-provider-connection-ux-v2.8.0` → guided chat/embedding selection, final save/test action area, contextual hints, responsive layout and i18n coverage.

@@ -1,3 +1,9 @@
+## v2.8.7 — Supabase provider-schema compatibility
+
+- Added idempotent migration `009_repair_all_embedding_provider_columns.sql` to repair all four optional provider columns together: `separate_embedding_provider`, `embedding_api_key`, `embedding_base_url`, and `embedding_use_default_provider`.
+- Updated the opt-in development admin bootstrap to use `user_settings_compat`, avoiding ORM relationship loads across columns that may be missing in older Supabase schemas.
+- Added regression tests for migration safety and bootstrap compatibility with legacy settings schemas.
+
 ## v2.8.5 — Secure hosted OAuth, answer caching, and repeated-risk escalation
 
 See [`CHANGELOG_2.8.5.md`](CHANGELOG_2.8.5.md) for the release summary.
