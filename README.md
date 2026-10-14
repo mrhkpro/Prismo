@@ -175,3 +175,7 @@ The project uses a simple embedded vector store because the target deployment do
 در تنظیمات اتصال هوش مصنوعی، منبع و مدل چت و منبع و مدل embedding جداگانه انتخاب می‌شوند. برای ذخیرهٔ انتخاب مستقل روی پایگاه‌دادهٔ Supabase/PostgreSQL، فایل `supabase/migrations/005_independent_embedding_provider.sql` را یک بار در SQL Editor اجرا کنید.
 
 برای پاک‌سازی جدول نگاشت OAuth که در نسخه‌های قدیمی ساخته شده بود، فایل `supabase/migrations/006_remove_oauth_identities.sql` را در صورت وجود جدول قدیمی، یک بار اجرا کنید. این migration فقط جدول نگاشت OAuth را حذف می‌کند؛ جدول کاربران، تنظیمات، اسناد و تاریخچهٔ چت را حذف نمی‌کند.
+
+### Supabase schema repair (v2.8.6)
+
+If PostgreSQL reports that `user_settings.embedding_use_default_provider` does not exist, run `supabase/migrations/008_repair_embedding_provider_mode.sql` in Supabase SQL Editor and restart the local app. See `docs/DEPLOYMENT.md` for verification queries. This migration preserves existing data and is safe to re-run.
