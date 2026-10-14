@@ -1,3 +1,11 @@
+# Changelog
+
+## v2.8.8 — Local + Supabase compatibility and consistent dashboard UX
+
+- Auto-repair missing provider columns on local + Supabase startup only.
+- Add persistent admin-only threat alert to the dashboard and deep-link it to security review.
+- Refresh internal page headers, panels, stat cards and settings surfaces.
+
 ## v2.8.7 — Supabase provider-schema compatibility
 
 - Added idempotent migration `009_repair_all_embedding_provider_columns.sql` to repair all four optional provider columns together: `separate_embedding_provider`, `embedding_api_key`, `embedding_base_url`, and `embedding_use_default_provider`.

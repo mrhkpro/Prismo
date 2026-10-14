@@ -4,20 +4,23 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_supabase_startup_has_no_schema_mutation_or_default_seed_path():
+def test_supabase_startup_repairs_provider_columns_only_for_local_postgres():
     source = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
     lifespan = source.split("async def lifespan", 1)[1].split("# ============================================================\n# APPLICATION", 1)[0]
     assert "if not config.IS_POSTGRES" in lifespan
     assert lifespan.count("Base.metadata.create_all") == 1
-    assert lifespan.count("seed_admin(db)") == 2
+    assert lifespan.count("seed_admin(db)") == 3
     # Schema creation and the default admin seed remain in the SQLite-only branch.
     sqlite_branch = lifespan.split("if not config.IS_POSTGRES", 1)[1].split(
-        'elif config.APP_ENV == "development" and config.BOOTSTRAP_ADMIN_ON_STARTUP', 1
+        "elif config.IS_POSTGRES and not config.IS_VERCEL", 1
     )[0]
     assert sqlite_branch.count("Base.metadata.create_all") == 1
     assert sqlite_branch.count("seed_admin(db)") == 1
-    # Supabase bootstrap is explicit opt-in and development-only.
-    assert 'elif config.APP_ENV == "development" and config.BOOTSTRAP_ADMIN_ON_STARTUP' in lifespan
+    # Only a local PostgreSQL/Supabase process runs the additive compatibility repair.
+    assert 'elif config.IS_POSTGRES and not config.IS_VERCEL' in lifespan
+    assert "ensure_local_supabase_provider_schema(engine)" in lifespan
+    # Bootstrap is still opt-in and development-only.
+    assert 'config.APP_ENV == "development" and config.BOOTSTRAP_ADMIN_ON_STARTUP' in lifespan
 
 
 def test_language_switch_pauses_observer_and_does_not_translate_parent_for_each_character_mutation():
@@ -30,27 +33,30 @@ def test_language_switch_pauses_observer_and_does_not_translate_parent_for_each_
     assert "isTranslating" in js
 
 
-def test_postgres_lifespan_does_not_touch_schema_or_seed(monkeypatch):
+def test_postgres_lifespan_repairs_schema_without_create_all_or_admin_seed(monkeypatch):
     import asyncio
     from app import config, main
 
     monkeypatch.setattr(config, "IS_POSTGRES", True)
-    # The source ZIP may contain a private local .env with this opt-in enabled;
-    # this test specifically verifies the default/non-bootstrap Supabase path.
+    monkeypatch.setattr(config, "IS_VERCEL", False)
     monkeypatch.setattr(config, "APP_ENV", "production")
     monkeypatch.setattr(config, "BOOTSTRAP_ADMIN_ON_STARTUP", False)
 
     def fail(*_args, **_kwargs):
-        raise AssertionError("Supabase startup must not mutate or inspect the schema")
+        raise AssertionError("Postgres startup must not call create_all or seed admin by default")
 
+    calls = []
     monkeypatch.setattr(main.Base.metadata, "create_all", fail)
     monkeypatch.setattr(main, "seed_admin", fail)
+    monkeypatch.setattr(main.user_settings_compat, "ensure_local_supabase_provider_schema",
+                        lambda engine: calls.append(engine) or ["separate_embedding_provider"])
 
     async def run_lifespan():
         async with main.lifespan(None):
             return
 
     asyncio.run(run_lifespan())
+    assert calls == [main.engine]
 
 
 def test_local_development_can_opt_in_to_sync_admin_when_using_supabase(monkeypatch):
@@ -58,6 +64,7 @@ def test_local_development_can_opt_in_to_sync_admin_when_using_supabase(monkeypa
     from app import config, main
 
     monkeypatch.setattr(config, "IS_POSTGRES", True)
+    monkeypatch.setattr(config, "IS_VERCEL", False)
     monkeypatch.setattr(config, "APP_ENV", "development")
     monkeypatch.setattr(config, "BOOTSTRAP_ADMIN_ON_STARTUP", True)
 
@@ -69,8 +76,11 @@ def test_local_development_can_opt_in_to_sync_admin_when_using_supabase(monkeypa
 
     db = FakeDB()
     calls = []
+    schema_calls = []
     monkeypatch.setattr(main, "SessionLocal", lambda: db)
     monkeypatch.setattr(main, "seed_admin", lambda received: calls.append(received))
+    monkeypatch.setattr(main.user_settings_compat, "ensure_local_supabase_provider_schema",
+                        lambda engine: schema_calls.append(engine) or [])
 
     async def run_lifespan():
         async with main.lifespan(None):
@@ -78,6 +88,7 @@ def test_local_development_can_opt_in_to_sync_admin_when_using_supabase(monkeypa
 
     asyncio.run(run_lifespan())
     assert calls == [db]
+    assert schema_calls == [main.engine]
     assert db.closed is True
 
 
@@ -189,7 +200,7 @@ def test_prismo_brand_and_login_language_switch_are_present():
     index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
     assert 'data-language="fa"' in index and 'data-language="en"' in index
     assert 'data-theme-settings-center="1"' in index
-    assert 'prismo-icon.svg?v=2.8.5' in index
+    assert 'prismo-icon.svg?v=2.8.8' in index
     assert '<title>Prismo — ویجت هوشمند دانش‌محور</title>' in index
     assert 'Prismo — Knowledge-powered AI widget' in (ROOT / 'frontend' / 'assets' / 'js' / 'settings.js').read_text(encoding='utf-8')
     assert "themeToggle" not in index
@@ -219,4 +230,13 @@ def test_test_lab_uses_explicit_bilingual_labels_not_mixed_rag_phrases():
 
 def test_prismo_login_favicon_is_configured():
     index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert '<link rel="icon" type="image/svg+xml" href="/assets/prismo-icon.svg?v=2.8.5">' in index
+    assert '<link rel="icon" type="image/svg+xml" href="/assets/prismo-icon.svg?v=2.8.8">' in index
+
+
+
+def test_local_dotenv_vercel_flag_does_not_mask_local_supabase_compatibility():
+    source = (ROOT / "app" / "config.py").read_text(encoding="utf-8")
+    capture = source.index("_IS_VERCEL_RUNTIME = bool(os.environ.get(\"VERCEL\"))")
+    dotenv = source.index('load_dotenv(BASE_DIR / ".env")')
+    assignment = source.index("IS_VERCEL = _IS_VERCEL_RUNTIME")
+    assert capture < dotenv < assignment

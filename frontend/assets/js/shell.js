@@ -63,6 +63,78 @@
     document.querySelectorAll(".nav-item[data-view]").forEach(function (item) {
       observer.observe(item, { attributes: true, attributeFilter: ["class"] });
     });
+    initGlobalAdminThreatAlert();
+  }
+
+  // Persistent alert for administrators while they are on the normal dashboard.
+  // The server endpoint is admin-only, so regular users never receive flag data.
+  function initGlobalAdminThreatAlert() {
+    if (!(window.location.pathname || "").endsWith("/dashboard.html")) return;
+    if (typeof apiCall !== "function") return;
+    try { if (typeof Auth === "undefined" || !Auth.isLoggedIn()) return; } catch (_) { return; }
+
+    var panel = document.createElement("aside");
+    panel.className = "global-threat-alert";
+    panel.hidden = true;
+    panel.setAttribute("role", "status");
+    panel.setAttribute("aria-live", "polite");
+
+    var icon = document.createElement("span");
+    icon.className = "global-threat-alert-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "!";
+    var content = document.createElement("div");
+    content.className = "global-threat-alert-content";
+    var title = document.createElement("strong");
+    title.className = "global-threat-alert-title";
+    var detail = document.createElement("span");
+    detail.className = "global-threat-alert-detail";
+    var meta = document.createElement("span");
+    meta.className = "global-threat-alert-meta";
+    content.append(title, detail, meta);
+    var action = document.createElement("button");
+    action.type = "button";
+    action.className = "global-threat-alert-action";
+    action.addEventListener("click", function () { window.location.href = "/admin.html#security"; });
+    panel.append(icon, content, action);
+    document.body.appendChild(panel);
+
+    var denied = false, inFlight = false, timer = null;
+    function refresh() {
+      if (denied || inFlight || document.hidden) return;
+      inFlight = true;
+      apiCall("/api/admin/security/summary", { timeoutMs: 7000 }).then(function (summary) {
+        var total = Number(summary && summary.unresolved_total) || 0;
+        if (total <= 0) { panel.hidden = true; return; }
+        var critical = Number(summary.critical) || 0;
+        var high = Number(summary.high) || 0;
+        var medium = Number(summary.medium) || 0;
+        var latest = summary.latest || {};
+        var severity = critical ? "critical" : high ? "high" : "medium";
+        var english = (localStorage.getItem("qz_language") || "fa").toLowerCase().startsWith("en");
+        panel.dataset.severity = severity;
+        title.textContent = english
+          ? (critical ? critical + " critical security alert(s)" : high ? high + " high-severity alert(s)" : "Security alerts need review")
+          : (critical ? critical + " هشدار بحرانی بررسی‌نشده" : high ? high + " هشدار امنیتی با شدت بالا" : "هشدارهای امنیتی نیاز به بررسی دارند");
+        detail.textContent = latest.label
+          ? String(latest.label) + (latest.owner_username ? " · @" + String(latest.owner_username) : "")
+          : (english ? "Review suspicious activity from chat or the widget." : "فعالیت مشکوک در چت یا ویجت شناسایی شده است.");
+        meta.textContent = english
+          ? total + " unresolved · " + high + " high · " + medium + " medium"
+          : total + " مورد بررسی‌نشده · " + high + " شدید · " + medium + " متوسط";
+        action.textContent = english ? "Review alerts" : "بررسی هشدارها";
+        panel.hidden = false;
+      }).catch(function (error) {
+        if (error && error.status === 403) {
+          denied = true;
+          panel.remove();
+          if (timer) clearInterval(timer);
+        }
+      }).finally(function () { inFlight = false; });
+    }
+    refresh();
+    timer = setInterval(refresh, 25000);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
