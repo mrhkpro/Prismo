@@ -179,3 +179,10 @@ The project uses a simple embedded vector store because the target deployment do
 ### Supabase schema repair (v2.8.7)
 
 If Supabase reports a missing provider column such as `separate_embedding_provider`, `embedding_api_key`, `embedding_base_url`, or `embedding_use_default_provider`, run `supabase/migrations/009_repair_all_embedding_provider_columns.sql` in Supabase SQL Editor and restart the local app. This one migration repairs all provider columns without deleting existing settings. The optional development admin bootstrap also now uses a schema-compatible settings helper, so it does not fail by eagerly loading those missing columns during startup.
+
+
+## Maintenance release v2.8.8
+
+- Local + Supabase startup repairs missing optional embedding-provider columns before the first ORM query. See [Supabase local compatibility](docs/SUPABASE_LOCAL_COMPAT.md).
+- Admin security alerts remain visible on the main dashboard and link directly to security review.
+- Internal page headers, settings and cards use the refreshed Prismo visual system.

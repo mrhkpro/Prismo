@@ -18,6 +18,14 @@ main
 └─ docs/vercel-chat-runbook
 ```
 
+## v2.8.8 release chain
+
+- `fix/supabase-local-compat-and-global-admin-alert-v2.8.8` commit `24ae2c9` → idempotent, additive `user_settings` column repair during local+Supabase startup; capture real Vercel runtime state before dotenv is loaded.
+- The same feature branch commit `61db031` → global admin-only threat alert on the user dashboard, `admin.html#security` deep-link, consistent page-header/panel/card styling, widget embed cache-buster and frontend asset version `2.8.8`.
+- Regression tests cover local Supabase schema drift, Vercel/local runtime detection, global alert visibility/wiring, deep-link navigation, style contracts and embed version.
+- Documentation release commit records the local Supabase compatibility behavior and the scope boundary (Vercel/SQLite paths kept unchanged).
+- All feature/documentation commits are merged into `main` with `--no-ff`; release tag: `v2.8.8`.
+
 ## v2.8.7 release chain
 
 - `fix/supabase-settings-schema-compat-v2.8.7` → replace eager `admin.settings` ORM loading with the legacy-compatible `user_settings_compat.ensure_settings()` path during bootstrap.
