@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .. import config, models, schemas
 from ..database import get_db
 from ..security import get_current_user
-from ..services import llm_client, rag_pipeline, rag_store, streaming, user_settings_compat
+from ..services import answer_cache, llm_client, rag_pipeline, rag_store, streaming, user_settings_compat
 
 logger = logging.getLogger("prismo.playground")
 
@@ -148,6 +148,8 @@ def chat_test_stream(
             if text:
                 try:
                     with Session(bind=bind, autoflush=False) as save_db:
+                        if plan is not None and plan.cache_allowed and not plan.cache_hit:
+                            answer_cache.store(save_db, owner_id, plan.cache_key, text, plan.matches)
                         rag_pipeline.save_turn(save_db, session_id, message, text)
                 except Exception:  # noqa: BLE001
                     logger.exception("could not save streamed turn")

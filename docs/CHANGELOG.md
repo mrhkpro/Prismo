@@ -1,3 +1,7 @@
+## v2.8.5 — Secure hosted OAuth, answer caching, and repeated-risk escalation
+
+See [`CHANGELOG_2.8.5.md`](CHANGELOG_2.8.5.md) for the release summary.
+
 # Changelog
 
 ## v2.8.4 — Vercel response reliability, Google Login and security monitoring

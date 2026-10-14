@@ -5,15 +5,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_auth_page_uses_versioned_assets_and_theme_support():
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert "/assets/css/style.css?v=2.8.4" in html
-    assert "/assets/js/theme.js?v=2.8.4" in html
-    assert "/assets/js/auth.js?v=2.8.4" in html
+    assert "/assets/css/style.css?v=2.8.5" in html
+    assert "/assets/js/theme.js?v=2.8.5" in html
+    assert "/assets/js/auth.js?v=2.8.5" in html
 
 
 def test_admin_page_loads_theme_support():
     html = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
-    assert "/assets/js/theme.js?v=2.8.4" in html
-    assert "/assets/css/style.css?v=2.8.4" in html
+    assert "/assets/js/theme.js?v=2.8.5" in html
+    assert "/assets/css/style.css?v=2.8.5" in html
     assert 'id="sessionModalBody" class="chat-stream" aria-live="polite"' in html
     css = (ROOT / "frontend" / "assets" / "css" / "style.css").read_text(encoding="utf-8")
     assert "#sessionModal .modal-box" in css
@@ -158,7 +158,7 @@ def test_saved_custom_model_is_rehydrated_for_battle_and_english_widget_labels()
     assert 'fillModelSelect(document.getElementById("battleModelB"), battleModels' in dashboard
     assert '{ dog: "Dog", cat: "Cat", raccoon: "Raccoon" }' in dashboard
     assert 'embedCodeBox.textContent = english ? "Loading…" : "در حال بارگذاری…";' in dashboard
-    assert 'dashboard.js?v=2.8.4' in html
+    assert 'dashboard.js?v=2.8.5' in html
 
 
 def test_widget_quick_replies_do_not_keep_the_streaming_caret():
@@ -225,8 +225,8 @@ def test_vercel_rag_chat_uses_bounded_json_path_and_ready_models_are_marked_loca
     assert 'bubble.dataset.hasText = "1";' in js and 'if (!reply) {' in js
     assert html.count(note) == 2
     assert note in translations
-    assert "/assets/js/dashboard.js?v=2.8.4" in html
-    assert "v2.8.4" in html
+    assert "/assets/js/dashboard.js?v=2.8.5" in html
+    assert "v2.8.5" in html
 
 
 def test_empty_model_reply_is_never_rendered_as_an_empty_chat_bubble():
@@ -256,3 +256,14 @@ def test_dashboard_home_refresh_keeps_live_bindings_and_quick_actions():
     assert "grid-template-columns: repeat(3, minmax(0, 1fr))" in css
     assert "@media (max-width: 420px)" in css
     assert 'document.querySelectorAll("[data-i18n-fa][data-i18n-en]")' in translations
+
+
+def test_admin_page_has_persistent_security_report_entrypoint():
+    root = Path(__file__).resolve().parents[1]
+    html = (root / "frontend" / "admin.html").read_text(encoding="utf-8")
+    js = (root / "frontend" / "assets" / "js" / "admin.js").read_text(encoding="utf-8")
+    css = (root / "frontend" / "assets" / "css" / "style.css").read_text(encoding="utf-8")
+    assert 'id="securityFloatingAlert"' in html
+    assert 'id="securityFloatingCount"' in html
+    assert 'Nav.go("security")' in js
+    assert '.security-floating-alert[data-severity="critical"]' in css

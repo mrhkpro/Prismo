@@ -67,10 +67,8 @@ def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
     return schemas.TokenResponse(access_token=token)
 
 
-@router.post("/google-supabase", response_model=schemas.TokenResponse)
-def google_supabase_login(payload: schemas.SupabaseGoogleLoginRequest, db: Session = Depends(get_db)):
-    """Exchange a Supabase Auth user token for Prismo's normal application JWT."""
-    supabase_token = payload.supabase_token.strip()
+def _prismo_token_for_supabase_user(supabase_token: str, db: Session) -> schemas.TokenResponse:
+    """Validate a Supabase Auth access token and map it to Prismo's own user/session."""
     if not config.SUPABASE_URL or not config.SUPABASE_ANON_KEY:
         raise HTTPException(status_code=503, detail="تنظیمات Supabase Auth روی سرور کامل نیست.")
 
@@ -82,9 +80,7 @@ def google_supabase_login(payload: schemas.SupabaseGoogleLoginRequest, db: Sessi
     try:
         response = httpx.get(url, headers=headers, timeout=10.0)
     except httpx.HTTPError as exc:
-        raise HTTPException(
-            status_code=503, detail="خطا در ارتباط با سرور احراز هویت Supabase."
-        ) from exc
+        raise HTTPException(status_code=503, detail="خطا در ارتباط با سرور احراز هویت Supabase.") from exc
 
     if response.status_code != 200:
         raise HTTPException(status_code=401, detail="توکن Supabase نامعتبر یا منقضی شده است.")
@@ -129,6 +125,42 @@ def google_supabase_login(payload: schemas.SupabaseGoogleLoginRequest, db: Sessi
     user.last_login_at = utcnow()
     db.commit()
     return schemas.TokenResponse(access_token=security.create_access_token(user.id))
+
+
+@router.post("/google-supabase", response_model=schemas.TokenResponse)
+def google_supabase_login(payload: schemas.SupabaseGoogleLoginRequest, db: Session = Depends(get_db)):
+    """Legacy implicit-token exchange retained for compatibility with older callback pages."""
+    return _prismo_token_for_supabase_user(payload.supabase_token.strip(), db)
+
+
+@router.post("/google-pkce", response_model=schemas.TokenResponse)
+def google_pkce_login(payload: schemas.SupabaseGooglePKCERequest, db: Session = Depends(get_db)):
+    """Exchange a short-lived Supabase PKCE auth code server-side; never expose provider tokens in the URL."""
+    if not config.SUPABASE_URL or not config.SUPABASE_ANON_KEY:
+        raise HTTPException(status_code=503, detail="تنظیمات Supabase Auth روی سرور کامل نیست.")
+
+    url = f"{config.SUPABASE_URL}/auth/v1/token?grant_type=pkce"
+    try:
+        response = httpx.post(
+            url,
+            headers={"apikey": config.SUPABASE_ANON_KEY, "Content-Type": "application/json"},
+            json={"auth_code": payload.auth_code, "code_verifier": payload.code_verifier},
+            timeout=10.0,
+        )
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=503, detail="ارتباط با سرویس ورود Supabase برقرار نشد.") from exc
+
+    if response.status_code not in (200, 201):
+        # Never relay upstream bodies: they may contain internal OAuth diagnostics.
+        raise HTTPException(status_code=401, detail="کد ورود گوگل نامعتبر یا منقضی شده است؛ دوباره تلاش کنید.")
+    try:
+        token_data = response.json()
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail="پاسخ نامعتبر از سرویس ورود Supabase.") from exc
+    supabase_token = token_data.get("access_token") if isinstance(token_data, dict) else None
+    if not isinstance(supabase_token, str) or not supabase_token.strip():
+        raise HTTPException(status_code=401, detail="سرویس ورود توکن معتبری برنگرداند.")
+    return _prismo_token_for_supabase_user(supabase_token, db)
 
 
 @router.get("/me", response_model=schemas.UserOut)

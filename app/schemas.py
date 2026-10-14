@@ -53,6 +53,19 @@ class SupabaseGoogleLoginRequest(BaseModel):
         return value
 
 
+class SupabaseGooglePKCERequest(BaseModel):
+    auth_code: str = Field(min_length=1, max_length=2048)
+    code_verifier: str = Field(min_length=43, max_length=128)
+
+    @field_validator("auth_code", "code_verifier")
+    @classmethod
+    def strip_pkce_fields(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("اطلاعات بازگشت Google OAuth ناقص است.")
+        return value
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

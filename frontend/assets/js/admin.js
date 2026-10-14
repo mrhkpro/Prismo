@@ -311,15 +311,34 @@ function dismissedId() { try { return Number(sessionStorage.getItem(DISMISS_KEY)
 
 function renderSecurityBadge(summary) {
   const badge = document.getElementById("unresolvedBadge");
-  if (!badge) return;
-  if (summary.unresolved_total > 0) {
-    badge.style.display = "inline-flex";
-    badge.textContent = summary.unresolved_total;
-    badge.classList.toggle("pulse", summary.critical > 0);
-  } else {
-    badge.style.display = "none";
+  if (badge) {
+    if (summary.unresolved_total > 0) {
+      badge.style.display = "inline-flex";
+      badge.textContent = summary.unresolved_total;
+      badge.classList.toggle("pulse", summary.critical > 0);
+    } else {
+      badge.style.display = "none";
+    }
   }
+
+  const floating = document.getElementById("securityFloatingAlert");
+  const count = document.getElementById("securityFloatingCount");
+  const label = document.getElementById("securityFloatingLabel");
+  if (!floating || !count || !label) return;
+  const highest = summary.critical > 0 ? "critical" : (summary.high > 0 ? "high" : "medium");
+  floating.hidden = !(summary.unresolved_total > 0);
+  floating.dataset.severity = highest;
+  count.textContent = String(summary.unresolved_total || 0);
+  label.textContent = highest === "critical"
+    ? `${summary.critical} مورد بحرانی · بررسی‌نشده`
+    : highest === "high"
+      ? `${summary.high} مورد با شدت بالا · بررسی‌نشده`
+      : `${summary.medium} مورد با شدت متوسط · بررسی‌نشده`;
+  floating.setAttribute("aria-label", `${summary.unresolved_total} گزارش امنیتی بررسی‌نشده. برای بازکردن گزارش‌ها کلیک کنید.`);
 }
+
+const securityFloatingAlert = document.getElementById("securityFloatingAlert");
+if (securityFloatingAlert) securityFloatingAlert.addEventListener("click", () => Nav.go("security"));
 
 function renderSecurityBanner(summary) {
   const banner = document.getElementById("securityBanner");

@@ -33,6 +33,8 @@ _RULES = [
      r"what\s+(were|are)\s+you\s+(told|instructed|programmed|configured)"),
     ("fa-system-prompt", "prompt_extraction", "critical",
      r"پرامپت\s+سیستم(ی)?\s+را\s+(نشان|نمایش)"),
+    ("fa-prompt-threat", "prompt_extraction", "critical",
+     r"((سیستم\s*پرامپت|پرامپت\s*(سیستم|اصلی|مخفی|داخلی|پنهان)|دستورالعمل(های)?\s*(مخفی|داخلی|سیستم)).{0,45}(چیه|چیست|چی\s*هست|بگو|بده|نشان|افشا|لو)|((اگه|اگر).{0,20}(نگی|ندهی|نمیگی|نمی‌دهی)).{0,30}(حمله|هک|نفوذ|خراب))"),
     ("fa-prompt-extraction", "prompt_extraction", "critical",
      r"((سیستم\s*پرامپت|پرامپت\s*سیستم(ی)?|پرامپت\s*(اصلی|اولیه|مخفی|داخلی|پنهان))|(دستورالعمل|دستورات|دستور)\s*(ها|های)?\s*(ی)?\s*(سیستم|اولیه|اصلی|مخفی|داخلی|پنهان)(ی)?)\s*(ت|ات|تو|شون|ش)?\s*(را|رو)?\s*(بگو|بده|نشان|نمایش|بنویس|چاپ|لو|چیه|چی هست|چیست)"),
     ("fa-prompt-extraction-direct", "prompt_extraction", "critical",
@@ -95,6 +97,9 @@ _RULES = [
 
 _COMPILED = [(code, category, severity, re.compile(pattern, re.IGNORECASE)) for code, category, severity, pattern in _RULES]
 _BY_CODE: Dict[str, Tuple[str, str]] = {code: (category, severity) for code, category, severity, _ in _RULES}
+# Added by the recorder when an already-flagged request is repeated in the same chat session.
+_BY_CODE["repeat-sensitive-attempt"] = ("repeated_attempt", "critical")
+CATEGORY_LABELS["repeated_attempt"] = "تکرار تلاش پرخطر"
 
 
 def _normalize(text: str) -> str:
@@ -134,5 +139,12 @@ def describe_reason(reason: Optional[str]) -> Dict[str, object]:
         # پرچم‌های قدیمی/ناشناخته: شدت پیش‌فرض «بالا»
         return {"severity": "high", "category": "instruction_override", "label": CATEGORY_LABELS["instruction_override"], "codes": codes}
     known.sort(key=lambda k: -SEVERITY_ORDER[k[2]])
-    _, category, severity = known[0]
-    return {"severity": severity, "category": category, "label": CATEGORY_LABELS[category], "codes": [k[0] for k in known]}
+    codes_out = [k[0] for k in known]
+    primary = next((item for item in known if item[0] != "repeat-sensitive-attempt"), known[0])
+    _, category, severity = primary
+    if "repeat-sensitive-attempt" in codes_out:
+        severity = "critical"
+        label = f"تکرار تلاش پرخطر — {CATEGORY_LABELS.get(category, 'درخواست مشکوک')}"
+    else:
+        label = CATEGORY_LABELS[category]
+    return {"severity": severity, "category": category, "label": label, "codes": codes_out}

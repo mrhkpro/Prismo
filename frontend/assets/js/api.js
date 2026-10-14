@@ -60,7 +60,7 @@ async function apiCallRaw(path, { method = "GET", body = null, auth = true, time
     if (timeoutId) clearTimeout(timeoutId);
   }
 
-  if (res.status === 401) {
+  if (res.status === 401 && auth) {
     Auth.clear();
     if (!location.pathname.endsWith("index.html") && location.pathname !== "/") {
       location.href = "/index.html";
@@ -234,7 +234,7 @@ async function apiStream(path, { body, onMeta, onDelta, onEvent, signal, auth = 
     throw new Error("ارتباط با سرور برقرار نشد.");
   }
 
-  if (res.status === 401) {
+  if (res.status === 401 && auth) {
     clearTimeout(idleTimer);
     Auth.clear();
     if (!location.pathname.endsWith("index.html") && location.pathname !== "/") location.href = "/index.html";

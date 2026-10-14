@@ -1133,7 +1133,7 @@ body.qz-compact-chat .chat-msg{padding-top:8px;padding-bottom:8px}body.qz-compac
 .auth-divider span { position: relative; z-index: 2; padding: 0 10px; background: var(--bg-elevated); color: var(--text-faint); font-size: 11px; font-weight: 600; }
 
 /* =========================================================================
-   v2.8.4 — Prismo overview refresh (scoped to the dashboard home only)
+   v2.8.5 — Prismo cross-page UX refinements (scoped to the dashboard home only)
    ========================================================================= */
 #view-overview .overview-hero {
   isolation: isolate; position: relative; display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(260px, .82fr);
@@ -1254,4 +1254,72 @@ body.qz-compact-chat .chat-msg{padding-top:8px;padding-bottom:8px}body.qz-compac
 }
 @media (prefers-reduced-motion: reduce) {
   #view-overview .overview-quick-card, #view-overview .overview-stat-card, #view-overview .overview-quick-arrow { transition: none; }
+}
+
+
+/* Security report shortcut: persistent, readable alert anchored to the lower-left. */
+.security-floating-alert {
+  position: fixed;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 1300;
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 58px;
+  max-width: min(360px, calc(100vw - 28px));
+  padding: 10px 13px;
+  color: #fff;
+  text-align: right;
+  background: linear-gradient(135deg, #a50f24, #e11d48 70%, #be123c);
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 16px;
+  box-shadow: 0 12px 34px rgba(127, 29, 29, .32), 0 3px 8px rgba(0,0,0,.18);
+  cursor: pointer;
+  direction: rtl;
+  transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;
+}
+.security-floating-alert[hidden] { display: none; }
+.security-floating-alert:hover { transform: translateY(-2px); box-shadow: 0 16px 38px rgba(127,29,29,.38); }
+.security-floating-alert:focus-visible { outline: 3px solid rgba(248,113,113,.65); outline-offset: 3px; }
+.security-floating-icon {
+  display: grid; place-items: center; flex: 0 0 31px; width: 31px; height: 31px;
+  border-radius: 10px; background: rgba(255,255,255,.16); font-weight: 900; font-size: 19px;
+}
+.security-floating-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 2px; }
+.security-floating-copy strong { font-size: 12.5px; line-height: 1.5; }
+.security-floating-copy small { font-size: 10.5px; opacity: .88; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.security-floating-count {
+  display: grid; place-items: center; flex: 0 0 28px; min-width: 28px; height: 28px;
+  padding: 0 5px; border-radius: 9px; background: #fff; color: #b91c1c; font-size: 12px; font-weight: 900;
+}
+.security-floating-alert[data-severity="critical"] { animation: security-float-pulse 2.2s ease-in-out infinite; }
+@keyframes security-float-pulse { 0%,100% { box-shadow: 0 12px 34px rgba(127,29,29,.32); } 50% { box-shadow: 0 12px 38px rgba(225,29,72,.56); } }
+@media (max-width: 640px) {
+  .security-floating-alert { left: 12px; bottom: max(12px, env(safe-area-inset-bottom)); max-width: calc(100vw - 24px); min-height: 52px; padding: 8px 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .security-floating-alert, .security-floating-alert[data-severity="critical"] { animation: none; transition: none; } }
+
+/* v2.8.5 — small cross-page UX refinements; no layout or feature behavior changes. */
+:where(.btn, button, a, input, textarea, select, [role="button"], [role="tab"]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+:where(.btn, button):not(:disabled) {
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease;
+}
+:where(.panel, .settings-card, .settings-account-card, .language-card, .shortcut-card, .pet-card, .account-summary-card, .source-item) {
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  :where(.settings-card, .settings-account-card, .language-card, .shortcut-card, .pet-card, .account-summary-card, .source-item):hover {
+    border-color: var(--accent-line);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.btn, button, .panel, .settings-card, .settings-account-card, .language-card, .shortcut-card, .pet-card, .account-summary-card, .source-item) {
+    transition: none;
+    animation: none;
+    scroll-behavior: auto;
+  }
 }

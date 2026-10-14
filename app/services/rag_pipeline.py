@@ -3,10 +3,11 @@ import time
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import config, models, i18n
-from . import injection_scanner, llm_client, rag_store, user_settings_compat
+from . import answer_cache, injection_scanner, llm_client, rag_store, user_settings_compat
 from .common_responses import get_common_response
 
 logger = logging.getLogger("prismo.rag")
@@ -37,33 +38,43 @@ def build_messages(system_prompt: str, context_block: str, history: List[dict], 
 NO_ANSWER_TEXT = "در دانشنامه اطلاعاتی برای پاسخ به این سؤال ندارم."
 
 
-def record_suspicious_attempt(db: Session, session, user_message: str) -> bool:
-    """Persist a flagged user input before inference so alerts survive provider errors.
+def record_suspicious_attempt(db: Session, session, user_message: str) -> tuple[bool, bool, Optional[str]]:
+    """Record a suspicious request before inference and escalate repeats in the same session.
 
-    Only the user's message is stored as the security event. The raw content is
-    deliberately excluded from application logs; admins can inspect the message
-    through the existing security-flags endpoint and shared database.
+    Returns (matched, persisted, reason). The raw user message is only stored in the
+    existing flagged-message record; it is never written to application logs.
     """
-    if db is None or not hasattr(db, "query") or session is None or not getattr(session, "id", None):
-        return False
     flagged, reason = injection_scanner.scan(user_message)
     if not flagged:
-        return False
+        return False, False, None
+    if db is None or not hasattr(db, "query") or session is None or not getattr(session, "id", None):
+        return True, False, reason
     try:
+        prior_attempts = (
+            db.query(func.count(models.ChatMessage.id))
+            .filter(
+                models.ChatMessage.session_id == session.id,
+                models.ChatMessage.is_flagged.is_(True),
+            )
+            .scalar() or 0
+        )
+        if prior_attempts:
+            reason = f"{reason}, repeat-sensitive-attempt"
         db.add(models.ChatMessage(
             session_id=session.id, role="user", content=user_message,
             is_flagged=True, flag_reason=reason,
         ))
         db.commit()
         logger.warning(
-            "security_input_flagged owner_id=%s session_id=%s reasons=%s",
-            getattr(session, "user_id", None), session.id, reason,
+            "security_input_flagged owner_id=%s session_id=%s severity=%s reasons=%s repeated=%s",
+            getattr(session, "user_id", None), session.id,
+            injection_scanner.describe_reason(reason)["severity"], reason, bool(prior_attempts),
         )
-        return True
+        return True, True, reason
     except Exception:  # noqa: BLE001 - monitoring failure must not leak raw prompt or crash chat
         db.rollback()
         logger.exception("security_input_flag_persist_failed session_id=%s", getattr(session, "id", None))
-        return False
+        return True, False, reason
 
 
 def _history_for_current_prompt(session, user_message: str) -> List[dict]:
@@ -93,6 +104,9 @@ class RagPlan:
     embedding_ms: int = 0
     search_ms: int = 0
     degraded_direct: bool = False
+    cache_key: Optional[str] = None
+    cache_allowed: bool = False
+    cache_hit: bool = False
 
 
 def prepare_rag_chat(
@@ -104,10 +118,34 @@ def prepare_rag_chat(
     language: str | None = None,
 ) -> RagPlan:
     """بازیابی معنایی + ساخت پیام‌های مدل (بدون صدازدن مدل چت)."""
-    record_suspicious_attempt(db, session, user_message)
     settings = user_settings_compat.get(db, owner.id) if hasattr(db, "execute") else owner.settings
     started = time.perf_counter()
     selected_model = model or settings.chat_model
+
+    # Prompt-injection/credential-extraction requests are never forwarded to the model.
+    # Store the flag first so it remains visible to every admin even if a provider is down.
+    flagged, recorded, flag_reason = record_suspicious_attempt(db, session, user_message)
+    if flagged:
+        language = "en" if language == "en" else "fa"
+        if recorded:
+            refusal = (
+                "I can’t disclose hidden system instructions, API keys, tokens, or other private configuration. "
+                "This attempt has been recorded for administrator review; repeated attempts are marked as critical."
+                if language == "en" else
+                "نمی‌توانم متن دستورهای داخلی، سیستم‌پرامپت مخفی، کلیدهای API، توکن‌ها یا اطلاعات محرمانه را افشا کنم. "
+                "این تلاش برای بازبینی مدیران ثبت شد؛ تکرار چنین درخواستی با شدت بحرانی علامت‌گذاری می‌شود."
+            )
+        else:
+            refusal = (
+                "I can’t disclose hidden instructions or secrets."
+                if language == "en" else
+                "نمی‌توانم دستورهای داخلی یا اطلاعات محرمانه را افشا کنم."
+            )
+        return RagPlan(
+            matches=[], messages=[], provider=None, model=selected_model,
+            temperature=getattr(settings, "temperature", None) or 0.7,
+            instant_reply=refusal, started=started,
+        )
 
     # The UI language is propagated from the request. Only translate the
     # built-in default prompt; a user-authored custom prompt remains untouched.
@@ -115,7 +153,7 @@ def prepare_rag_chat(
     language = "en" if language == "en" or (language is None and stored_system_prompt == config.DEFAULT_SYSTEM_PROMPT_EN) else "fa"
     effective_system_prompt = i18n.localize_default_system_prompt(stored_system_prompt, language)
 
-    # پیام‌های پرتکرار را بدون embedding و بدون تماس با مدل پاسخ بده.
+    # Common greetings and acknowledgements bypass both embedding and chat providers.
     common_reply = get_common_response(user_message, language=language)
     if common_reply:
         return RagPlan(
@@ -125,6 +163,37 @@ def prepare_rag_chat(
         )
 
     provider = llm_client.resolve_provider(settings)
+    cache_key, cache_allowed, repeated_answer = answer_cache.make_cache_key(
+        db, owner, session, user_message, settings, provider, language,
+    ) if hasattr(db, "query") else (None, False, None)
+
+    # An adjacent exact repeat in the same session can reuse its prior assistant turn,
+    # even if the session has history. Cross-session cache is limited to clean first turns.
+    if repeated_answer:
+        cached = answer_cache.lookup(db, owner, cache_key) if cache_key else None
+        if cached:
+            cached_answer, cached_matches = cached
+            return RagPlan(
+                matches=cached_matches, messages=[], provider=provider, model=selected_model,
+                temperature=settings.temperature or 0.7, started=started,
+                instant_reply=cached_answer, cache_key=cache_key, cache_allowed=True, cache_hit=True,
+            )
+        return RagPlan(
+            matches=[], messages=[], provider=provider, model=selected_model,
+            temperature=settings.temperature or 0.7, started=started,
+            instant_reply=repeated_answer, cache_key=cache_key, cache_allowed=False, cache_hit=True,
+        )
+
+    if cache_key and cache_allowed:
+        cached = answer_cache.lookup(db, owner, cache_key)
+        if cached:
+            cached_answer, cached_matches = cached
+            logger.info("rag_answer_cache_hit owner_id=%s model=%s sources=%s", owner.id, selected_model, len(cached_matches))
+            return RagPlan(
+                matches=cached_matches, messages=[], provider=provider, model=selected_model,
+                temperature=settings.temperature or 0.7, started=started,
+                instant_reply=cached_answer, cache_key=cache_key, cache_allowed=True, cache_hit=True,
+            )
 
     embedding_started = time.perf_counter()
     try:
@@ -144,6 +213,7 @@ def prepare_rag_chat(
             started=started,
             embedding_ms=int((time.perf_counter() - embedding_started) * 1000),
             degraded_direct=True,
+            cache_key=cache_key, cache_allowed=cache_allowed,
         )
     embedding_ms = int((time.perf_counter() - embedding_started) * 1000)
     search_started = time.perf_counter()
@@ -157,6 +227,7 @@ def prepare_rag_chat(
         matches=matches, messages=[], provider=provider, model=selected_model,
         temperature=settings.temperature or 0.7, started=started,
         embedding_ms=embedding_ms, search_ms=search_ms,
+        cache_key=cache_key, cache_allowed=cache_allowed,
     )
     if not matches:
         plan.no_answer = "I do not have enough information in the knowledge base to answer that." if language == "en" else NO_ANSWER_TEXT
@@ -196,8 +267,10 @@ def run_rag_chat(
     """یک چرخه‌ی کامل RAG را روی «دانشنامه‌ی owner» اجرا می‌کند و پاسخ + منابع را برمی‌گرداند."""
     plan = prepare_rag_chat(db, owner, session, user_message, model=model, language=language)
     if plan.instant_reply:
-        return plan.instant_reply, []
+        return plan.instant_reply, plan.matches if plan.cache_hit else []
     if plan.no_answer:
+        if plan.cache_allowed and not plan.cache_hit:
+            answer_cache.store(db, owner.id, plan.cache_key, plan.no_answer, plan.matches)
         return plan.no_answer, []
     llm_started = time.perf_counter()
     reply = llm_client.chat_completion(
@@ -211,6 +284,8 @@ def run_rag_chat(
         )
     reply = reply.strip()
     log_rag_timing(owner.id, plan, int((time.perf_counter() - llm_started) * 1000))
+    if plan.cache_allowed and not plan.cache_hit:
+        answer_cache.store(db, owner.id, plan.cache_key, reply, plan.matches)
     return reply, plan.matches
 
 
