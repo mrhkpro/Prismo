@@ -22,9 +22,9 @@ Each user can create a private knowledge base, configure an OpenAI-compatible mo
 - Centralized API errors, request IDs and request timing logs.
 - Light/dark frontend theme support, responsive UI, accessible toast notifications and fetch timeouts.
 
-## Latest release — v2.8.7
+## Latest release — v2.8.9
 
-The v2.8.7 patch fixes Supabase compatibility when older schemas are missing provider-mode columns: the opt-in development admin bootstrap no longer loads every mapped `UserSettings` column, and migration `009_repair_all_embedding_provider_columns.sql` repairs all four optional provider columns in one safe, repeatable migration. The v2.8.5 security, OAuth PKCE, answer cache and Vercel response behavior remain in place. See [`docs/CHANGELOG_2.8.7.md`](docs/CHANGELOG_2.8.7.md) and [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) before running against Supabase.
+The v2.8.9 maintenance release addresses local Supabase connection timeouts by using the shared Supavisor Session Pooler on port 5432 when local Uvicorn is configured with the shared Transaction Pooler URL on port 6543. Vercel remains on the configured transaction-pooler port. The v2.8.7 schema-repair migration, v2.8.5 OAuth PKCE, answer cache, Vercel response behavior and admin security alerts remain intact. See [`docs/CHANGELOG_2.8.9.md`](docs/CHANGELOG_2.8.9.md), [`docs/SUPABASE_LOCAL_COMPAT.md`](docs/SUPABASE_LOCAL_COMPAT.md), and [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Architecture
 
@@ -181,9 +181,9 @@ The project uses a simple embedded vector store because the target deployment do
 If Supabase reports a missing provider column such as `separate_embedding_provider`, `embedding_api_key`, `embedding_base_url`, or `embedding_use_default_provider`, run `supabase/migrations/009_repair_all_embedding_provider_columns.sql` in Supabase SQL Editor and restart the local app. This one migration repairs all provider columns without deleting existing settings. The optional development admin bootstrap also now uses a schema-compatible settings helper, so it does not fail by eagerly loading those missing columns during startup.
 
 
-## Maintenance release v2.8.8
+## Maintenance release v2.8.9
 
-- Local + Supabase startup repairs missing optional embedding-provider columns before the first ORM query. See [Supabase local compatibility](docs/SUPABASE_LOCAL_COMPAT.md).
-- Admin security alerts remain visible on the main dashboard and link directly to security review.
-- Internal page headers, settings and cards use the refreshed Prismo visual system.
-- Validation for v2.8.8: 267 automated tests passed; live Supabase connectivity depends on the local `DATABASE_URL` and database role permissions.
+- Local Uvicorn automatically uses Supabase shared Session Pooler on port 5432 when `DATABASE_URL` points at the shared Transaction Pooler on port 6543.
+- Vercel keeps the deployment-provided transaction-pooler URL and port unchanged. No new environment variable is required.
+- The URL, username, password, database path, and query parameters are preserved; only the local engine port is adjusted.
+- Validation: 272 automated tests passed. Live connectivity still depends on the user's network and Supabase availability.

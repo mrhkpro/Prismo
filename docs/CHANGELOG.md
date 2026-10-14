@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.8.9 — Local Supabase session-pooler connectivity
+
+- For local Uvicorn only, automatically use the Supabase shared Session Pooler port 5432 when the configured URL targets the shared Transaction Pooler on port 6543.
+- Keep Vercel on its configured transaction pooler (6543); direct PostgreSQL URLs, local SQLite and non-Supabase PostgreSQL URLs are not rewritten.
+- Preserve URL credentials and query parameters; no new environment variables are required.
+- Add regression tests for local, Vercel, explicit-session, direct-DB and unrelated PostgreSQL URLs.
+- Validation: 272 automated tests passed. The real Supabase database could not be reached from the build environment, so local connectivity should be confirmed from the user's Windows machine.
+
 ## v2.8.8 — Local + Supabase compatibility and consistent dashboard UX
 
 - Auto-repair missing provider columns on local + Supabase startup only.
