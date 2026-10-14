@@ -170,3 +170,13 @@ This release is deliberately based on the `v2.8.1` source tree and its Git graph
 Verification for the integrated tree: `252 passed`; `python -m compileall -q app tests`; `node --check` for non-minified frontend JavaScript; `git diff --check`; and a headless browser layout check at desktop and 390px mobile width (no horizontal overflow). Live Google/Supabase OAuth and a real OpenRouter call could not be verified end-to-end in this environment, so those remain deployment-time checks.
 
 The local `.env` stays ignored and untracked. The private full-project archive preserves the local environment file from the user's v2.8.1 base; the Git repository/history does not include it.
+
+
+## v2.8.5 — OAuth callback hardening, safe answer caching, and security alert UX
+
+- `fix/oauth-pkce-cache-security-v2.8.5` — production Google sign-in chooses the canonical Vercel callback, uses Supabase PKCE, strips one-time URL values early, and exchanges the code on the server. The previously existing username/password flow remains unchanged.
+- `perf/rag-exact-answer-cache-v2.8.5` — add per-user exact-question caching with provider/prompt/knowledge signatures, a seven-day TTL, and source ownership validation; add `supabase/migrations/007_answer_cache.sql`.
+- `fix/prompt-extraction-repeat-escalation-v2.8.5` — block requests matching sensitive-extraction rules before model inference, persist flags before inference, and elevate a further detected attempt in the same session to critical.
+- `feat/admin-floating-security-alert-v2.8.5` — show an always-visible lower-left red report control when unresolved security flags exist; it shows unresolved count/severity and opens the security review.
+- `polish/cross-page-ux-v2.8.5` — add focus-visible and reduced-motion refinements, bump runtime HTML/JS/CSS cache versions and update the generated widget embed version.
+- The integration branch `fix/oauth-pkce-cache-security-v2.8.5` was merged into `main` with `--no-ff`; release tag: `v2.8.5`. Runtime changes and documentation were recorded in separate commits. `.env` is ignored and stays out of commits/history.

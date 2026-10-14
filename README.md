@@ -6,11 +6,11 @@ Each user can create a private knowledge base, configure an OpenAI-compatible mo
 
 ## Features
 
-- User registration, login, JWT sessions, logout and account blocking.
+- User registration, username/password login, JWT sessions, logout and account blocking; optional Google sign-in uses Supabase Auth PKCE and exchanges its one-time code on the server.
 - User-scoped documents, chunks, conversations and settings.
 - Custom OpenAI-compatible provider configuration, connection testing and model discovery.
 - Independent chat and embedding providers with a guided, responsive setup flow (v2.8.0).
-- RAG with chunking, embeddings, cosine retrieval, configurable `top_k` and similarity threshold.
+- RAG with chunking, embeddings, cosine retrieval, configurable `top_k` and similarity threshold; a seven-day exact-question answer cache accelerates safe, context-independent repeats per user and provider configuration.
 - Bounded conversation history and explicit retrieved-context boundaries.
 - Knowledge-base CRUD plus explicit document reindexing.
 - Chat playground with persistent sessions and owner-scoped session cleanup.
@@ -18,13 +18,13 @@ Each user can create a private knowledge base, configure an OpenAI-compatible mo
 - Embeddable widget using Shadow DOM, configurable title/message/color and cache-busted embed code.
 - Public-widget input validation, account-state checks and per-process rate limiting.
 - Admin dashboard, pagination, statistics, security flags, role management and safe impersonation.
-- Persistent prompt-risk alerts for suspected system-prompt/API-key disclosure and dangerous requests from the Test Lab or public widget; administrators sharing the same database can inspect the message and reason.
+- Persistent prompt-risk alerts for suspected system-prompt/API-key disclosure and dangerous requests from the Test Lab or public widget; detected extraction attempts are refused before model inference, repeated attempts escalate to critical, and all administrators sharing the same database can inspect the original message and reason.
 - Centralized API errors, request IDs and request timing logs.
 - Light/dark frontend theme support, responsive UI, accessible toast notifications and fetch timeouts.
 
-## Latest release
+## Latest release — v2.8.5
 
-See [`docs/CHANGELOG_2.8.0.md`](docs/CHANGELOG_2.8.0.md) for the AI connection UX refresh. Model selection now comes before a shared save/test action area at the bottom of the form.
+This release fixes hosted Google OAuth redirects with PKCE and URL-token cleanup, adds an owner/provider/prompt/knowledge-scoped exact-answer cache for repeated questions, blocks detected prompt/credential-extraction attempts before model inference, escalates repeated suspicious attempts, and adds a persistent red security-alert entry point in the admin UI. The Vercel RAG path keeps bounded JSON responses while local installations retain streaming. See [`docs/CHANGELOG_2.8.5.md`](docs/CHANGELOG_2.8.5.md) and [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) before deploying.
 
 ## Architecture
 
@@ -159,12 +159,14 @@ The project uses a simple embedded vector store because the target deployment do
 
 ## احراز هویت
 
-ورود با نام کاربری و رمز عبور همچنان فعال است و قابلیت **ادامه با گوگل** نیز از طریق Supabase Auth در کنار آن قرار دارد. جریان Google OAuth در Supabase انجام می‌شود؛ پس از بازگشت به `frontend/auth-callback.html`، توکن Supabase در بک‌اند اعتبارسنجی می‌شود و برنامه توکن نشست اختصاصی Prismo را صادر می‌کند. ورود گوگل، ورود ایمیلی/نام‌کاربری موجود را جایگزین نمی‌کند.
+ورود با نام کاربری و رمز عبور همچنان فعال است و قابلیت **ادامه با گوگل** نیز از طریق Supabase Auth در کنار آن قرار دارد. جریان Google OAuth با PKCE اجرا می‌شود: مرورگر فقط کد یک‌بارمصرف را به callback می‌گیرد، URL بلافاصله پاک می‌شود و تبادل کد با Supabase در بک‌اند صورت می‌گیرد. توکن نشست اختصاصی Prismo تنها توکنی است که در مرورگر ذخیره می‌شود؛ توکن‌های access/refresh گوگل یا Supabase نباید در نوار آدرس یا `localStorage` باقی بمانند.
 
 برای Google Login، در Supabase به `Authentication → Providers → Google` بروید و Provider گوگل را با Client ID و Client Secret که از Google Cloud ساخته‌اید فعال کنید. سپس در `Authentication → URL Configuration` مسیرهای بازگشت زیر را به Redirect URLs مجاز اضافه کنید:
 
-- `http://localhost:8000/auth-callback.html` برای اجرای محلی؛
-- `https://YOUR-DOMAIN/auth-callback.html` برای دامنهٔ نهایی.
+- `http://localhost:8000/auth-callback.html` فقط برای ورود روی همان اجرای محلی؛
+- `https://rag-widget-beta.vercel.app/auth-callback.html` برای سایت منتشرشده.
+
+در Supabase → Authentication → URL Configuration، مقدار **Site URL** باید `https://rag-widget-beta.vercel.app` باشد و callback بالا در **Redirect URLs** مجاز شود. اگر Site URL روی `http://localhost:8000` بماند یا callback تولیدی در allow-list نباشد، Supabase ممکن است به آدرس محلی برگردد. در Vercel، ورود گوگل به دامنهٔ تولیدی هدایت می‌شود؛ `localhost` فقط برای ورود محلی انتخاب می‌شود.
 
 متغیرهای `SUPABASE_URL` و `SUPABASE_ANON_KEY` در سرور باید متعلق به همان پروژهٔ Supabase باشند. کلید `anon`/publishable عمومی است؛ از کلید `service_role` در مرورگر استفاده نکنید. Google Client Secret فقط در تنظیمات امن Supabase/Google Cloud نگهداری می‌شود و در فرانت‌اند قرار نمی‌گیرد. جزئیات استقرار در [راهنمای استقرار](docs/DEPLOYMENT.md) آمده است.
 

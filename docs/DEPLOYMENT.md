@@ -233,3 +233,39 @@ In Supabase Dashboard, enable `Authentication → Providers → Google` and ente
 In Google Cloud, add the Supabase callback shown in the Supabase Google provider page as the authorized redirect URI (normally `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`). Use the exact value displayed by your Supabase project. Google Client Secret must stay in Supabase/Google Cloud configuration; never put it in browser JavaScript or `.env.example`. The `SUPABASE_ANON_KEY` is a public client key, not a service-role secret.
 
 The Google/Supabase route returns a normal Prismo JWT; the rest of the application keeps using the existing token-based authorization. The original username/password sign-in and registration endpoints remain enabled. Live OAuth must be tested with the actual Supabase Google provider and redirect allow list configured in the target deployment.
+
+
+## v2.8.5: Google sign-in, answer-cache migration, and hosted callback
+
+### Supabase Google Auth
+
+For the production site `https://rag-widget-beta.vercel.app`, set Supabase **Authentication → URL Configuration → Site URL** to:
+
+```text
+https://rag-widget-beta.vercel.app
+```
+
+Add the following to the Supabase **Redirect URLs** allow-list:
+
+```text
+https://rag-widget-beta.vercel.app/auth-callback.html
+http://localhost:8000/auth-callback.html
+```
+
+Keep the localhost URL only for development. When the user starts OAuth from the production `*.vercel.app` deployment, Prismo selects the canonical production callback; it does not direct a hosted sign-in to localhost. Configure Google as a provider in Supabase. In Google Cloud's OAuth web client, the authorized redirect URI is the Supabase callback (not the Prismo callback):
+
+```text
+https://<SUPABASE-PROJECT-REF>.supabase.co/auth/v1/callback
+```
+
+Ensure `SUPABASE_URL` and `SUPABASE_ANON_KEY` (public anon/publishable key only; never `service_role`) are set consistently in Vercel Production and in local `.env`. The callback uses PKCE: it expects a short-lived `?code=...`, removes it from the address bar before exchanging it, and posts the code and a session-held verifier to `/api/auth/google-pkce`. The backend returns only Prismo's application JWT. Do not enable/require the implicit fragment-token flow for this application.
+
+After changing Supabase URL settings, redeploy only if environment variables changed; URL allow-list changes take effect at Supabase. Test sign-in from the production domain and confirm the final URL is `/dashboard.html` on that same domain, not `localhost` and not a URL containing `access_token`, `refresh_token` or `provider_token`.
+
+### RAG answer cache migration
+
+On PostgreSQL/Supabase, run `supabase/migrations/007_answer_cache.sql` once in SQL Editor. SQLite/local mode creates `answer_cache` via SQLAlchemy metadata at startup. If the migration is not present in a hosted schema, chat still works without the optional cache; repeated-question speedups will be unavailable.
+
+### Security notifications
+
+The lower-left red admin button is populated from `GET /api/admin/security/summary`, which queries flagged and unresolved `ChatMessage` rows in the current database. All authorized admins sharing that database see the same unresolved report count. Repeated detected extraction attempts in one session are elevated to critical. Local SQLite and the hosted Supabase database are separate alert stores unless both environments point to the same database.
