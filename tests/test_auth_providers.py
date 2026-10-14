@@ -34,6 +34,7 @@ def _test_db():
 def test_supabase_google_route_and_existing_auth_routes_are_registered():
     paths = {getattr(route, "path", "") for route in app.routes}
     assert "/api/auth/google-supabase" in paths
+    assert "/api/auth/google-pkce" in paths
     assert "/api/auth/register" in paths
     assert "/api/auth/login" in paths
     assert "/api/auth/logout" in paths
@@ -48,10 +49,17 @@ def test_login_page_and_script_have_google_sign_in_ui_without_replacing_email_au
     assert "googleLoginBtn" in html
     assert "ادامه با گوگل" in html
     assert "googleLoginBtn" in js
-    assert "auth/v1/authorize?provider=google" in js
+    assert 'provider: "google"' in js
+    assert "code_challenge_method" in js
+    assert "https://rag-widget-beta.vercel.app" in js
     assert ".google-login-btn" in css
     assert ".google-auth-container" in css
-    assert "/api/auth/google-supabase" in callback
+    assert "/api/auth/google-pkce" in callback
+    assert 'history.replaceState({}, document.title, callbackUrl.pathname)' in callback
+    assert 'prismo_google_pkce_verifier' in callback
+    assert 'returnedBearerToken' in callback
+    assert 'access_token' in callback and 'provider_token' in callback
+    assert 'legacyAccessToken' not in callback
     assert 'id="loginForm"' in html and 'id="registerForm"' in html
     assert 'apiCall("/api/auth/login"' in js and 'apiCall("/api/auth/register"' in js
 
@@ -95,6 +103,39 @@ def test_supabase_google_login_rejects_invalid_supabase_token():
             with TestClient(app) as client:
                 response = client.post("/api/auth/google-supabase", json={"supabase_token": "invalid-token"})
         assert response.status_code == 401
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
+
+
+def test_supabase_google_pkce_exchange_returns_only_prismo_token():
+    engine, override_get_db = _test_db()
+    app.dependency_overrides[get_db] = override_get_db
+    mock_supabase_user = {
+        "email": "pkce_google_user@example.com",
+        "user_metadata": {"full_name": "PKCE Google User"},
+    }
+    try:
+        with patch("app.routers.auth.httpx.post") as mock_post, patch("app.routers.auth.httpx.get") as mock_get:
+            pkce_response = MagicMock()
+            pkce_response.status_code = 200
+            pkce_response.json.return_value = {"access_token": "temporary-supabase-access-token", "refresh_token": "temporary-refresh-token"}
+            mock_post.return_value = pkce_response
+            user_response = MagicMock()
+            user_response.status_code = 200
+            user_response.json.return_value = mock_supabase_user
+            mock_get.return_value = user_response
+            with TestClient(app) as client:
+                response = client.post("/api/auth/google-pkce", json={"auth_code": "one-time-code", "code_verifier": "v" * 64})
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["access_token"]
+        assert "refresh_token" not in body
+        assert "temporary-supabase-access-token" not in body["access_token"]
+        mock_post.assert_called_once()
+        assert mock_post.call_args.args[0].endswith("/auth/v1/token?grant_type=pkce")
+        assert mock_post.call_args.kwargs["json"] == {"auth_code": "one-time-code", "code_verifier": "v" * 64}
     finally:
         app.dependency_overrides.pop(get_db, None)
         Base.metadata.drop_all(bind=engine)

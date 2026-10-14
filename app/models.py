@@ -12,6 +12,7 @@ from sqlalchemy import (
     String,
     Text,
     JSON,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -478,3 +479,20 @@ class ChatMessage(Base):
         "ChatSession",
         back_populates="messages",
     )
+
+# ============================================================
+# RAG ANSWER CACHE
+# ============================================================
+
+class AnswerCache(Base):
+    """Per-user cache for exact repeat questions under the same model/settings/docs."""
+
+    __tablename__ = "answer_cache"
+    __table_args__ = (UniqueConstraint("user_id", "cache_key", name="uq_answer_cache_user_key"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    cache_key = Column(String(64), nullable=False, index=True)
+    answer = Column(Text, nullable=False)
+    source_chunks = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, default=utcnow, nullable=False)

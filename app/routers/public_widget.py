@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas, i18n
 from ..database import get_db
 from ..services import user_settings_compat
-from ..services import llm_client, rag_pipeline, rate_limit, streaming, widget_extras
+from ..services import answer_cache, llm_client, rag_pipeline, rate_limit, streaming, widget_extras
 
 
 logger = logging.getLogger("prismo.public_widget")
@@ -154,6 +154,8 @@ def widget_chat_stream(widget_id: str, payload: schemas.WidgetChatRequest, reque
                 try:
                     from sqlalchemy.orm import Session as DBSession
                     with DBSession(bind=bind, autoflush=False) as save_db:
+                        if plan is not None and plan.cache_allowed and not plan.cache_hit:
+                            answer_cache.store(save_db, owner_id, plan.cache_key, text, plan.matches)
                         rag_pipeline.save_turn(save_db, session_id, message, text)
                 except Exception:  # noqa: BLE001
                     logger.exception("could not save streamed widget turn")

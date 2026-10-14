@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow,noarchive">
 <title>در حال ورود به Prismo...</title>
-<link rel="stylesheet" href="/assets/css/style.css?v=2.8.4">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.8.5">
 <style>
   body {
     display: grid;
@@ -51,58 +53,84 @@
     <div class="error-text" id="errorText"></div>
   </div>
 
-<script src="/assets/js/api.js?v=2.8.4"></script>
+<script src="/assets/js/api.js?v=2.8.5"></script>
 <script>
   (async function () {
     const errorText = document.getElementById("errorText");
     const spinner = document.getElementById("spinner");
     const statusTitle = document.getElementById("statusTitle");
+    const statusDesc = document.getElementById("statusDesc");
 
     function showError(msg) {
       spinner.style.display = "none";
       statusTitle.textContent = "خطا در احراز هویت";
+      statusDesc.textContent = "آدرس بازگشت و تنظیمات Supabase را بررسی کنید و دوباره تلاش کنید.";
       errorText.textContent = msg;
       errorText.style.display = "block";
-      setTimeout(() => {
-        location.href = "/";
-      }, 3000);
+      setTimeout(() => { location.replace("/"); }, 5000);
     }
 
-    try {
-      let accessToken = "";
-      const hash = window.location.hash.substring(1);
-      const hashParams = new URLSearchParams(hash);
-      if (hashParams.has("access_token")) {
-        accessToken = hashParams.get("access_token");
-      } else {
-        const queryParams = new URLSearchParams(window.location.search);
-        if (queryParams.has("access_token")) {
-          accessToken = queryParams.get("access_token");
-        }
-      }
+    // Remove all one-time callback parameters before any network request.
+    // Modern sign-in accepts only PKCE authorization codes, never bearer tokens
+    // returned in the URL fragment/query. Supabase and Google tokens are not stored here.
+    const callbackUrl = new URL(window.location.href);
+    const authCode = callbackUrl.searchParams.get("code");
+    const oauthError = callbackUrl.searchParams.get("error_description") || callbackUrl.searchParams.get("error");
+    const hashParams = new URLSearchParams(callbackUrl.hash.replace(/^#/, ""));
+    const returnedBearerToken = ["access_token", "refresh_token", "provider_token"].some((name) =>
+      callbackUrl.searchParams.has(name) || hashParams.has(name)
+    );
+    history.replaceState({}, document.title, callbackUrl.pathname);
 
-      if (!accessToken) {
-        showError("توکن احراز هویت گوگل یافت نشد.");
+    try {
+      if (oauthError) {
+        sessionStorage.removeItem("prismo_google_pkce_verifier");
+        sessionStorage.removeItem("prismo_google_pkce_redirect_uri");
+        sessionStorage.removeItem("prismo_google_pkce_started_at");
+        showError("ورود گوگل لغو شد یا Supabase بازگشت را نپذیرفت: " + oauthError);
         return;
       }
-      // The Supabase access token arrives in the URL fragment. Remove it from
-      // browser history before making the application-session exchange.
-      history.replaceState({}, document.title, window.location.pathname + window.location.search);
+      if (returnedBearerToken) {
+        throw new Error("Supabase به‌جای کد امن PKCE توکن را در آدرس برگرداند. تنظیمات OAuth را اصلاح کنید و دوباره تلاش کنید.");
+      }
 
-      const data = await apiCall("/api/auth/google-supabase", {
-        method: "POST",
-        auth: false,
-        body: { supabase_token: accessToken }
-      });
+      let data;
+      if (authCode) {
+        const verifier = sessionStorage.getItem("prismo_google_pkce_verifier");
+        const expectedRedirect = sessionStorage.getItem("prismo_google_pkce_redirect_uri");
+        const startedAt = Number(sessionStorage.getItem("prismo_google_pkce_started_at") || 0);
+        const actualRedirect = `${window.location.origin}${window.location.pathname}`;
+        if (!verifier || !expectedRedirect || expectedRedirect !== actualRedirect) {
+          throw new Error("کد ورود به همان مرورگری که ورود را شروع کرده متصل نیست؛ از سایت اصلی دوباره ورود را آغاز کنید.");
+        }
+        if (!startedAt || Date.now() - startedAt > 10 * 60 * 1000) {
+          throw new Error("مهلت ورود تمام شده است؛ دوباره ورود با گوگل را شروع کنید.");
+        }
+        sessionStorage.removeItem("prismo_google_pkce_verifier");
+        sessionStorage.removeItem("prismo_google_pkce_redirect_uri");
+        sessionStorage.removeItem("prismo_google_pkce_started_at");
+        data = await apiCall("/api/auth/google-pkce", {
+          method: "POST",
+          auth: false,
+          body: { auth_code: authCode, code_verifier: verifier }
+        });
+      } else {
+        throw new Error("کد امن بازگشت Google OAuth پیدا نشد. تنظیم Redirect URL در Supabase را بررسی کنید.");
+      }
 
       if (data && data.access_token) {
         Auth.setToken(data.access_token);
-        location.href = "/dashboard.html";
+        statusTitle.textContent = "ورود موفق بود";
+        statusDesc.textContent = "در حال انتقال به داشبورد…";
+        location.replace("/dashboard.html");
       } else {
-        showError("خطا در صدور توکن نشست پریزمو.");
+        throw new Error("توکن نشست Prismo صادر نشد.");
       }
     } catch (err) {
-      showError(err.message || "خطا در ارتباط با سرور.");
+      sessionStorage.removeItem("prismo_google_pkce_verifier");
+      sessionStorage.removeItem("prismo_google_pkce_redirect_uri");
+      sessionStorage.removeItem("prismo_google_pkce_started_at");
+      showError(err.message || "ورود امن گوگل ناموفق بود.");
     }
   })();
 </script>
