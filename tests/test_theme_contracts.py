@@ -192,7 +192,8 @@ class PageWiringTests(unittest.TestCase):
         self.assertIn("color-scheme: light", CSS.split(".widget-preview-frame", 1)[1].split("}", 1)[0])
 
     def test_dashboard_badge_matches_release(self):
-        self.assertIn("PRISMO 2.8.4", self.read("dashboard.html"))
+        self.assertIn("Prismo", self.read("dashboard.html"))
+        self.assertIn("v2.8.4", self.read("dashboard.html"))
 
 
 class PetSpriteContractTests(unittest.TestCase):

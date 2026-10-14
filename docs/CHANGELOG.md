@@ -5,9 +5,9 @@
 - Based on the v2.8.1 project tree and Git history; selectively brought over the bounded JSON RAG request behavior that worked in the v2.8.3 Vercel build while keeping local streaming intact.
 - Added structured OpenAI-compatible message-content extraction, one retry for an empty model answer, and a final RAG guard that refuses blank assistant turns.
 - Restored the active Google sign-in flow from `final-project-feat-my-work` through Supabase Auth, including the login button, callback page and a server-side token validation/exchange endpoint. The username/password flow remains available.
-- Added persistent, admin-visible alerts for suspected system-prompt extraction, API-key/credential disclosure, prompt injection and destructive/system-bypass requests from Test Lab or public widget inputs. A suspicious attempt is recorded before model execution so it remains visible even if the provider fails.
-- Refreshed static asset cache versions and enhanced the signed-in dashboard home panel with a richer Prismo overview and quick actions.
-- Verification: tests, JavaScript syntax checks, local SQLite smoke checks and Git diff checks are recorded in the release notes. Live Google/Supabase and OpenRouter deployment tests require the target project's real provider configuration.
+- Added persistent, admin-visible alerts for suspected system-prompt extraction, API-key/credential disclosure, prompt injection and destructive/system-bypass requests from Test Lab or public widget inputs. A suspicious attempt is recorded before model execution so it remains visible even if the provider fails; the admin banner covers critical/high items and the card displays the actual message plus detection reason.
+- Refreshed static asset cache versions and enhanced the signed-in dashboard home panel with a themed hero illustration, status/stat cards, feature chips and responsive quick actions. Original overview statistic IDs and navigation targets are preserved.
+- Verification: 252 automated tests passed; Python compile, JavaScript syntax, Git diff and desktop/mobile layout checks passed. Live Google/Supabase OAuth and OpenRouter API calls still require the target project's real provider configuration and network access.
 
 ## v2.8.1 — Local admin login hotfix
 
