@@ -45,6 +45,10 @@ async function init() {
   if (topAvatar) topAvatar.textContent = document.getElementById("avatarInitial").textContent;
   await loadStats();
   startSecurityWatch();
+  const requestedView = String(location.hash || "").slice(1);
+  if (["users", "conversations", "security"].includes(requestedView)) {
+    Nav.go(requestedView);
+  }
 }
 
 // ---------------------------------------------------------------------------
