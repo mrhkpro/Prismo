@@ -21,3 +21,10 @@ This is intended to fix errors like:
 The PostgreSQL role in `DATABASE_URL` must have permission to alter `user_settings`. If permissions prevent startup repair, run `supabase/migrations/009_repair_all_embedding_provider_columns.sql` in Supabase SQL Editor as a database owner. If the `user_settings` table itself is missing, initialize the database from `supabase/migrations/001_initial_schema.sql` first, then run subsequent migrations in order.
 
 No new environment variables are required. The repair is scoped to local + Supabase mode; Vercel's cold starts remain free of schema DDL.
+
+
+## Pooler port selection (v2.8.9)
+
+The shared Supavisor pooler supports Session mode at port 5432 and Transaction mode at port 6543. The current `DATABASE_URL` in the provided v2.8.1 and v2.8.8 archives is the same transaction-pooler host/port, and `app/database.py` had the same connector settings; therefore an error that times out on all resolved IPs at port 6543 is a TCP reachability problem, not a missing-column or ORM-schema error.
+
+For a local, long-running Uvicorn process, Prismo now changes only the in-memory SQLAlchemy engine URL from 6543 to 5432 when all of these are true: process is local (not Vercel), host ends with `.pooler.supabase.com`, and configured port is 6543. Vercel stays on 6543. The `.env` file itself is not modified, no new variables are required, and username/password/database/query parameters are preserved. Direct database URLs and other providers are unaffected.

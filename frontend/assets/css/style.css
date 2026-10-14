@@ -1326,7 +1326,7 @@ body.qz-compact-chat .chat-msg{padding-top:8px;padding-bottom:8px}body.qz-compac
 
 
 /* =========================================================================
-   Prismo v2.8.8 — unified page headers and refined admin/settings surfaces
+   Prismo v2.8.9 — local Supabase session-pooler connection
    Scoped to the authenticated app shell so the existing landing hero is intact.
    ========================================================================= */
 .app-shell .view:not(#view-overview) > .page-head {

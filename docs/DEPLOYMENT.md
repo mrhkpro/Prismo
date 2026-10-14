@@ -33,6 +33,13 @@ Copy `.env.example` to `.env` and set production values before exposing the serv
 
 Never commit `.env`, API keys, database files, or other runtime secrets.
 
+
+## Local Supabase connection mode (v2.8.9)
+
+When `DATABASE_URL` uses a shared Supavisor URL like `aws-0-REGION.pooler.supabase.com:6543`, local Uvicorn uses port `5432` instead (Supavisor Session mode). This is intended for a long-running local backend and helps when the transaction-pooler port is unreachable from the local network. The URL stored in `.env` is not edited. Vercel keeps the configured `6543` transaction pooler for serverless requests. No new environment variable is required.
+
+Supabase documents shared pooler Session mode on port 5432 and Transaction mode on port 6543: <https://supabase.com/docs/guides/database/connecting-to-postgres>. If local connection attempts still time out on 5432, test that port from the same Windows network/VPN and verify the Supabase project is active; a TCP timeout occurs before SQL authentication or schema migration and cannot be fixed by changing table columns.
+
 ## Health check
 
 The service exposes `GET /api/health` for a lightweight availability check.
