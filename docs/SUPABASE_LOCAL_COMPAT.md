@@ -28,3 +28,11 @@ No new environment variables are required. The repair is scoped to local + Supab
 The shared Supavisor pooler supports Session mode at port 5432 and Transaction mode at port 6543. The current `DATABASE_URL` in the provided v2.8.1 and v2.8.8 archives is the same transaction-pooler host/port, and `app/database.py` had the same connector settings; therefore an error that times out on all resolved IPs at port 6543 is a TCP reachability problem, not a missing-column or ORM-schema error.
 
 For a local, long-running Uvicorn process, Prismo now changes only the in-memory SQLAlchemy engine URL from 6543 to 5432 when all of these are true: process is local (not Vercel), host ends with `.pooler.supabase.com`, and configured port is 6543. Vercel stays on 6543. The `.env` file itself is not modified, no new variables are required, and username/password/database/query parameters are preserved. Direct database URLs and other providers are unaffected.
+
+## v2.8.10 — Local + Supabase backend behavior (restored from v2.8.1)
+
+This version restores the v2.8.1 startup model: PostgreSQL/Supabase is expected to have its schema already migrated, so local Uvicorn does not inspect or alter PostgreSQL tables while starting. The later automatic schema-repair helper was removed from the compatibility module. SQLite schema bootstrapping remains local-only.
+
+When `DATABASE_URL` points to `*.pooler.supabase.com:6543`, local Uvicorn uses the same Supabase Session Pooler host and credentials on port `5432`, because the local machine's TCP connectivity check indicated that port is reachable. Vercel continues to use its configured `6543` transaction-pooler URL. No environment variable is added or rewritten.
+
+If authentication still fails after this change, check the database username/password in the private `.env` and confirm that port 5432 is the Session Pooler port from the Supabase dashboard. `Test-NetConnection` only verifies TCP reachability; it cannot validate the database password or TLS.

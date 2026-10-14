@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.8.10 — Restore Local + Supabase backend behavior from v2.8.1
+
+- Restored the v2.8.1 startup contract for PostgreSQL/Supabase: no schema inspection, automatic `ALTER TABLE`, or table creation during Local+Supabase startup. Explicit Supabase migrations remain the schema-management path.
+- Restored the v2.8.1 SQLAlchemy engine/pool/session behavior, with one network-specific adjustment: local Uvicorn uses Supabase Session Pooler port 5432 when the configured pooler URL uses transaction port 6543. Vercel keeps port 6543.
+- Restored `app/services/user_settings_compat.py` to its v2.8.1 form; the later `ensure_local_supabase_provider_schema` startup repair helper is removed.
+- Made Vercel runtime detection require a truthy `VERCEL` flag plus a platform marker (`VERCEL_URL` or `VERCEL_ENV`) captured before dotenv loading, so a local `.env.local` cannot route Uvicorn to serverless settings.
+- No UI, Google OAuth, RAG, caching, threat alerts, provider settings, or widget behavior was intentionally changed.
+- Validation: 273 automated tests passed. Live Supabase database authentication could not be tested from this environment.
+
 ## v2.8.9 — Local Supabase session-pooler connectivity
 
 - For local Uvicorn only, automatically use the Supabase shared Session Pooler port 5432 when the configured URL targets the shared Transaction Pooler on port 6543.

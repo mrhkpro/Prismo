@@ -1,5 +1,13 @@
 # Git History
 
+## v2.8.10 release chain
+
+- `fix/local-supabase-v281-backend` → restores the v2.8.1 PostgreSQL startup contract: no automatic schema inspection or DDL during Local+Supabase startup.
+- The same feature branch → restores the v2.8.1 SQLAlchemy pool/session settings while routing local Supabase pooler URLs to session port 5432; Vercel remains on transaction port 6543.
+- Restored the v2.8.1 `user_settings_compat.py`; removed the later auto-repair function from the startup path.
+- Regression tests verify local/Vercel pooler routing and the no-DDL PostgreSQL startup contract.
+- Feature and docs commits merged into `main` with `--no-ff`; release tag: `v2.8.10`.
+
 تاریخچه پروژه به‌صورت feature-branch و mergeهای `--no-ff` نگه‌داری می‌شود تا هر دسته تغییر در graph قابل تشخیص باشد.
 
 ## Release line
