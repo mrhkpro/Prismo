@@ -243,7 +243,11 @@ def ensure_local_supabase_provider_schema(engine) -> list[str]:
                 "Supabase schema is not initialized: table 'user_settings' is missing. "
                 "Run supabase/migrations/001_initial_schema.sql first."
             )
-        columns = {column["name"] for column in inspector.get_columns("user_settings")}
+        column_info = {
+            column["name"]: column
+            for column in inspector.get_columns("user_settings")
+        }
+        columns = set(column_info)
         if "separate_embedding_provider" not in columns:
             connection.execute(text(
                 "ALTER TABLE user_settings "
@@ -262,27 +266,36 @@ def ensure_local_supabase_provider_schema(engine) -> list[str]:
                 "ADD COLUMN IF NOT EXISTS embedding_base_url VARCHAR(255)"
             ))
             added.append("embedding_base_url")
-        if "embedding_use_default_provider" not in columns:
+
+        embedding_selector_missing = "embedding_use_default_provider" not in columns
+        if embedding_selector_missing:
             connection.execute(text(
                 "ALTER TABLE user_settings "
                 "ADD COLUMN IF NOT EXISTS embedding_use_default_provider BOOLEAN"
             ))
             added.append("embedding_use_default_provider")
 
-        # Preserve existing choices and initialize only NULL values.
-        connection.execute(text(
-            "UPDATE user_settings "
-            "SET embedding_use_default_provider = COALESCE(use_default_provider, TRUE) "
-            "WHERE embedding_use_default_provider IS NULL"
-        ))
-        connection.execute(text(
-            "ALTER TABLE user_settings "
-            "ALTER COLUMN embedding_use_default_provider SET DEFAULT TRUE"
-        ))
-        connection.execute(text(
-            "ALTER TABLE user_settings "
-            "ALTER COLUMN embedding_use_default_provider SET NOT NULL"
-        ))
+        selector_info = column_info.get("embedding_use_default_provider", {})
+        selector_needs_normalization = (
+            embedding_selector_missing
+            or bool(selector_info.get("nullable", True))
+            or selector_info.get("default") in (None, "", "NULL")
+        )
+        if selector_needs_normalization:
+            # Preserve existing choices and initialize only NULL values.
+            connection.execute(text(
+                "UPDATE user_settings "
+                "SET embedding_use_default_provider = COALESCE(use_default_provider, TRUE) "
+                "WHERE embedding_use_default_provider IS NULL"
+            ))
+            connection.execute(text(
+                "ALTER TABLE user_settings "
+                "ALTER COLUMN embedding_use_default_provider SET DEFAULT TRUE"
+            ))
+            connection.execute(text(
+                "ALTER TABLE user_settings "
+                "ALTER COLUMN embedding_use_default_provider SET NOT NULL"
+            ))
 
     invalidate_optional_cache()
     return added
