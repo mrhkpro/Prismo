@@ -18,6 +18,7 @@ Each user can create a private knowledge base, configure an OpenAI-compatible mo
 - Embeddable widget using Shadow DOM, configurable title/message/color and cache-busted embed code.
 - Public-widget input validation, account-state checks and per-process rate limiting.
 - Admin dashboard, pagination, statistics, security flags, role management and safe impersonation.
+- Persistent prompt-risk alerts for suspected system-prompt/API-key disclosure and dangerous requests from the Test Lab or public widget; administrators sharing the same database can inspect the message and reason.
 - Centralized API errors, request IDs and request timing logs.
 - Light/dark frontend theme support, responsive UI, accessible toast notifications and fetch timeouts.
 

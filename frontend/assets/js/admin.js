@@ -326,16 +326,19 @@ function renderSecurityBanner(summary) {
   if (!banner) return;
   const latest = summary.latest;
   const onSecurityPage = document.getElementById("view-security").classList.contains("active");
-  // بنر فقط برای موارد بحرانی؛ اگر ادمین همین مورد را بسته یا صفحه‌ی امنیت باز است، نمایش داده نمی‌شود
-  if (summary.critical === 0 || !latest || onSecurityPage || dismissedId() >= latest.id) {
+  // موارد بحرانی و شدت‌بالا (از جمله درخواست‌های مخرب) به همه‌ی مدیرانِ متصل به همین دیتابیس نشان داده می‌شوند.
+  if (!latest || !["critical", "high"].includes(latest.severity) || onSecurityPage || dismissedId() >= latest.id) {
     banner.hidden = true;
     return;
   }
   const who = `@${escapeHtml(latest.owner_username)}${latest.source ? ` · ${escapeHtml(SOURCE_LABELS[latest.source] || latest.source)}` : ""}`;
+  const alertTitle = latest.severity === "critical"
+    ? `${summary.critical} هشدار بحرانی بررسی‌نشده`
+    : `${summary.high} هشدار امنیتی با شدت بالا`;
   banner.innerHTML = `
     <span class="security-banner-icon">⚠</span>
     <div class="security-banner-text">
-      <strong>${summary.critical} هشدار بحرانی بررسی‌نشده</strong>
+      <strong>${alertTitle}</strong>
       <span>آخرین: ${escapeHtml(latest.label)} — ${who}</span>
     </div>
     <div class="security-banner-actions">
@@ -358,11 +361,14 @@ async function refreshSecuritySummary(options = {}) {
     renderSecurityBadge(summary);
     renderSecurityBanner(summary);
     renderSecurityTiles(summary);
-    // اعلان زنده: فقط وقتی هشدار بحرانیِ تازه‌ای نسبت به آخرین دیده‌شده آمده و کاربر در صفحه‌ی امنیت نیست
+    // اعلان زنده برای تلاش‌های بحرانی یا پرخطر؛ همان هشدار در polling بعدی تکرار نمی‌شود.
     const latest = summary.latest;
-    if (!options.silent && previous && latest && latest.severity === "critical" && latest.id > seenId()
+    const previousLatestId = previous && previous.latest ? Number(previous.latest.id) : 0;
+    if (!options.silent && previous && latest && ["critical", "high"].includes(latest.severity)
+        && Number(latest.id) > Math.max(seenId(), previousLatestId)
         && !document.getElementById("view-security").classList.contains("active")) {
       toast(`⚠ ${latest.label} — @${latest.owner_username}`, "error");
+      setSeenId(latest.id);
     }
     if (latest && document.getElementById("view-security").classList.contains("active")) setSeenId(latest.id);
     return summary;
@@ -385,7 +391,9 @@ function renderSecurityTiles(summary) {
     <div class="stat-card"><div class="label">هشدار بحرانی</div><div class="value danger">${summary.critical}</div></div>
     <div class="stat-card"><div class="label">هشدار با شدت بالا</div><div class="value gold">${summary.high}</div></div>
     <div class="stat-card"><div class="label">شدت متوسط</div><div class="value">${summary.medium}</div></div>
-    <div class="stat-card"><div class="label">تلاش برای گرفتن سیستم‌پرامپت</div><div class="value accent">${summary.prompt_extraction}</div></div>`;
+    <div class="stat-card"><div class="label">تلاش برای گرفتن سیستم‌پرامپت</div><div class="value accent">${summary.prompt_extraction}</div></div>
+    <div class="stat-card"><div class="label">تلاش برای افشای کلید و رمز</div><div class="value danger">${summary.credential_extraction || 0}</div></div>
+    <div class="stat-card"><div class="label">درخواست‌های مخرب / دورزدن امنیت</div><div class="value gold">${summary.dangerous_actions || 0}</div></div>`;
 }
 
 let CURRENT_FLAG_FILTER = "unresolved";

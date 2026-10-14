@@ -351,20 +351,33 @@ def security_summary(db: Session = Depends(get_db), _admin: models.User = Depend
     )
     counts = {"critical": 0, "high": 0, "medium": 0}
     extraction = 0
+    credential_extraction = 0
+    dangerous_actions = 0
     latest = None
+    latest_actionable = None
     for msg_id, reason, created_at, source, username in rows:
         info = injection_scanner.describe_reason(reason)
         counts[info["severity"]] += 1
         if info["category"] == "prompt_extraction":
             extraction += 1
+        elif info["category"] == "credential_extraction":
+            credential_extraction += 1
+        elif info["category"] == "dangerous_action":
+            dangerous_actions += 1
+        alert = schemas.SecurityAlertOut(
+            id=msg_id, owner_username=username, severity=info["severity"], label=info["label"],
+            source=getattr(source, "value", source), created_at=created_at,
+        )
         if latest is None:
-            latest = schemas.SecurityAlertOut(
-                id=msg_id, owner_username=username, severity=info["severity"], label=info["label"],
-                source=getattr(source, "value", source), created_at=created_at,
-            )
+            latest = alert
+        # A newer medium-level flag must not hide a still-actionable critical/high alert
+        # from the admin banner or live notification.
+        if latest_actionable is None and info["severity"] in {"critical", "high"}:
+            latest_actionable = alert
     return schemas.SecuritySummaryOut(
         unresolved_total=len(rows), critical=counts["critical"], high=counts["high"], medium=counts["medium"],
-        prompt_extraction=extraction, latest=latest,
+        prompt_extraction=extraction, credential_extraction=credential_extraction,
+        dangerous_actions=dangerous_actions, latest=latest_actionable or latest,
     )
 
 
