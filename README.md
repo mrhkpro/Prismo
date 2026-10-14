@@ -22,9 +22,9 @@ Each user can create a private knowledge base, configure an OpenAI-compatible mo
 - Centralized API errors, request IDs and request timing logs.
 - Light/dark frontend theme support, responsive UI, accessible toast notifications and fetch timeouts.
 
-## Latest release — v2.8.9
+## Latest release — v2.8.10
 
-The v2.8.9 maintenance release addresses local Supabase connection timeouts by using the shared Supavisor Session Pooler on port 5432 when local Uvicorn is configured with the shared Transaction Pooler URL on port 6543. Vercel remains on the configured transaction-pooler port. The v2.8.7 schema-repair migration, v2.8.5 OAuth PKCE, answer cache, Vercel response behavior and admin security alerts remain intact. See [`docs/CHANGELOG_2.8.9.md`](docs/CHANGELOG_2.8.9.md), [`docs/SUPABASE_LOCAL_COMPAT.md`](docs/SUPABASE_LOCAL_COMPAT.md), and [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+The v2.8.10 maintenance release restores the Local+Supabase startup and SQLAlchemy lifecycle from v2.8.1: PostgreSQL schemas are assumed to be migrated explicitly, and the app does not inspect/alter hosted tables at startup. Local Uvicorn uses the Supabase Session Pooler on port 5432 when `DATABASE_URL` points to the shared transaction pooler on 6543; Vercel remains on 6543. Google OAuth PKCE, answer cache, Vercel response behavior, independent provider settings and admin security alerts remain intact. See [`docs/CHANGELOG_2.8.10.md`](docs/CHANGELOG_2.8.10.md), [`docs/SUPABASE_LOCAL_COMPAT.md`](docs/SUPABASE_LOCAL_COMPAT.md), and [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Architecture
 
@@ -181,7 +181,7 @@ The project uses a simple embedded vector store because the target deployment do
 If Supabase reports a missing provider column such as `separate_embedding_provider`, `embedding_api_key`, `embedding_base_url`, or `embedding_use_default_provider`, run `supabase/migrations/009_repair_all_embedding_provider_columns.sql` in Supabase SQL Editor and restart the local app. This one migration repairs all provider columns without deleting existing settings. The optional development admin bootstrap also now uses a schema-compatible settings helper, so it does not fail by eagerly loading those missing columns during startup.
 
 
-## Maintenance release v2.8.9
+## Maintenance release v2.8.10
 
 - Local Uvicorn automatically uses Supabase shared Session Pooler on port 5432 when `DATABASE_URL` points at the shared Transaction Pooler on port 6543.
 - Vercel keeps the deployment-provided transaction-pooler URL and port unchanged. No new environment variable is required.

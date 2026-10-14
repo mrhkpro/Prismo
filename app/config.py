@@ -18,7 +18,10 @@ from dotenv import load_dotenv
 # Capture the real platform-provided flag before reading local .env files.
 # `vercel env pull` creates .env.local; that file must not make a local
 # Uvicorn process behave as if it were deployed on Vercel.
-_IS_VERCEL_RUNTIME = bool(os.environ.get("VERCEL"))
+_VERCEL_FLAG = os.environ.get("VERCEL", "").strip().lower() in {"1", "true", "yes", "on"}
+_IS_VERCEL_RUNTIME = _VERCEL_FLAG and bool(
+    os.environ.get("VERCEL_URL") or os.environ.get("VERCEL_ENV")
+)
 
 
 # ============================================================
