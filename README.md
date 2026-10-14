@@ -158,9 +158,14 @@ The project uses a simple embedded vector store because the target deployment do
 
 ## احراز هویت
 
-ورود و ثبت‌نام برنامه با **نام کاربری و رمز عبور** انجام می‌شود. Supabase در استقرار ابری نقش پایگاه‌دادهٔ PostgreSQL را دارد؛ برای ورود به برنامه به Google OAuth یا Supabase Auth نیاز نیست. مسیرهای قدیمی Google OAuth در نسخهٔ 2.7.9 حذف شده‌اند.
+ورود با نام کاربری و رمز عبور همچنان فعال است و قابلیت **ادامه با گوگل** نیز از طریق Supabase Auth در کنار آن قرار دارد. جریان Google OAuth در Supabase انجام می‌شود؛ پس از بازگشت به `frontend/auth-callback.html`، توکن Supabase در بک‌اند اعتبارسنجی می‌شود و برنامه توکن نشست اختصاصی Prismo را صادر می‌کند. ورود گوگل، ورود ایمیلی/نام‌کاربری موجود را جایگزین نمی‌کند.
 
-برای تنظیم پایگاه‌دادهٔ ابری، `DATABASE_URL` و `DATABASE_MODE=supabase` (یا `DATABASE_MODE=auto` همراه با `DATABASE_URL`) را در محیط سرور قرار دهید. جزئیات اتصال و محدودیت‌های شبکه در [راهنمای استقرار](docs/DEPLOYMENT.md) آمده است. `APP_PUBLIC_URL` برای هدرهای انتساب سرویس‌دهنده‌های API استفاده می‌شود و کلید ورود یا Supabase Auth نیست.
+برای Google Login، در Supabase به `Authentication → Providers → Google` بروید و Provider گوگل را با Client ID و Client Secret که از Google Cloud ساخته‌اید فعال کنید. سپس در `Authentication → URL Configuration` مسیرهای بازگشت زیر را به Redirect URLs مجاز اضافه کنید:
+
+- `http://localhost:8000/auth-callback.html` برای اجرای محلی؛
+- `https://YOUR-DOMAIN/auth-callback.html` برای دامنهٔ نهایی.
+
+متغیرهای `SUPABASE_URL` و `SUPABASE_ANON_KEY` در سرور باید متعلق به همان پروژهٔ Supabase باشند. کلید `anon`/publishable عمومی است؛ از کلید `service_role` در مرورگر استفاده نکنید. Google Client Secret فقط در تنظیمات امن Supabase/Google Cloud نگهداری می‌شود و در فرانت‌اند قرار نمی‌گیرد. جزئیات استقرار در [راهنمای استقرار](docs/DEPLOYMENT.md) آمده است.
 
 ## مدل چت و embedding مستقل
 

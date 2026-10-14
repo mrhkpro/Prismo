@@ -41,6 +41,18 @@ class LoginRequest(BaseModel):
         return value.strip()
 
 
+class SupabaseGoogleLoginRequest(BaseModel):
+    supabase_token: str = Field(min_length=1, max_length=8192)
+
+    @field_validator("supabase_token")
+    @classmethod
+    def normalize_supabase_token(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("توکن Supabase نمی‌تواند خالی باشد.")
+        return value
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
