@@ -33,7 +33,13 @@ class FakeInspector:
 
     def get_columns(self, name):
         assert name == "user_settings"
-        return [{"name": column} for column in self.columns]
+        result = []
+        for column in self.columns:
+            row = {"name": column, "nullable": False, "default": None}
+            if column == "embedding_use_default_provider":
+                row["default"] = "true"
+            result.append(row)
+        return result
 
 
 LEGACY_COLUMNS = {
@@ -74,7 +80,8 @@ def test_local_supabase_repair_does_not_recreate_existing_columns():
     assert added == []
     sql = "\n".join(engine.connection.statements).lower()
     assert "add column if not exists" not in sql
-    assert "update user_settings" in sql
+    assert "update user_settings" not in sql
+    assert "alter column embedding_use_default_provider" not in sql
 
 
 def test_local_supabase_repair_explains_when_initial_schema_is_missing():

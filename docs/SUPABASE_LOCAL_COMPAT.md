@@ -4,7 +4,7 @@ The application keeps the explicit SQL migration flow for Vercel, but a local Py
 
 ## What it changes
 
-On startup, when `DATABASE_URL` points to PostgreSQL and `VERCEL` is not set, Prismo inspects `user_settings` and adds only missing optional embedding-provider columns:
+On startup, when `DATABASE_URL` points to PostgreSQL and the real process environment is local (the Vercel flag is captured before loading `.env` files), Prismo inspects `user_settings` and adds only missing optional embedding-provider columns. If those columns already exist and the embedding selector has its expected default/NOT NULL constraint, no DDL or backfill runs:
 - `separate_embedding_provider BOOLEAN NOT NULL DEFAULT FALSE`
 - `embedding_api_key VARCHAR(255)`
 - `embedding_base_url VARCHAR(255)`
