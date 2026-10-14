@@ -186,3 +186,4 @@ If Supabase reports a missing provider column such as `separate_embedding_provid
 - Local + Supabase startup repairs missing optional embedding-provider columns before the first ORM query. See [Supabase local compatibility](docs/SUPABASE_LOCAL_COMPAT.md).
 - Admin security alerts remain visible on the main dashboard and link directly to security review.
 - Internal page headers, settings and cards use the refreshed Prismo visual system.
+- Validation for v2.8.8: 267 automated tests passed; live Supabase connectivity depends on the local `DATABASE_URL` and database role permissions.

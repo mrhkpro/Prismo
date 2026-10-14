@@ -16,5 +16,5 @@
 ## Validation
 - Added unit tests for missing-schema detection and idempotent column repair.
 - Added a frontend contract test for the global admin-only alert and security deep-link.
-- Focused test run: 52 passed. Full suite is being validated for this release.
+- Verification: full suite **267 passed**; Python compile checks, JavaScript syntax checks, `git diff --check`, and the Local + Supabase schema-repair regression tests passed. No live Supabase credentials were available for an end-to-end remote database check.
 - No live Supabase database was available for an end-to-end DB connection test in this environment.
