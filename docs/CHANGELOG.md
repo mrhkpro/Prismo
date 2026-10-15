@@ -17,6 +17,13 @@
 
 # Changelog
 
+## v2.8.14 — Saved chat model profiles
+
+- Redesigned the saved chat model list and added explicit loading, empty, and database-migration error states.
+- Saves a chat model profile before showing a success toast; failures now explain how to repair the missing Supabase table.
+- Added idempotent migration `012_repair_saved_chat_models.sql`.
+
+
 ## v2.8.10 — Restore Local + Supabase backend behavior from v2.8.1
 
 - Restored the v2.8.1 startup contract for PostgreSQL/Supabase: no schema inspection, automatic `ALTER TABLE`, or table creation during Local+Supabase startup. Explicit Supabase migrations remain the schema-management path.

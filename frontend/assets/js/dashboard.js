@@ -416,14 +416,126 @@ document.getElementById("discoverEmbeddingModelsBtn").addEventListener("click", 
   }
 });
 
+function savedChatModelsText(fa, en) {
+  if (window.QZI18n && typeof window.QZI18n.t === "function") {
+    const translated = window.QZI18n.t(fa);
+    if (translated !== fa) return translated;
+  }
+  if (window.QZSettings && typeof window.QZSettings.isEnglish === "function" && window.QZSettings.isEnglish()) {
+    return en || fa;
+  }
+  return fa;
+}
+
+function renderSavedChatModels(models, loadError = null) {
+  const list = document.getElementById("savedChatModelsList");
+  const count = document.getElementById("savedChatModelsCount");
+  if (!list || !count) return;
+
+  list.replaceChildren();
+  const unique = new Map();
+  (models || []).forEach((entry) => {
+    if (!entry || !entry.model_id) return;
+    const key = `${entry.model_id}\u0000${entry.base_url || ""}`;
+    if (!unique.has(key)) unique.set(key, entry);
+  });
+  count.textContent = String(unique.size).replace(/[0-9]/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
+
+  if (loadError) {
+    const state = document.createElement("div");
+    state.className = "saved-chat-models-error-card";
+    state.setAttribute("role", "alert");
+    const icon = document.createElement("span");
+    icon.className = "saved-chat-models-error-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "!";
+    const copy = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = savedChatModelsText("فهرست مدل‌های ذخیره‌شده بارگذاری نشد.", "Saved models could not be loaded.");
+    const message = document.createElement("p");
+    message.textContent = loadError;
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "saved-chat-models-retry";
+    retry.textContent = savedChatModelsText("تلاش دوباره", "Retry");
+    retry.addEventListener("click", loadSavedChatModels);
+    copy.append(title, message, retry);
+    state.append(icon, copy);
+    list.appendChild(state);
+    return;
+  }
+
+  if (!unique.size) {
+    const empty = document.createElement("div");
+    empty.className = "saved-models-empty-card";
+    const icon = document.createElement("span");
+    icon.className = "saved-models-empty-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "+";
+    const copy = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = savedChatModelsText("هنوز مدلی ذخیره نشده است.", "No chat models saved yet.");
+    const tip = document.createElement("p");
+    tip.textContent = savedChatModelsText(
+      "Base URL و API Key را وارد کن، مدل‌ها را دریافت کن و سپس تنظیمات را ذخیره کن.",
+      "Enter a Base URL and API key, discover the models, then save the settings."
+    );
+    copy.append(title, tip);
+    empty.append(icon, copy);
+    list.appendChild(empty);
+    return;
+  }
+
+  unique.forEach((entry) => {
+    const card = document.createElement("article");
+    card.className = "saved-chat-model-card";
+    card.setAttribute("role", "listitem");
+
+    const top = document.createElement("div");
+    top.className = "saved-chat-model-card-top";
+    const icon = document.createElement("span");
+    icon.className = "saved-chat-model-card-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "AI";
+    const name = document.createElement("strong");
+    name.className = "saved-chat-model-card-name";
+    name.textContent = entry.model_id;
+    const badge = document.createElement("span");
+    badge.className = "saved-chat-model-card-badge";
+    badge.textContent = savedChatModelsText("ذخیره‌شده", "Saved");
+    top.append(icon, name, badge);
+    card.appendChild(top);
+
+    if (entry.base_url) {
+      const provider = document.createElement("div");
+      provider.className = "saved-chat-model-card-provider";
+      const label = document.createElement("span");
+      label.textContent = savedChatModelsText("سرویس", "Provider");
+      const url = document.createElement("code");
+      url.title = entry.base_url;
+      try {
+        const parsed = new URL(entry.base_url);
+        url.textContent = parsed.host + (parsed.pathname !== "/" ? parsed.pathname.replace(/\/$/, "") : "");
+      } catch (_) {
+        url.textContent = entry.base_url;
+      }
+      provider.append(label, url);
+      card.appendChild(provider);
+    }
+    list.appendChild(card);
+  });
+}
+
 async function loadSavedChatModels() {
+  let loadError = null;
   try {
     SAVED_CHAT_MODELS = await apiCall("/api/settings/saved-chat-models");
     if (!Array.isArray(SAVED_CHAT_MODELS)) SAVED_CHAT_MODELS = [];
-  } catch (_) {
+  } catch (err) {
     SAVED_CHAT_MODELS = [];
+    loadError = err && err.message ? err.message : savedChatModelsText("خطا در دریافت فهرست مدل‌ها.", "Could not load saved models.");
   }
-  renderSavedModelList("savedChatModelsList", "savedChatModelsCount", SAVED_CHAT_MODELS);
+  renderSavedChatModels(SAVED_CHAT_MODELS, loadError);
 }
 
 async function loadSavedEmbeddingModels() {
@@ -497,7 +609,7 @@ async function loadProviderSettings() {
 
 async function saveProvider(payload, successMessage, reload = true) {
   await apiCall("/api/settings", { method: "PUT", body: payload });
-  toast(successMessage, "success");
+  if (successMessage) toast(successMessage, "success");
   if (reload) await loadProviderSettings();
 }
 
@@ -563,13 +675,16 @@ async function saveSelectedProvider(button) {
         });
       }
     }
-    await saveProvider(payload, "منبع چت و embedding جداگانه ذخیره شد.", false);
+    // Persist the chosen model profile first. If the saved-model table is not
+    // present in Supabase, stop here with an actionable error instead of showing
+    // a successful settings toast and failing afterwards.
     if (!chatUsesDefault && chatModel && baseUrl) {
       await apiCall("/api/settings/saved-chat-models", {
         method: "POST",
         body: { model_id: chatModel, base_url: baseUrl, ...(apiKey ? { api_key: apiKey } : {}) },
       });
     }
+    await saveProvider(payload, null, false);
     if (!embeddingUsesDefault && embeddingModel && (embeddingBaseUrl || (CURRENT_SETTINGS && CURRENT_SETTINGS.base_url))) {
       await apiCall("/api/settings/saved-embedding-models/current", { method: "POST" });
     }

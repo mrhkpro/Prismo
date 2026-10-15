@@ -51,3 +51,16 @@ def test_bootstrap_seed_uses_legacy_compatible_settings_access():
     assert "user_settings_compat.ensure_settings(" in source
     assert "if not admin.settings" not in source
     assert "models.UserSettings(" not in source
+
+
+def test_saved_chat_models_repair_migration_is_idempotent_and_non_destructive():
+    migration = (
+        ROOT / "supabase" / "migrations" / "012_repair_saved_chat_models.sql"
+    ).read_text(encoding="utf-8").lower()
+    assert "create table if not exists saved_chat_models" in migration
+    assert "references users(id) on delete cascade" in migration
+    assert "create index if not exists ix_saved_chat_models_user_id" in migration
+    assert "uq_saved_chat_model_user_model unique (user_id, model_id)" in migration
+    assert "drop table" not in migration
+    assert "drop column" not in migration
+    assert "delete from" not in migration

@@ -16,7 +16,7 @@
     if (["light","dark","ocean","forest","sunset","lavender","mono","nord","amber","rose"].includes(theme)) document.documentElement.dataset.theme = theme;
   } catch (_) {}
 </script>
-<link rel="stylesheet" href="/assets/css/style.css?v=2.8.9">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.8.14">
 </head>
 <body data-theme-settings-center="1">
 
@@ -260,10 +260,22 @@
                   <div class="field span-2"><div class="status-line" id="modelDiscoveryStatus" aria-live="polite"></div></div>
                 </div>
               </div>
-              <details class="saved-models-details" id="savedChatModelsDetails">
-                <summary>مدل‌های چت ذخیره‌شدهٔ من <span id="savedChatModelsCount">۰</span></summary>
-                <div class="saved-model-pills" id="savedChatModelsList"><span class="saved-models-empty">هنوز مدلی ذخیره نشده است.</span></div>
-              </details>
+              <section class="saved-chat-models-panel" id="savedChatModelsDetails" aria-labelledby="savedChatModelsTitle">
+                <div class="saved-chat-models-panel-head">
+                  <div class="saved-chat-models-heading">
+                    <span class="saved-chat-models-heading-icon" aria-hidden="true">✦</span>
+                    <div class="saved-chat-models-heading-copy">
+                      <h3 id="savedChatModelsTitle">مدل‌های چت ذخیره‌شدهٔ من</h3>
+                      <p>اتصال‌های ذخیره‌شده برای استفادهٔ دوباره و انتخاب در Battle Mode.</p>
+                    </div>
+                  </div>
+                  <span class="saved-chat-models-count" id="savedChatModelsCount" aria-label="تعداد مدل‌های ذخیره‌شده">۰</span>
+                </div>
+                <div class="saved-chat-models-security-note"><span aria-hidden="true">♢</span><span>کلیدهای API در فهرست نمایش داده نمی‌شوند و اطلاعات هر مدل فقط برای حساب خودت نگهداری می‌شود.</span></div>
+                <div class="saved-model-pills saved-chat-models-list" id="savedChatModelsList" role="list" aria-live="polite">
+                  <div class="saved-models-empty-card"><span class="saved-models-empty-icon" aria-hidden="true">＋</span><div><strong>هنوز مدلی ذخیره نشده است.</strong><p>Base URL و API Key را وارد کن، مدل‌ها را دریافت کن و سپس تنظیمات را ذخیره کن.</p></div></div>
+                </div>
+              </section>
             </div>
           </section>
 
@@ -731,6 +743,6 @@
 <script src="/assets/js/theme.js?v=2.8.9"></script>
 <script src="/assets/js/settings.js?v=2.8.9"></script>
 <script src="/assets/js/shell.js?v=2.8.9" defer></script>
-<script src="/assets/js/dashboard.js?v=2.8.12"></script>
+<script src="/assets/js/dashboard.js?v=2.8.14"></script>
 </body>
 </html>

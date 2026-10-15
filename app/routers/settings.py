@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 from .. import models, schemas, config, i18n
 from ..database import get_db
@@ -74,9 +75,44 @@ def update_settings(
     return _to_out(settings, i18n.get_language(request))
 
 
+def _saved_chat_models_migration_error(exc: SQLAlchemyError) -> bool:
+    """Identify the common deployment case where the Supabase migration was not run."""
+    message = str(getattr(exc, "orig", exc)).lower()
+    return any(
+        marker in message
+        for marker in (
+            'relation "saved_chat_models" does not exist',
+            "relation 'saved_chat_models' does not exist",
+            "no such table: saved_chat_models",
+            "undefined table: saved_chat_models",
+        )
+    )
+
+
+def _saved_chat_models_schema_http_error() -> HTTPException:
+    return HTTPException(
+        status_code=503,
+        detail=(
+            "جدول saved_chat_models در دیتابیس وجود ندارد. فایل "
+            "supabase/migrations/012_repair_saved_chat_models.sql را یک‌بار در SQL Editor سوپابیس اجرا کن و دوباره تلاش کن."
+        ),
+    )
+
+
 @router.get("/saved-chat-models", response_model=list[schemas.SavedChatModelOut])
 def list_saved_chat_models(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    rows = db.query(models.SavedChatModel).filter(models.SavedChatModel.user_id == current_user.id).order_by(models.SavedChatModel.model_id.asc()).all()
+    try:
+        rows = (
+            db.query(models.SavedChatModel)
+            .filter(models.SavedChatModel.user_id == current_user.id)
+            .order_by(models.SavedChatModel.model_id.asc())
+            .all()
+        )
+    except SQLAlchemyError as exc:
+        db.rollback()
+        if _saved_chat_models_migration_error(exc):
+            raise _saved_chat_models_schema_http_error() from exc
+        raise
     return [{"model_id": row.model_id, "base_url": row.base_url} for row in rows]
 
 
@@ -86,15 +122,21 @@ def save_chat_model(payload: schemas.SaveChatModelRequest, current_user: models.
     key = (payload.api_key or settings.api_key or "").strip()
     if not key:
         raise HTTPException(status_code=400, detail="برای ذخیرهٔ مدل، API Key لازم است.")
-    row = db.query(models.SavedChatModel).filter_by(user_id=current_user.id, model_id=payload.model_id).first()
-    if row is None:
-        row = models.SavedChatModel(user_id=current_user.id, model_id=payload.model_id, base_url=payload.base_url, api_key=key)
-        db.add(row)
-    else:
-        row.base_url = payload.base_url
-        row.api_key = key
-    db.commit()
-    return {"model_id": row.model_id, "base_url": row.base_url}
+    try:
+        row = db.query(models.SavedChatModel).filter_by(user_id=current_user.id, model_id=payload.model_id).first()
+        if row is None:
+            row = models.SavedChatModel(user_id=current_user.id, model_id=payload.model_id, base_url=payload.base_url, api_key=key)
+            db.add(row)
+        else:
+            row.base_url = payload.base_url
+            row.api_key = key
+        db.commit()
+        return {"model_id": row.model_id, "base_url": row.base_url}
+    except SQLAlchemyError as exc:
+        db.rollback()
+        if _saved_chat_models_migration_error(exc):
+            raise _saved_chat_models_schema_http_error() from exc
+        raise
 
 
 @router.post("/discover-models", response_model=schemas.DiscoverModelsResponse)

@@ -158,7 +158,7 @@ def test_saved_custom_model_is_rehydrated_for_battle_and_english_widget_labels()
     assert 'fillModelSelect(document.getElementById("battleModelB"), battleModels' in dashboard
     assert '{ dog: "Dog", cat: "Cat", raccoon: "Raccoon" }' in dashboard
     assert 'embedCodeBox.textContent = english ? "Loading…" : "در حال بارگذاری…";' in dashboard
-    assert 'dashboard.js?v=2.8.12' in html
+    assert 'dashboard.js?v=2.8.14' in html
 
 
 def test_widget_quick_replies_do_not_keep_the_streaming_caret():
@@ -228,8 +228,10 @@ def test_vercel_rag_chat_uses_bounded_json_path_and_ready_models_are_marked_loca
     assert html.count(install_note) == 2
     assert "مدل‌های چت ذخیره‌شدهٔ من" in html and "مدل‌های Embedding ذخیره‌شدهٔ من" in html
     assert "saved-embedding-models" in js
+    assert "renderSavedChatModels(SAVED_CHAT_MODELS, loadError)" in js
+    assert "saved-chat-models-retry" in js
     assert "توجه: این مدل‌های آماده هنگام ورود و استفاده از نسخهٔ سایت کار نمی‌کنند." in translations
-    assert "/assets/js/dashboard.js?v=2.8.12" in html
+    assert "/assets/js/dashboard.js?v=2.8.14" in html
     assert "v2.8.9" in html
 
 
