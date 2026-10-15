@@ -33,6 +33,157 @@ def _sha256(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8", "replace")).hexdigest()
 
 
+# Conservative stop words for detecting a question already answered in the same
+# conversation. These are used only for conversation recall; the broader RAG
+# cache key continues to use normalize_question().
+_RECALL_STOPWORDS = {
+    "چی", "چیه", "چیست", "چه", "چرا", "چطور", "چگونه", "کجا", "کجاست", "کی", "کیه",
+    "چند", "آیا", "است", "هست", "هستش", "بود", "بوده", "باشه", "میباشد", "میشه",
+    "لطفا", "بگو", "بگید", "بهم", "من", "تو", "او", "اون", "آن", "این", "برای",
+    "از", "به", "در", "با", "را", "رو", "هم", "پس", "و", "یا", "دوباره", "مجدد",
+    "سوال", "پرسش", "جواب", "پاسخ", "what", "whats", "is", "are", "was", "were",
+    "who", "how", "where", "when", "why", "the", "a", "an", "please", "tell", "me",
+    "again", "s", "do", "does", "did", "can", "you", "of", "to", "and", "about",
+}
+
+
+def normalize_recall_question(value: str) -> str:
+    """Normalize punctuation/spacing variants for same-conversation recall."""
+    value = normalize_question(value or "")
+    digits = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+    value = value.translate(digits)
+    cleaned = []
+    for char in value:
+        category = unicodedata.category(char)
+        cleaned.append(" " if category[0] in {"P", "S", "M"} else char)
+    return " ".join("".join(cleaned).split())
+
+
+def _recall_tokens(value: str) -> set[str]:
+    tokens: set[str] = set()
+    for token in normalize_recall_question(value).split():
+        # Normalize common Persian possessive/plural forms without using an
+        # external NLP/model call. Keep a minimum 3-character stem.
+        for suffix in ("شون", "شان", "مون", "مان", "تون", "تان", "های", "ها", "شه", "ش"):
+            if token.endswith(suffix) and len(token) - len(suffix) >= 3:
+                token = token[:-len(suffix)]
+                break
+        if len(token) > 1 and token not in _RECALL_STOPWORDS:
+            tokens.add(token)
+    return tokens
+
+
+def same_question_for_recall(current: str, previous: str) -> bool:
+    """Match exact repeats and high-confidence paraphrases, not merely shared topics."""
+    current_normalized = normalize_recall_question(current)
+    previous_normalized = normalize_recall_question(previous)
+    if not current_normalized or not previous_normalized:
+        return False
+    if current_normalized == previous_normalized:
+        return True
+    current_tokens = _recall_tokens(current_normalized)
+    previous_tokens = _recall_tokens(previous_normalized)
+    # Require the same informative words. This catches phrasing changes such as
+    # "اسم ممد چیه؟" / "ممد اسمش چیست" while avoiding same-entity/different-fact
+    # errors such as name vs. age.
+    return len(current_tokens) >= 2 and current_tokens == previous_tokens
+
+
+def _fact_intents(value: str) -> set[str]:
+    tokens = _recall_tokens(value)
+    intents = set()
+    if tokens.intersection({"اسم", "نام", "name"}):
+        intents.add("name")
+    if tokens.intersection({"سن", "عمر", "سال", "age", "old"}):
+        intents.add("age")
+    if tokens.intersection({"شغل", "کار", "job", "profession", "occupation"}):
+        intents.add("work")
+    if tokens.intersection({"آدرس", "مکان", "محل", "شهر", "address", "location", "city"}):
+        intents.add("location")
+    return intents
+
+
+def _has_referential_marker(value: str) -> bool:
+    """Detect short follow-ups like Persian 'اسمش چی بود؟' or English 'his name?'."""
+    words = normalize_recall_question(value).split()
+    if any(word in {"او", "اون", "آن", "ایشون", "ایشان", "همون", "his", "her", "their", "its", "him", "them"} for word in words):
+        return True
+    return any(word.endswith("ش") and len(word) >= 4 for word in words)
+
+
+def is_short_fact_followup(value: str) -> bool:
+    """True for referential follow-ups whose fact type is explicit (name, age, etc.)."""
+    return (
+        len(_recall_tokens(value)) == 1
+        and _has_referential_marker(value)
+        and bool(_fact_intents(value))
+    )
+
+
+def same_fact_followup_for_recall(current: str, previous: str) -> bool:
+    """Match an unambiguous short pronoun follow-up to an earlier question's fact type."""
+    if not is_short_fact_followup(current):
+        return False
+    current_intents = _fact_intents(current)
+    previous_intents = _fact_intents(previous)
+    return bool(current_intents and current_intents.intersection(previous_intents))
+
+
+def find_historical_answer(db: Session, session: models.ChatSession, question: str) -> str | None:
+    """Reuse a prior answer in this exact conversation without embedding or LLM calls.
+
+    Only complete user/assistant turn pairs are considered. Flagged user messages
+    are excluded, and history is bounded so the fast path remains inexpensive.
+    """
+    if not getattr(session, "id", None) or not hasattr(db, "query"):
+        return None
+    normalized = normalize_recall_question(question)
+    if len(normalized) < 3:
+        return None
+    try:
+        rows = (
+            db.query(models.ChatMessage)
+            .filter(models.ChatMessage.session_id == session.id)
+            .order_by(models.ChatMessage.id.desc())
+            .limit(500)
+            .all()
+        )
+        rows.reverse()
+        turns: list[tuple[models.ChatMessage, models.ChatMessage]] = []
+        pending_user = None
+        for row in rows:
+            if row.role == "user":
+                pending_user = row
+            elif row.role == "assistant" and pending_user is not None:
+                turns.append((pending_user, row))
+                pending_user = None
+
+        # Newest matching answer wins if the same question was asked more than once.
+        for prior_user, prior_assistant in reversed(turns):
+            answer = (prior_assistant.content or "").strip()
+            if prior_user.is_flagged or not answer:
+                continue
+            if same_question_for_recall(question, prior_user.content or ""):
+                return answer
+
+        # For short pronoun follow-ups, only inspect the nearest prior answered
+        # fact question. Do not jump to an older person's name/age if a newer
+        # fact in the conversation may refer to someone else.
+        if is_short_fact_followup(question):
+            for prior_user, prior_assistant in reversed(turns):
+                answer = (prior_assistant.content or "").strip()
+                if prior_user.is_flagged or not answer:
+                    continue
+                previous_question = prior_user.content or ""
+                if _fact_intents(previous_question):
+                    if same_fact_followup_for_recall(question, previous_question):
+                        return answer
+                    break
+    except SQLAlchemyError as exc:
+        logger.info("conversation_memory_lookup_skipped reason=%s", type(exc).__name__)
+    return None
+
+
 def _session_context(db: Session, session: models.ChatSession, message: str) -> tuple[bool, str | None]:
     """Return (cache-safe, immediate-repeat-answer)."""
     if not getattr(session, "id", None) or not hasattr(db, "query"):

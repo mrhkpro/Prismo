@@ -162,6 +162,18 @@ def prepare_rag_chat(
             instant_reply=common_reply,
         )
 
+    # Conversation memory is checked before resolving the provider, embedding,
+    # semantic search, or generating another completion. This is session-scoped:
+    # a prior answer from a different visitor/session is never reused here.
+    historical_answer = answer_cache.find_historical_answer(db, session, user_message)
+    if historical_answer:
+        logger.info("rag_conversation_memory_hit owner_id=%s session_id=%s", owner.id, session.id)
+        return RagPlan(
+            matches=[], messages=[], provider=None, model=selected_model,
+            temperature=settings.temperature or 0.7, started=started,
+            instant_reply=historical_answer, cache_hit=True,
+        )
+
     provider = llm_client.resolve_provider(settings)
     cache_key, cache_allowed, repeated_answer = answer_cache.make_cache_key(
         db, owner, session, user_message, settings, provider, language,

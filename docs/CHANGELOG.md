@@ -1,3 +1,8 @@
+## 2.8.13
+- Added session-scoped conversation memory recall before provider resolution, embeddings, semantic retrieval, and chat completion. Exact repeats, high-confidence phrasing variants, and short unambiguous follow-ups (for example, “اسمش چی بود؟”) can reuse a prior answer after intervening turns.
+- Excluded flagged user messages and kept recall bounded to recent stored turns; different questions about the same entity are not treated as duplicates.
+- Added regression coverage proving history recall avoids new provider, embedding, and completion calls.
+
 ## 2.8.12
 - Added expandable lists of each user's saved chat and embedding models in the AI model settings section.
 - Persisted custom embedding model profiles separately; API keys are never shown in the saved model lists.

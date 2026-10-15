@@ -1,4 +1,4 @@
-Prismo v2.8.12 — Local, Local + Supabase, and Vercel
+Prismo v2.8.13 — Local, Local + Supabase, and Vercel
 
 1) Do NOT copy .venv into this package. Create it locally with setup.bat.
 2) Local run: setup.bat

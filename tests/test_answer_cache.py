@@ -102,3 +102,70 @@ def test_immediate_duplicate_in_same_session_reuses_previous_answer():
     finally:
         Base.metadata.drop_all(bind=engine)
         engine.dispose()
+
+
+def test_repeated_question_after_other_turns_uses_conversation_memory_without_network_calls():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    try:
+        with Session(engine, expire_on_commit=False) as db:
+            owner = models.User(username="memory-owner", password_hash="hash", role=models.UserRole.user, is_active=True)
+            db.add(owner)
+            db.flush()
+            doc = models.Document(user_id=owner.id, title="Names", content="Mamad's name is Hashem.")
+            db.add(doc)
+            db.flush()
+            db.add(models.Chunk(
+                document_id=doc.id, user_id=owner.id, chunk_index=0,
+                text="اسم ممد هاشم است.", embedding=json.dumps([1.0, 0.0]),
+            ))
+            db.commit()
+            chat_session = _session(db, owner.id)
+            settings = SimpleNamespace(
+                chat_model="chat-model", embedding_model="embed-model", system_prompt="Answer from docs.",
+                temperature=0.2, top_k=4, similarity_threshold=0.0,
+                use_default_provider=False, base_url="https://provider.example/v1", api_key="test-key",
+                embedding_use_default_provider=False, separate_embedding_provider=False,
+                embedding_base_url=None, embedding_api_key=None,
+            )
+            provider = llm_client.ProviderConfig(
+                base_url="https://provider.example/v1", api_key="test-key", chat_model="chat-model",
+                embedding_model="embed-model", is_default=False,
+                embedding_base_url="https://provider.example/v1", embedding_api_key="test-key",
+            )
+            with patch.object(rag_pipeline.user_settings_compat, "get", return_value=settings), \
+                 patch.object(rag_pipeline.llm_client, "resolve_provider", return_value=provider) as resolve, \
+                 patch.object(rag_pipeline.llm_client, "embed_text", return_value=[1.0, 0.0]) as embed, \
+                 patch.object(rag_pipeline.llm_client, "chat_completion", return_value="هاشم") as chat:
+                first, _ = rag_pipeline.run_rag_chat(db, owner, chat_session, "اسم ممد چیه؟", language="fa")
+                assert first == "هاشم"
+                rag_pipeline.save_turn(db, chat_session, "اسم ممد چیه؟", first)
+
+                # Several unrelated turns later, a phrasing variant should reuse
+                # the old answer before provider resolution, embeddings, or RAG.
+                rag_pipeline.save_turn(db, chat_session.id, "امروز چه خبر؟", "همه چیز خوب است.")
+                rag_pipeline.save_turn(db, chat_session.id, "یک سؤال دیگر دارم", "بفرمایید.")
+                recalled, matches = rag_pipeline.run_rag_chat(
+                    db, owner, chat_session, "ممد اسمش چیست", language="fa"
+                )
+                assert recalled == "هاشم"
+                assert matches == []
+
+                # A short contextual follow-up for the same fact is recalled too.
+                followup, _ = rag_pipeline.run_rag_chat(
+                    db, owner, chat_session, "پس اسمش چی بود؟", language="fa"
+                )
+                assert followup == "هاشم"
+                assert resolve.call_count == 1
+                assert embed.call_count == 1
+                assert chat.call_count == 1
+    finally:
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
+
+
+def test_conversation_recall_does_not_confuse_different_fact_about_same_person():
+    from app.services.answer_cache import same_question_for_recall
+
+    assert same_question_for_recall("اسم ممد چیه؟", "ممد اسمش چیست")
+    assert not same_question_for_recall("اسم ممد چیه؟", "ممد چند سالشه؟")
