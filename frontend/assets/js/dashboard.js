@@ -232,6 +232,8 @@ function setProviderMode(useDefault) {
   if (checkbox) checkbox.checked = useDefault;
   document.getElementById("defaultProviderInfo").style.display = useDefault ? "block" : "none";
   document.getElementById("customProviderPanel").style.display = useDefault ? "none" : "block";
+  const savedChatPanel = document.getElementById("savedChatModelsDetails");
+  if (savedChatPanel) savedChatPanel.style.display = useDefault ? "none" : "block";
 
   const defaultButton = document.getElementById("defaultProviderModeBtn");
   const customButton = document.getElementById("customProviderModeBtn");
@@ -258,6 +260,8 @@ function setProviderMode(useDefault) {
 function setEmbeddingProviderMode(useDefault) {
   document.getElementById("defaultEmbeddingProviderPanel").style.display = useDefault ? "block" : "none";
   document.getElementById("customEmbeddingProviderPanel").style.display = useDefault ? "none" : "block";
+  const savedEmbeddingPanel = document.getElementById("savedEmbeddingModelsDetails");
+  if (savedEmbeddingPanel) savedEmbeddingPanel.style.display = useDefault ? "none" : "block";
   const defaultButton = document.getElementById("embeddingDefaultProviderModeBtn");
   const customButton = document.getElementById("embeddingCustomProviderModeBtn");
   defaultButton.classList.toggle("active", useDefault);
@@ -685,8 +689,17 @@ async function saveSelectedProvider(button) {
       });
     }
     await saveProvider(payload, null, false);
-    if (!embeddingUsesDefault && embeddingModel && (embeddingBaseUrl || (CURRENT_SETTINGS && CURRENT_SETTINGS.base_url))) {
-      await apiCall("/api/settings/saved-embedding-models/current", { method: "POST" });
+    if (!embeddingUsesDefault && embeddingModel && (embeddingBaseUrl || baseUrl)) {
+      // Save the exact selected embedding profile. Do not reconstruct it from
+      // CURRENT_SETTINGS: the just-selected provider may differ from the old one.
+      await apiCall("/api/settings/saved-embedding-models", {
+        method: "POST",
+        body: {
+          model_id: embeddingModel,
+          base_url: embeddingBaseUrl || baseUrl,
+          ...((embeddingApiKey || apiKey) ? { api_key: embeddingApiKey || apiKey } : {}),
+        },
+      });
     }
     await loadProviderSettings();
     toast("تنظیمات ذخیره شد؛ مدل اختصاصی هم به فهرست مدل‌های ذخیره‌شده اضافه شد.", "success");

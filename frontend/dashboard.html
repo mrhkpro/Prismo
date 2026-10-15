@@ -16,7 +16,7 @@
     if (["light","dark","ocean","forest","sunset","lavender","mono","nord","amber","rose"].includes(theme)) document.documentElement.dataset.theme = theme;
   } catch (_) {}
 </script>
-<link rel="stylesheet" href="/assets/css/style.css?v=2.8.14">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.8.15">
 </head>
 <body data-theme-settings-center="1">
 
@@ -260,7 +260,7 @@
                   <div class="field span-2"><div class="status-line" id="modelDiscoveryStatus" aria-live="polite"></div></div>
                 </div>
               </div>
-              <section class="saved-chat-models-panel" id="savedChatModelsDetails" aria-labelledby="savedChatModelsTitle">
+              <section class="saved-chat-models-panel" id="savedChatModelsDetails" style="display:none;" aria-labelledby="savedChatModelsTitle">
                 <div class="saved-chat-models-panel-head">
                   <div class="saved-chat-models-heading">
                     <span class="saved-chat-models-heading-icon" aria-hidden="true">✦</span>
@@ -330,7 +330,7 @@
                   <div class="field span-2"><div class="status-line" id="embeddingModelDiscoveryStatus" aria-live="polite"></div></div>
                 </div>
               </div>
-              <details class="saved-models-details" id="savedEmbeddingModelsDetails">
+              <details class="saved-models-details" id="savedEmbeddingModelsDetails" style="display:none;">
                 <summary>مدل‌های Embedding ذخیره‌شدهٔ من <span id="savedEmbeddingModelsCount">۰</span></summary>
                 <div class="saved-model-pills" id="savedEmbeddingModelsList"><span class="saved-models-empty">هنوز مدلی ذخیره نشده است.</span></div>
               </details>
@@ -743,6 +743,6 @@
 <script src="/assets/js/theme.js?v=2.8.9"></script>
 <script src="/assets/js/settings.js?v=2.8.9"></script>
 <script src="/assets/js/shell.js?v=2.8.9" defer></script>
-<script src="/assets/js/dashboard.js?v=2.8.14"></script>
+<script src="/assets/js/dashboard.js?v=2.8.15"></script>
 </body>
 </html>

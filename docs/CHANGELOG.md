@@ -1,3 +1,9 @@
+## v2.8.15 — Saved embedding profiles and Supabase connection resilience
+
+- Fixed explicit saving of custom embedding model profiles; added migration 013 to repair/create both saved-model registries.
+- Saved-model lists are hidden when the corresponding ready/default provider mode is selected.
+- Improved SQLAlchemy pool health checks and reconnect behavior for local Supabase connections.
+
 ## 2.8.13
 - Added session-scoped conversation memory recall before provider resolution, embeddings, semantic retrieval, and chat completion. Exact repeats, high-confidence phrasing variants, and short unambiguous follow-ups (for example, “اسمش چی بود؟”) can reuse a prior answer after intervening turns.
 - Excluded flagged user messages and kept recall bounded to recent stored turns; different questions about the same entity are not treated as duplicates.

@@ -351,6 +351,25 @@ class SavedChatModelOut(BaseModel):
     base_url: str
 
 
+class SaveEmbeddingModelRequest(BaseModel):
+    model_id: str = Field(min_length=1, max_length=200)
+    base_url: str = Field(min_length=8, max_length=500)
+    api_key: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("model_id")
+    @classmethod
+    def normalize_embedding_model_id(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("base_url")
+    @classmethod
+    def normalize_embedding_base_url(cls, value: str) -> str:
+        value = value.strip().rstrip("/")
+        if not value.startswith(("http://", "https://")):
+            raise ValueError("Base URL باید با http:// یا https:// شروع شود.")
+        return value
+
+
 class SavedEmbeddingModelOut(BaseModel):
     model_id: str
     base_url: str

@@ -64,3 +64,16 @@ def test_saved_chat_models_repair_migration_is_idempotent_and_non_destructive():
     assert "drop table" not in migration
     assert "drop column" not in migration
     assert "delete from" not in migration
+
+
+def test_saved_model_registry_repair_creates_both_custom_model_tables_idempotently():
+    migration = (
+        ROOT / "supabase" / "migrations" / "013_repair_saved_model_registries.sql"
+    ).read_text(encoding="utf-8").lower()
+    assert "create table if not exists public.saved_chat_models" in migration
+    assert "create table if not exists public.saved_embedding_models" in migration
+    assert "references public.users(id) on delete cascade" in migration
+    assert "uq_saved_chat_model_user_model unique (user_id, model_id)" in migration
+    assert "uq_saved_embedding_model_profile unique (user_id, model_id, base_url)" in migration
+    assert "drop table" not in migration
+    assert "delete from" not in migration

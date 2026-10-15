@@ -86,5 +86,5 @@ class TestSavedChatModelRegistry:
         models.SavedChatModel.__table__.drop(self.engine)
         response = self.client.get("/api/settings/saved-chat-models")
         assert response.status_code == 503
-        assert "012_repair_saved_chat_models.sql" in response.json()["detail"]
+        assert "013_repair_saved_model_registries.sql" in response.json()["detail"]
         assert "SQL Editor" in response.json()["detail"] or "SQL Editor" in response.text

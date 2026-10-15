@@ -93,8 +93,28 @@ def _saved_chat_models_schema_http_error() -> HTTPException:
     return HTTPException(
         status_code=503,
         detail=(
-            "جدول saved_chat_models در دیتابیس وجود ندارد. فایل "
-            "supabase/migrations/012_repair_saved_chat_models.sql را یک‌بار در SQL Editor سوپابیس اجرا کن و دوباره تلاش کن."
+            "جدول saved_chat_models در دیتابیس وجود ندارد یا ساختار آن کامل نیست. "
+            "فایل supabase/migrations/013_repair_saved_model_registries.sql را یک‌بار در SQL Editor سوپابیس اجرا کن."
+        ),
+    )
+
+
+def _saved_embedding_models_migration_error(exc: SQLAlchemyError) -> bool:
+    message = str(getattr(exc, "orig", exc)).lower()
+    return any(marker in message for marker in (
+        'relation "saved_embedding_models" does not exist',
+        "relation 'saved_embedding_models' does not exist",
+        "no such table: saved_embedding_models",
+        "undefined table: saved_embedding_models",
+    ))
+
+
+def _saved_embedding_models_schema_http_error() -> HTTPException:
+    return HTTPException(
+        status_code=503,
+        detail=(
+            "جدول saved_embedding_models در دیتابیس وجود ندارد یا ساختار آن کامل نیست. "
+            "فایل supabase/migrations/013_repair_saved_model_registries.sql را یک‌بار در SQL Editor سوپابیس اجرا کن."
         ),
     )
 
@@ -248,18 +268,61 @@ def provider_diagnostics(current_user: models.User = Depends(get_current_user), 
 
 @router.get("/saved-embedding-models", response_model=list[schemas.SavedEmbeddingModelOut])
 def list_saved_embedding_models(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    rows = (
-        db.query(models.SavedEmbeddingModel)
-        .filter(models.SavedEmbeddingModel.user_id == current_user.id)
-        .order_by(models.SavedEmbeddingModel.model_id.asc(), models.SavedEmbeddingModel.base_url.asc())
-        .all()
-    )
+    try:
+        rows = (
+            db.query(models.SavedEmbeddingModel)
+            .filter(models.SavedEmbeddingModel.user_id == current_user.id)
+            .order_by(models.SavedEmbeddingModel.model_id.asc(), models.SavedEmbeddingModel.base_url.asc())
+            .all()
+        )
+    except SQLAlchemyError as exc:
+        db.rollback()
+        if _saved_embedding_models_migration_error(exc):
+            raise _saved_embedding_models_schema_http_error() from exc
+        raise
     return [{"model_id": row.model_id, "base_url": row.base_url} for row in rows]
+
+
+@router.post("/saved-embedding-models", response_model=schemas.SavedEmbeddingModelOut)
+def save_embedding_model(
+    payload: schemas.SaveEmbeddingModelRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Save an explicitly selected custom embedding profile without exposing its API key."""
+    settings = user_settings_compat.get(db, current_user.id)
+    key = (payload.api_key or settings.embedding_api_key or settings.api_key or "").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="برای ذخیرهٔ مدل Embedding، API Key لازم است.")
+    base_url = payload.base_url.strip().rstrip("/")
+    try:
+        row = (
+            db.query(models.SavedEmbeddingModel)
+            .filter_by(user_id=current_user.id, model_id=payload.model_id, base_url=base_url)
+            .first()
+        )
+        if row is None:
+            row = models.SavedEmbeddingModel(
+                user_id=current_user.id,
+                model_id=payload.model_id,
+                base_url=base_url,
+                api_key=key,
+            )
+            db.add(row)
+        else:
+            row.api_key = key
+        db.commit()
+        return {"model_id": row.model_id, "base_url": row.base_url}
+    except SQLAlchemyError as exc:
+        db.rollback()
+        if _saved_embedding_models_migration_error(exc):
+            raise _saved_embedding_models_schema_http_error() from exc
+        raise
 
 
 @router.post("/saved-embedding-models/current", response_model=schemas.SavedEmbeddingModelOut)
 def save_current_embedding_model(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Store the currently active custom embedding profile without exposing its key."""
+    """Backward-compatible endpoint for older dashboard clients."""
     settings = user_settings_compat.get(db, current_user.id)
     embedding_uses_default = (
         settings.embedding_use_default_provider
@@ -274,16 +337,21 @@ def save_current_embedding_model(current_user: models.User = Depends(get_current
     model_id = (settings.embedding_model or "").strip()
     if not base_url.strip() or not api_key.strip() or not model_id:
         raise HTTPException(status_code=400, detail="برای ذخیره مدل embedding، مدل، آدرس API و کلید معتبر لازم است.")
-
-    row = (
-        db.query(models.SavedEmbeddingModel)
-        .filter_by(user_id=current_user.id, model_id=model_id, base_url=base_url.strip())
-        .first()
-    )
-    if row is None:
-        row = models.SavedEmbeddingModel(user_id=current_user.id, model_id=model_id, base_url=base_url.strip(), api_key=api_key.strip())
-        db.add(row)
-    else:
-        row.api_key = api_key.strip()
-    db.commit()
-    return {"model_id": row.model_id, "base_url": row.base_url}
+    try:
+        row = (
+            db.query(models.SavedEmbeddingModel)
+            .filter_by(user_id=current_user.id, model_id=model_id, base_url=base_url.strip().rstrip("/"))
+            .first()
+        )
+        if row is None:
+            row = models.SavedEmbeddingModel(user_id=current_user.id, model_id=model_id, base_url=base_url.strip().rstrip("/"), api_key=api_key.strip())
+            db.add(row)
+        else:
+            row.api_key = api_key.strip()
+        db.commit()
+        return {"model_id": row.model_id, "base_url": row.base_url}
+    except SQLAlchemyError as exc:
+        db.rollback()
+        if _saved_embedding_models_migration_error(exc):
+            raise _saved_embedding_models_schema_http_error() from exc
+        raise
