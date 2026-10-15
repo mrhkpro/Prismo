@@ -1,3 +1,8 @@
+## 2.8.12
+- Added expandable lists of each user's saved chat and embedding models in the AI model settings section.
+- Persisted custom embedding model profiles separately; API keys are never shown in the saved model lists.
+- Clarified that built-in ready models require a local installation, with or without Supabase, and do not work from the hosted site.
+
 ## v2.8.11 — Persist multiple custom chat models per user
 
 - Added per-user saved chat model profiles so adding a second external model no longer overwrites the first model's provider credentials.

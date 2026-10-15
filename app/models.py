@@ -513,3 +513,19 @@ class AnswerCache(Base):
     answer = Column(Text, nullable=False)
     source_chunks = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime, default=utcnow, nullable=False)
+
+# ============================================================
+# SAVED EMBEDDING MODELS (per-user provider profiles)
+# ============================================================
+
+class SavedEmbeddingModel(Base):
+    __tablename__ = "saved_embedding_models"
+    __table_args__ = (UniqueConstraint("user_id", "model_id", "base_url", name="uq_saved_embedding_model_profile"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    model_id = Column(String(200), nullable=False)
+    base_url = Column(String(500), nullable=False)
+    api_key = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)

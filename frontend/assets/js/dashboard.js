@@ -7,6 +7,7 @@ if (!Auth.isLoggedIn()) location.href = "/index.html";
 let CURRENT_USER = null;
 let CURRENT_SETTINGS = null;
 let SAVED_CHAT_MODELS = [];
+let SAVED_EMBEDDING_MODELS = [];
 let CHAT_SESSION_ID = null;
 
 // Serverless Vercel: prefer the bounded JSON RAG route over provider SSE.
@@ -189,6 +190,41 @@ function fillModelSelect(selectEl, models, selected, modelInfoById = null) {
     selectEl.appendChild(opt);
   });
   selectEl.disabled = !(models && models.length);
+}
+
+function renderSavedModelList(listId, countId, models) {
+  const list = document.getElementById(listId);
+  const count = document.getElementById(countId);
+  if (!list || !count) return;
+  list.replaceChildren();
+  const unique = new Map();
+  (models || []).forEach((entry) => {
+    if (!entry || !entry.model_id) return;
+    const key = `${entry.model_id}\u0000${entry.base_url || ""}`;
+    if (!unique.has(key)) unique.set(key, entry);
+  });
+  count.textContent = String(unique.size).replace(/[0-9]/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
+  if (!unique.size) {
+    const empty = document.createElement("span");
+    empty.className = "saved-models-empty";
+    empty.textContent = window.QZI18n ? window.QZI18n.t("هنوز مدلی ذخیره نشده است.") : "هنوز مدلی ذخیره نشده است.";
+    list.appendChild(empty);
+    return;
+  }
+  unique.forEach((entry) => {
+    const pill = document.createElement("span");
+    pill.className = "saved-model-pill";
+    const modelName = document.createElement("strong");
+    modelName.textContent = entry.model_id;
+    pill.appendChild(modelName);
+    if (entry.base_url) {
+      const provider = document.createElement("small");
+      try { provider.textContent = new URL(entry.base_url).hostname; }
+      catch (_) { provider.textContent = entry.base_url; }
+      pill.appendChild(provider);
+    }
+    list.appendChild(pill);
+  });
 }
 
 function setProviderMode(useDefault) {
@@ -387,13 +423,24 @@ async function loadSavedChatModels() {
   } catch (_) {
     SAVED_CHAT_MODELS = [];
   }
+  renderSavedModelList("savedChatModelsList", "savedChatModelsCount", SAVED_CHAT_MODELS);
+}
+
+async function loadSavedEmbeddingModels() {
+  try {
+    SAVED_EMBEDDING_MODELS = await apiCall("/api/settings/saved-embedding-models");
+    if (!Array.isArray(SAVED_EMBEDDING_MODELS)) SAVED_EMBEDDING_MODELS = [];
+  } catch (_) {
+    SAVED_EMBEDDING_MODELS = [];
+  }
+  renderSavedModelList("savedEmbeddingModelsList", "savedEmbeddingModelsCount", SAVED_EMBEDDING_MODELS);
 }
 
 async function loadProviderSettings() {
   try {
     const s = await apiCall("/api/settings");
     CURRENT_SETTINGS = s;
-    await loadSavedChatModels();
+    await Promise.all([loadSavedChatModels(), loadSavedEmbeddingModels()]);
     const savedBattleA = document.getElementById("battleModelA").value;
     const savedBattleB = document.getElementById("battleModelB").value;
 
@@ -522,10 +569,11 @@ async function saveSelectedProvider(button) {
         method: "POST",
         body: { model_id: chatModel, base_url: baseUrl, ...(apiKey ? { api_key: apiKey } : {}) },
       });
-      await loadProviderSettings();
-    } else {
-      await loadProviderSettings();
     }
+    if (!embeddingUsesDefault && embeddingModel && (embeddingBaseUrl || (CURRENT_SETTINGS && CURRENT_SETTINGS.base_url))) {
+      await apiCall("/api/settings/saved-embedding-models/current", { method: "POST" });
+    }
+    await loadProviderSettings();
     toast("تنظیمات ذخیره شد؛ مدل اختصاصی هم به فهرست مدل‌های ذخیره‌شده اضافه شد.", "success");
   } catch (err) {
     toastError(err);

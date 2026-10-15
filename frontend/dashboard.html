@@ -231,7 +231,8 @@
                     <label for="chatModelSelect">مدل چت آماده</label>
                     <select id="chatModelSelect"></select>
                     <span class="field-hint">برای شروع، یک مدل آماده را انتخاب کن. نیازی به واردکردن کلید API نیست.</span>
-                    <span class="field-hint ready-model-local-note">مدل‌های آماده فقط در اجرای لوکال کار می‌کنند و در سایت Vercel در دسترس نیستند؛ برای سایت از API اختصاصی استفاده کن.</span>
+                    <span class="field-hint ready-model-local-note"><strong>توجه:</strong> این مدل‌های آماده هنگام ورود و استفاده از نسخهٔ سایت کار نمی‌کنند.</span>
+                    <span class="field-hint ready-model-install-note">برای استفاده از مدل‌های آماده، پروژه را از GitLab دریافت و نصب کن و آن را به‌صورت لوکال، با Supabase یا بدون Supabase، اجرا کن.</span>
                   </div>
                 </div>
               </div>
@@ -259,6 +260,10 @@
                   <div class="field span-2"><div class="status-line" id="modelDiscoveryStatus" aria-live="polite"></div></div>
                 </div>
               </div>
+              <details class="saved-models-details" id="savedChatModelsDetails">
+                <summary>مدل‌های چت ذخیره‌شدهٔ من <span id="savedChatModelsCount">۰</span></summary>
+                <div class="saved-model-pills" id="savedChatModelsList"><span class="saved-models-empty">هنوز مدلی ذخیره نشده است.</span></div>
+              </details>
             </div>
           </section>
 
@@ -286,7 +291,8 @@
                   <div class="field span-2">
                     <label for="embeddingModelSelect">مدل embedding آماده</label>
                     <select id="embeddingModelSelect"></select>
-                    <span class="field-hint ready-model-local-note">مدل‌های آماده فقط در اجرای لوکال کار می‌کنند و در سایت Vercel در دسترس نیستند؛ برای سایت از API اختصاصی استفاده کن.</span>
+                    <span class="field-hint ready-model-local-note"><strong>توجه:</strong> این مدل‌های آماده هنگام ورود و استفاده از نسخهٔ سایت کار نمی‌کنند.</span>
+                    <span class="field-hint ready-model-install-note">برای استفاده از مدل‌های آماده، پروژه را از GitLab دریافت و نصب کن و آن را به‌صورت لوکال، با Supabase یا بدون Supabase، اجرا کن.</span>
                   </div>
                 </div>
               </div>
@@ -312,6 +318,10 @@
                   <div class="field span-2"><div class="status-line" id="embeddingModelDiscoveryStatus" aria-live="polite"></div></div>
                 </div>
               </div>
+              <details class="saved-models-details" id="savedEmbeddingModelsDetails">
+                <summary>مدل‌های Embedding ذخیره‌شدهٔ من <span id="savedEmbeddingModelsCount">۰</span></summary>
+                <div class="saved-model-pills" id="savedEmbeddingModelsList"><span class="saved-models-empty">هنوز مدلی ذخیره نشده است.</span></div>
+              </details>
             </div>
           </section>
         </div>
@@ -721,6 +731,6 @@
 <script src="/assets/js/theme.js?v=2.8.9"></script>
 <script src="/assets/js/settings.js?v=2.8.9"></script>
 <script src="/assets/js/shell.js?v=2.8.9" defer></script>
-<script src="/assets/js/dashboard.js?v=2.8.11"></script>
+<script src="/assets/js/dashboard.js?v=2.8.12"></script>
 </body>
 </html>

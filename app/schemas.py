@@ -351,6 +351,11 @@ class SavedChatModelOut(BaseModel):
     base_url: str
 
 
+class SavedEmbeddingModelOut(BaseModel):
+    model_id: str
+    base_url: str
+
+
 class BattleRequest(BaseModel):
     model_config = {"protected_namespaces": ()}
 

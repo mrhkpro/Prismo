@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from .. import models, schemas, config, i18n
@@ -203,3 +203,45 @@ def test_connection(current_user: models.User = Depends(get_current_user), db: S
 def provider_diagnostics(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     provider = llm_client.resolve_provider(user_settings_compat.get(db, current_user.id))
     return llm_client.provider_diagnostics(provider)
+
+@router.get("/saved-embedding-models", response_model=list[schemas.SavedEmbeddingModelOut])
+def list_saved_embedding_models(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    rows = (
+        db.query(models.SavedEmbeddingModel)
+        .filter(models.SavedEmbeddingModel.user_id == current_user.id)
+        .order_by(models.SavedEmbeddingModel.model_id.asc(), models.SavedEmbeddingModel.base_url.asc())
+        .all()
+    )
+    return [{"model_id": row.model_id, "base_url": row.base_url} for row in rows]
+
+
+@router.post("/saved-embedding-models/current", response_model=schemas.SavedEmbeddingModelOut)
+def save_current_embedding_model(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Store the currently active custom embedding profile without exposing its key."""
+    settings = user_settings_compat.get(db, current_user.id)
+    embedding_uses_default = (
+        settings.embedding_use_default_provider
+        if settings.embedding_use_default_provider is not None
+        else settings.use_default_provider
+    )
+    if embedding_uses_default:
+        raise HTTPException(status_code=400, detail="مدل embedding آماده انتخاب شده است؛ مدل اختصاصی برای ذخیره وجود ندارد.")
+
+    base_url = (settings.embedding_base_url if settings.separate_embedding_provider else settings.base_url) or ""
+    api_key = (settings.embedding_api_key or (settings.api_key if not settings.use_default_provider else "")) if settings.separate_embedding_provider else (settings.api_key or "")
+    model_id = (settings.embedding_model or "").strip()
+    if not base_url.strip() or not api_key.strip() or not model_id:
+        raise HTTPException(status_code=400, detail="برای ذخیره مدل embedding، مدل، آدرس API و کلید معتبر لازم است.")
+
+    row = (
+        db.query(models.SavedEmbeddingModel)
+        .filter_by(user_id=current_user.id, model_id=model_id, base_url=base_url.strip())
+        .first()
+    )
+    if row is None:
+        row = models.SavedEmbeddingModel(user_id=current_user.id, model_id=model_id, base_url=base_url.strip(), api_key=api_key.strip())
+        db.add(row)
+    else:
+        row.api_key = api_key.strip()
+    db.commit()
+    return {"model_id": row.model_id, "base_url": row.base_url}
