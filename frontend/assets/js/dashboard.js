@@ -503,6 +503,19 @@ async function saveSelectedProvider(button) {
   const oldText = button.textContent;
   button.textContent = "در حال ذخیره…";
   try {
+    // Preserve the previously active custom model before the single active
+    // settings row is overwritten by a newly selected model/provider.
+    if (CURRENT_SETTINGS && !CURRENT_SETTINGS.use_default_provider && CURRENT_SETTINGS.chat_model && CURRENT_SETTINGS.base_url) {
+      const previousModel = CURRENT_SETTINGS.chat_model;
+      const previousBaseUrl = CURRENT_SETTINGS.base_url;
+      const changingProfile = chatUsesDefault || previousModel !== chatModel || previousBaseUrl !== baseUrl;
+      if (changingProfile) {
+        await apiCall("/api/settings/saved-chat-models", {
+          method: "POST",
+          body: { model_id: previousModel, base_url: previousBaseUrl },
+        });
+      }
+    }
     await saveProvider(payload, "منبع چت و embedding جداگانه ذخیره شد.", false);
     if (!chatUsesDefault && chatModel && baseUrl) {
       await apiCall("/api/settings/saved-chat-models", {
