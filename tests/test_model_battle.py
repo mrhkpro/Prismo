@@ -58,6 +58,16 @@ class ModelBattleTests(unittest.TestCase):
         self.assertEqual(providers_used["qwen-35b-a3b-instruct"], config.DEFAULT_PROVIDER_BASE_URL)
         self.assertEqual(result.side_a.model, "my-personal-model")
 
+    def test_battle_uses_saved_model_specific_provider_profile(self):
+        from app.routers.playground import _battle_provider_for_model
+        saved = SimpleNamespace(base_url="https://openrouter.ai/api/v1", api_key="old-key")
+        query = SimpleNamespace(filter_by=lambda **kwargs: SimpleNamespace(first=lambda: saved if kwargs == {"user_id": 44, "model_id": "cohere/command-r:free"} else None))
+        db = SimpleNamespace(query=lambda _model: query)
+        provider = _battle_provider_for_model("cohere/command-r:free", db=db, user_id=44)
+        self.assertEqual(provider.base_url, "https://openrouter.ai/api/v1")
+        self.assertEqual(provider.api_key, "old-key")
+        self.assertEqual(provider.chat_model, "cohere/command-r:free")
+
     def test_battle_rejects_custom_model_that_is_not_saved_for_this_user(self):
         from fastapi import HTTPException
         from app.routers.playground import _battle_provider_for_model

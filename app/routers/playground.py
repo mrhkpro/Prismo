@@ -259,7 +259,7 @@ def battle_stream(
     )
 
 
-def _battle_provider_for_model(model_id: str, settings=None) -> llm_client.ProviderConfig:
+def _battle_provider_for_model(model_id: str, settings=None, db=None, user_id=None) -> llm_client.ProviderConfig:
     """Resolve a model only when it is built-in or the user's saved custom model."""
     if model_id in config.DEFAULT_CHAT_MODELS:
         return llm_client.ProviderConfig(
@@ -270,17 +270,20 @@ def _battle_provider_for_model(model_id: str, settings=None) -> llm_client.Provi
             is_default=True,
         )
 
+    # A saved model has its own provider credentials, so saving a second model
+    # never overwrites the first model's connection profile.
+    if db is not None and user_id is not None:
+        saved = db.query(models.SavedChatModel).filter_by(user_id=user_id, model_id=model_id).first()
+        if saved:
+            return llm_client.ProviderConfig(
+                base_url=saved.base_url, api_key=saved.api_key, chat_model=model_id,
+                embedding_model=config.DEFAULT_EMBEDDING_MODEL, is_default=False,
+            )
     is_saved_custom_model = (
-        settings is not None
-        and not settings.use_default_provider
-        and bool(settings.base_url)
-        and bool(settings.api_key)
-        and settings.chat_model == model_id
+        settings is not None and not settings.use_default_provider
+        and bool(settings.base_url) and bool(settings.api_key) and settings.chat_model == model_id
     )
     if is_saved_custom_model:
-        # resolve_provider carries the saved Base URL/API key for this user;
-        # model IDs submitted by the browser are never used to select arbitrary
-        # provider credentials.
         return llm_client.resolve_provider(settings)
 
     raise HTTPException(status_code=400, detail="مدل باید یکی از مدل‌های آماده یا مدل اختصاصی ذخیره‌شده‌ی همین حساب باشد.")
@@ -297,6 +300,6 @@ def _battle_providers(payload: schemas.BattleRequest, current_user: models.User,
         if hasattr(db, "execute"):
             settings = user_settings_compat.get(db, current_user.id)
     return (
-        _battle_provider_for_model(payload.model_a, settings),
-        _battle_provider_for_model(payload.model_b, settings),
+        _battle_provider_for_model(payload.model_a, settings, db if hasattr(db, "query") else None, current_user.id),
+        _battle_provider_for_model(payload.model_b, settings, db if hasattr(db, "query") else None, current_user.id),
     )

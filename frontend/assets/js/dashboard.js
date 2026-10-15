@@ -6,6 +6,7 @@ if (!Auth.isLoggedIn()) location.href = "/index.html";
 
 let CURRENT_USER = null;
 let CURRENT_SETTINGS = null;
+let SAVED_CHAT_MODELS = [];
 let CHAT_SESSION_ID = null;
 
 // Serverless Vercel: prefer the bounded JSON RAG route over provider SSE.
@@ -379,10 +380,20 @@ document.getElementById("discoverEmbeddingModelsBtn").addEventListener("click", 
   }
 });
 
+async function loadSavedChatModels() {
+  try {
+    SAVED_CHAT_MODELS = await apiCall("/api/settings/saved-chat-models");
+    if (!Array.isArray(SAVED_CHAT_MODELS)) SAVED_CHAT_MODELS = [];
+  } catch (_) {
+    SAVED_CHAT_MODELS = [];
+  }
+}
+
 async function loadProviderSettings() {
   try {
     const s = await apiCall("/api/settings");
     CURRENT_SETTINGS = s;
+    await loadSavedChatModels();
     const savedBattleA = document.getElementById("battleModelA").value;
     const savedBattleB = document.getElementById("battleModelB").value;
 
@@ -413,6 +424,9 @@ async function loadProviderSettings() {
     fillModelSelect(document.getElementById("embeddingModelSelect"), s.default_embedding_models, embeddingUsesDefault ? s.embedding_model : (s.default_embedding_models || [])[0]);
 
     const battleModels = [...new Set(s.default_chat_models || [])];
+    SAVED_CHAT_MODELS.forEach((entry) => {
+      if (entry && entry.model_id && !battleModels.includes(entry.model_id)) battleModels.push(entry.model_id);
+    });
     const savedCustomModel = !chatUsesDefault && s.chat_model ? s.chat_model : "";
     if (savedCustomModel && !battleModels.includes(savedCustomModel)) battleModels.push(savedCustomModel);
     const fallbackA = (s.default_chat_models || [])[0] || battleModels[0] || "";
@@ -489,7 +503,17 @@ async function saveSelectedProvider(button) {
   const oldText = button.textContent;
   button.textContent = "در حال ذخیره…";
   try {
-    await saveProvider(payload, "منبع چت و embedding جداگانه ذخیره شد.");
+    await saveProvider(payload, "منبع چت و embedding جداگانه ذخیره شد.", false);
+    if (!chatUsesDefault && chatModel && baseUrl) {
+      await apiCall("/api/settings/saved-chat-models", {
+        method: "POST",
+        body: { model_id: chatModel, base_url: baseUrl, ...(apiKey ? { api_key: apiKey } : {}) },
+      });
+      await loadProviderSettings();
+    } else {
+      await loadProviderSettings();
+    }
+    toast("تنظیمات ذخیره شد؛ مدل اختصاصی هم به فهرست مدل‌های ذخیره‌شده اضافه شد.", "success");
   } catch (err) {
     toastError(err);
   } finally {
@@ -1074,6 +1098,7 @@ async function loadRagPromptSettings() {
   try {
     const s = await apiCall("/api/settings");
     CURRENT_SETTINGS = s;
+    await loadSavedChatModels();
     document.getElementById("systemPromptInput").value = s.system_prompt;
     document.getElementById("temperatureRange").value = s.temperature;
     document.getElementById("temperatureValue").textContent = s.temperature;

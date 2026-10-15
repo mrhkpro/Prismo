@@ -258,6 +258,23 @@ class UserSettings(Base):
 
 
 # ============================================================
+# SAVED CHAT MODELS (per-user provider profiles)
+# ============================================================
+
+class SavedChatModel(Base):
+    __tablename__ = "saved_chat_models"
+    __table_args__ = (UniqueConstraint("user_id", "model_id", name="uq_saved_chat_model_user_model"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    model_id = Column(String(200), nullable=False)
+    base_url = Column(String(500), nullable=False)
+    api_key = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+
+# ============================================================
 # DOCUMENT
 # ============================================================
 

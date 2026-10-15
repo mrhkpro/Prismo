@@ -1,3 +1,10 @@
+## v2.8.11 — Persist multiple custom chat models per user
+
+- Added per-user saved chat model profiles so adding a second external model no longer overwrites the first model's provider credentials.
+- Saving a custom chat model registers/updates its model ID, base URL and API key server-side; API keys are never returned to the browser.
+- Battle mode now resolves each saved model against its own provider profile, allowing models such as Cohere and Gamma to be compared together.
+- Added Supabase migration `010_saved_chat_models.sql`. Existing settings and chat flows are otherwise unchanged.
+
 # Changelog
 
 ## v2.8.10 — Restore Local + Supabase backend behavior from v2.8.1

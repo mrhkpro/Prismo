@@ -74,6 +74,29 @@ def update_settings(
     return _to_out(settings, i18n.get_language(request))
 
 
+@router.get("/saved-chat-models", response_model=list[schemas.SavedChatModelOut])
+def list_saved_chat_models(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    rows = db.query(models.SavedChatModel).filter(models.SavedChatModel.user_id == current_user.id).order_by(models.SavedChatModel.model_id.asc()).all()
+    return [{"model_id": row.model_id, "base_url": row.base_url} for row in rows]
+
+
+@router.post("/saved-chat-models", response_model=schemas.SavedChatModelOut)
+def save_chat_model(payload: schemas.SaveChatModelRequest, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    settings = user_settings_compat.get(db, current_user.id)
+    key = (payload.api_key or settings.api_key or "").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="برای ذخیرهٔ مدل، API Key لازم است.")
+    row = db.query(models.SavedChatModel).filter_by(user_id=current_user.id, model_id=payload.model_id).first()
+    if row is None:
+        row = models.SavedChatModel(user_id=current_user.id, model_id=payload.model_id, base_url=payload.base_url, api_key=key)
+        db.add(row)
+    else:
+        row.base_url = payload.base_url
+        row.api_key = key
+    db.commit()
+    return {"model_id": row.model_id, "base_url": row.base_url}
+
+
 @router.post("/discover-models", response_model=schemas.DiscoverModelsResponse)
 def discover_models(
     payload: schemas.DiscoverModelsRequest,
