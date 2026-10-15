@@ -75,6 +75,44 @@ class TestSavedEmbeddingModelRegistry:
         }]
         assert secret not in listing.text
 
+    def test_saved_embedding_model_can_be_deleted_by_model_and_endpoint(self):
+        saved = self.client.post(
+            "/api/settings/saved-embedding-models",
+            json={
+                "model_id": "qwen/qwen3-embedding-8b",
+                "base_url": "https://openrouter.ai/api/v1",
+                "api_key": "embedding-delete-secret",
+            },
+        )
+        assert saved.status_code == 200, saved.text
+
+        deleted = self.client.delete(
+            "/api/settings/saved-embedding-models",
+            params={
+                "model_id": "qwen/qwen3-embedding-8b",
+                "base_url": "https://openrouter.ai/api/v1/",
+            },
+        )
+        assert deleted.status_code == 200, deleted.text
+        assert deleted.json()["deleted"] is True
+        assert self.client.get("/api/settings/saved-embedding-models").json() == []
+
+    def test_embedding_delete_requires_matching_endpoint(self):
+        self.client.post(
+            "/api/settings/saved-embedding-models",
+            json={
+                "model_id": "example/embed",
+                "base_url": "https://provider.example/v1",
+                "api_key": "embedding-secret",
+            },
+        )
+        response = self.client.delete(
+            "/api/settings/saved-embedding-models",
+            params={"model_id": "example/embed", "base_url": "https://other.example/v1"},
+        )
+        assert response.status_code == 404
+        assert len(self.client.get("/api/settings/saved-embedding-models").json()) == 1
+
     def test_missing_embedding_table_returns_migration_instructions(self):
         models.SavedEmbeddingModel.__table__.drop(self.engine)
         response = self.client.get("/api/settings/saved-embedding-models")
@@ -88,3 +126,15 @@ def test_saved_model_lists_are_only_shown_for_custom_provider_modes():
     assert 'savedEmbeddingPanel.style.display = useDefault ? "none" : "block"' in dashboard
     assert 'apiCall("/api/settings/saved-embedding-models", {' in dashboard
     assert 'apiCall("/api/settings/saved-embedding-models/current"' not in dashboard
+
+
+def test_saved_model_ui_has_one_click_delete_and_collapsed_chat_registry():
+    root = Path(__file__).resolve().parents[1]
+    dashboard = (root / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    html = (root / "frontend" / "dashboard.html").read_text(encoding="utf-8")
+    assert 'className = "saved-model-delete-btn"' in dashboard
+    assert 'method: "DELETE"' in dashboard
+    assert 'id="savedChatModelsDetails"' in html
+    assert '<details class="saved-chat-models-panel" id="savedChatModelsDetails"' in html
+    assert 'class="saved-model-pills" id="savedEmbeddingModelsList" role="list"' in html
+    assert 'ai-inline-help' in html

@@ -1,3 +1,9 @@
+## v2.8.16 — Saved model deletion and cleaner AI setup
+
+- Added one-click deletion for saved chat and Embedding model profiles, scoped to the current user's records.
+- Compactened the AI setup UI, collapsed the saved chat model list by default, and made ready-model instructions expandable.
+- Automated tests cover deletion, ownership isolation and the updated UI; full suite: 288 passed.
+
 ## v2.8.15 — Saved embedding profiles and Supabase connection resilience
 
 - Fixed explicit saving of custom embedding model profiles; added migration 013 to repair/create both saved-model registries.

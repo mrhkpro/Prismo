@@ -82,6 +82,57 @@ class TestSavedChatModelRegistry:
         ]
         assert "updated-key" not in listing.text
 
+    def test_saved_chat_model_can_be_deleted_with_one_request(self):
+        saved = self.client.post(
+            "/api/settings/saved-chat-models",
+            json={
+                "model_id": "cohere/command-r",
+                "base_url": "https://openrouter.ai/api/v1",
+                "api_key": "delete-test-secret",
+            },
+        )
+        assert saved.status_code == 200, saved.text
+
+        deleted = self.client.delete(
+            "/api/settings/saved-chat-models",
+            params={"model_id": "cohere/command-r"},
+        )
+        assert deleted.status_code == 200, deleted.text
+        assert deleted.json()["deleted"] is True
+        assert self.client.get("/api/settings/saved-chat-models").json() == []
+
+    def test_chat_model_delete_is_scoped_to_current_user(self):
+        db = self.Session()
+        another_user = models.User(
+            username="another-saved-model-owner",
+            password_hash="test-hash",
+            role=models.UserRole.user,
+            is_active=True,
+        )
+        db.add(another_user)
+        db.flush()
+        db.add(models.UserSettings(user_id=another_user.id))
+        db.add(models.SavedChatModel(
+            user_id=another_user.id,
+            model_id="other/model",
+            base_url="https://example.com/v1",
+            api_key="private-key",
+        ))
+        db.commit()
+        db.close()
+
+        response = self.client.delete(
+            "/api/settings/saved-chat-models",
+            params={"model_id": "other/model"},
+        )
+        assert response.status_code == 404
+        db = self.Session()
+        try:
+            still_there = db.query(models.SavedChatModel).filter_by(user_id=another_user.id, model_id="other/model").first()
+            assert still_there is not None
+        finally:
+            db.close()
+
     def test_missing_saved_chat_table_returns_actionable_migration_instructions(self):
         models.SavedChatModel.__table__.drop(self.engine)
         response = self.client.get("/api/settings/saved-chat-models")

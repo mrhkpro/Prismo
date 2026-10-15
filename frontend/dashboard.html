@@ -16,7 +16,7 @@
     if (["light","dark","ocean","forest","sunset","lavender","mono","nord","amber","rose"].includes(theme)) document.documentElement.dataset.theme = theme;
   } catch (_) {}
 </script>
-<link rel="stylesheet" href="/assets/css/style.css?v=2.8.15">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.8.16">
 </head>
 <body data-theme-settings-center="1">
 
@@ -175,7 +175,7 @@
     <section class="view" id="view-ai-settings">
       <div class="page-head">
         <h1>مدل هوش مصنوعی</h1>
-        <p>اول مدل چت را انتخاب کن، بعد مدل embedding را؛ وقتی همه‌چیز آماده شد، تنظیمات را از انتهای صفحه ذخیره کن.</p>
+        <p>مدل چت و Embedding را انتخاب کن، سپس اتصال را ذخیره و آزمایش کن.</p>
       </div>
 
       <div class="tab-strip" role="tablist" aria-label="بخش‌های هوش مصنوعی">
@@ -186,22 +186,6 @@
       <div class="tab-pane active" id="aitab-connect">
         <input type="checkbox" id="useDefaultProviderChk" hidden>
 
-        <div class="ai-setup-steps" aria-label="مراحل تنظیم مدل">
-          <div class="ai-setup-step">
-            <span class="ai-step-number">۱</span>
-            <span class="ai-step-copy"><strong>مدل چت</strong><small>منبع و مدل پاسخ‌گویی</small></span>
-          </div>
-          <span class="ai-step-connector" aria-hidden="true"></span>
-          <div class="ai-setup-step">
-            <span class="ai-step-number">۲</span>
-            <span class="ai-step-copy"><strong>مدل embedding</strong><small>جست‌وجوی دانشنامه</small></span>
-          </div>
-          <span class="ai-step-connector" aria-hidden="true"></span>
-          <div class="ai-setup-step">
-            <span class="ai-step-number">۳</span>
-            <span class="ai-step-copy"><strong>ذخیره و تست</strong><small>در انتهای صفحه</small></span>
-          </div>
-        </div>
 
         <div class="ai-provider-stack">
           <!-- بخش اول: اتصال مدل چت -->
@@ -230,9 +214,11 @@
                   <div class="field span-2">
                     <label for="chatModelSelect">مدل چت آماده</label>
                     <select id="chatModelSelect"></select>
-                    <span class="field-hint">برای شروع، یک مدل آماده را انتخاب کن. نیازی به واردکردن کلید API نیست.</span>
-                    <span class="field-hint ready-model-local-note"><strong>توجه:</strong> این مدل‌های آماده هنگام ورود و استفاده از نسخهٔ سایت کار نمی‌کنند.</span>
-                    <span class="field-hint ready-model-install-note">برای استفاده از مدل‌های آماده، پروژه را از GitLab دریافت و نصب کن و آن را به‌صورت لوکال، با Supabase یا بدون Supabase، اجرا کن.</span>
+                    <span class="field-hint">بدون نیاز به واردکردن API Key.</span>
+                    <details class="ai-inline-help">
+                      <summary>این مدل‌ها کجا اجرا می‌شوند؟</summary>
+                      <p><strong>توجه:</strong> این مدل‌های آماده هنگام ورود و استفاده از نسخهٔ سایت کار نمی‌کنند. برای استفاده از مدل‌های آماده، پروژه را از GitLab دریافت و نصب کن و آن را به‌صورت لوکال، با Supabase یا بدون Supabase، اجرا کن.</p>
+                    </details>
                   </div>
                 </div>
               </div>
@@ -260,8 +246,8 @@
                   <div class="field span-2"><div class="status-line" id="modelDiscoveryStatus" aria-live="polite"></div></div>
                 </div>
               </div>
-              <section class="saved-chat-models-panel" id="savedChatModelsDetails" style="display:none;" aria-labelledby="savedChatModelsTitle">
-                <div class="saved-chat-models-panel-head">
+              <details class="saved-chat-models-panel" id="savedChatModelsDetails" style="display:none;">
+                <summary class="saved-chat-models-panel-head" aria-labelledby="savedChatModelsTitle">
                   <div class="saved-chat-models-heading">
                     <span class="saved-chat-models-heading-icon" aria-hidden="true">✦</span>
                     <div class="saved-chat-models-heading-copy">
@@ -270,12 +256,12 @@
                     </div>
                   </div>
                   <span class="saved-chat-models-count" id="savedChatModelsCount" aria-label="تعداد مدل‌های ذخیره‌شده">۰</span>
-                </div>
+                </summary>
                 <div class="saved-chat-models-security-note"><span aria-hidden="true">♢</span><span>کلیدهای API در فهرست نمایش داده نمی‌شوند و اطلاعات هر مدل فقط برای حساب خودت نگهداری می‌شود.</span></div>
                 <div class="saved-model-pills saved-chat-models-list" id="savedChatModelsList" role="list" aria-live="polite">
                   <div class="saved-models-empty-card"><span class="saved-models-empty-icon" aria-hidden="true">＋</span><div><strong>هنوز مدلی ذخیره نشده است.</strong><p>Base URL و API Key را وارد کن، مدل‌ها را دریافت کن و سپس تنظیمات را ذخیره کن.</p></div></div>
                 </div>
-              </section>
+              </details>
             </div>
           </section>
 
@@ -303,8 +289,10 @@
                   <div class="field span-2">
                     <label for="embeddingModelSelect">مدل embedding آماده</label>
                     <select id="embeddingModelSelect"></select>
-                    <span class="field-hint ready-model-local-note"><strong>توجه:</strong> این مدل‌های آماده هنگام ورود و استفاده از نسخهٔ سایت کار نمی‌کنند.</span>
-                    <span class="field-hint ready-model-install-note">برای استفاده از مدل‌های آماده، پروژه را از GitLab دریافت و نصب کن و آن را به‌صورت لوکال، با Supabase یا بدون Supabase، اجرا کن.</span>
+                    <details class="ai-inline-help">
+                      <summary>راهنمای اجرای مدل آماده</summary>
+                      <p><strong>توجه:</strong> این مدل‌های آماده هنگام ورود و استفاده از نسخهٔ سایت کار نمی‌کنند. برای استفاده از مدل‌های آماده، پروژه را از GitLab دریافت و نصب کن و آن را به‌صورت لوکال، با Supabase یا بدون Supabase، اجرا کن.</p>
+                    </details>
                   </div>
                 </div>
               </div>
@@ -332,7 +320,7 @@
               </div>
               <details class="saved-models-details" id="savedEmbeddingModelsDetails" style="display:none;">
                 <summary>مدل‌های Embedding ذخیره‌شدهٔ من <span id="savedEmbeddingModelsCount">۰</span></summary>
-                <div class="saved-model-pills" id="savedEmbeddingModelsList"><span class="saved-models-empty">هنوز مدلی ذخیره نشده است.</span></div>
+                <div class="saved-model-pills" id="savedEmbeddingModelsList" role="list" aria-live="polite"><span class="saved-models-empty">هنوز مدلی ذخیره نشده است.</span></div>
               </details>
             </div>
           </section>
@@ -743,6 +731,6 @@
 <script src="/assets/js/theme.js?v=2.8.9"></script>
 <script src="/assets/js/settings.js?v=2.8.9"></script>
 <script src="/assets/js/shell.js?v=2.8.9" defer></script>
-<script src="/assets/js/dashboard.js?v=2.8.15"></script>
+<script src="/assets/js/dashboard.js?v=2.8.16"></script>
 </body>
 </html>

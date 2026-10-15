@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -159,6 +159,31 @@ def save_chat_model(payload: schemas.SaveChatModelRequest, current_user: models.
         raise
 
 
+@router.delete("/saved-chat-models")
+def delete_saved_chat_model(
+    model_id: str = Query(..., min_length=1, max_length=200),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete one saved chat profile belonging to the authenticated user."""
+    try:
+        row = (
+            db.query(models.SavedChatModel)
+            .filter_by(user_id=current_user.id, model_id=model_id.strip())
+            .first()
+        )
+        if row is None:
+            raise HTTPException(status_code=404, detail="مدل ذخیره‌شده پیدا نشد.")
+        db.delete(row)
+        db.commit()
+        return {"deleted": True, "model_id": model_id.strip()}
+    except SQLAlchemyError as exc:
+        db.rollback()
+        if _saved_chat_models_migration_error(exc):
+            raise _saved_chat_models_schema_http_error() from exc
+        raise
+
+
 @router.post("/discover-models", response_model=schemas.DiscoverModelsResponse)
 def discover_models(
     payload: schemas.DiscoverModelsRequest,
@@ -281,6 +306,37 @@ def list_saved_embedding_models(current_user: models.User = Depends(get_current_
             raise _saved_embedding_models_schema_http_error() from exc
         raise
     return [{"model_id": row.model_id, "base_url": row.base_url} for row in rows]
+
+
+@router.delete("/saved-embedding-models")
+def delete_saved_embedding_model(
+    model_id: str = Query(..., min_length=1, max_length=200),
+    base_url: str = Query(..., min_length=8, max_length=500),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a saved embedding profile by model and endpoint for this user only."""
+    normalized_base_url = base_url.strip().rstrip("/")
+    try:
+        row = (
+            db.query(models.SavedEmbeddingModel)
+            .filter_by(
+                user_id=current_user.id,
+                model_id=model_id.strip(),
+                base_url=normalized_base_url,
+            )
+            .first()
+        )
+        if row is None:
+            raise HTTPException(status_code=404, detail="مدل Embedding ذخیره‌شده پیدا نشد.")
+        db.delete(row)
+        db.commit()
+        return {"deleted": True, "model_id": model_id.strip(), "base_url": normalized_base_url}
+    except SQLAlchemyError as exc:
+        db.rollback()
+        if _saved_embedding_models_migration_error(exc):
+            raise _saved_embedding_models_schema_http_error() from exc
+        raise
 
 
 @router.post("/saved-embedding-models", response_model=schemas.SavedEmbeddingModelOut)

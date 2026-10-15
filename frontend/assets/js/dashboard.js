@@ -192,7 +192,74 @@ function fillModelSelect(selectEl, models, selected, modelInfoById = null) {
   selectEl.disabled = !(models && models.length);
 }
 
-function renderSavedModelList(listId, countId, models) {
+function savedModelDeleteButton(kind, entry) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "saved-model-delete-btn";
+  button.setAttribute("aria-label", savedChatModelsText(
+    `حذف مدل ${entry.model_id}`,
+    `Delete model ${entry.model_id}`
+  ));
+  button.title = savedChatModelsText("حذف این مدل", "Delete this model");
+  button.innerHTML = '<span aria-hidden="true">×</span><span class="saved-model-delete-label"></span>';
+  button.querySelector(".saved-model-delete-label").textContent = savedChatModelsText("حذف", "Delete");
+  button.addEventListener("click", () => deleteSavedModel(kind, entry, button));
+  return button;
+}
+
+async function deleteSavedModel(kind, entry, button) {
+  if (!entry || !entry.model_id || button.disabled) return;
+  const isEmbedding = kind === "embedding";
+  const params = new URLSearchParams({ model_id: entry.model_id });
+  if (isEmbedding) params.set("base_url", entry.base_url || "");
+  const endpoint = isEmbedding ? "/api/settings/saved-embedding-models" : "/api/settings/saved-chat-models";
+  button.disabled = true;
+  button.classList.add("is-deleting");
+  button.textContent = savedChatModelsText("در حال حذف…", "Deleting…");
+  try {
+    await apiCall(`${endpoint}?${params.toString()}`, { method: "DELETE" });
+    if (isEmbedding) {
+      SAVED_EMBEDDING_MODELS = SAVED_EMBEDDING_MODELS.filter((item) =>
+        !(item.model_id === entry.model_id && (item.base_url || "").replace(/\/$/, "") === (entry.base_url || "").replace(/\/$/, ""))
+      );
+      renderSavedModelList("savedEmbeddingModelsList", "savedEmbeddingModelsCount", SAVED_EMBEDDING_MODELS, "embedding");
+    } else {
+      SAVED_CHAT_MODELS = SAVED_CHAT_MODELS.filter((item) => item.model_id !== entry.model_id);
+      renderSavedChatModels(SAVED_CHAT_MODELS);
+      refreshBattleModelOptions();
+    }
+    toast(savedChatModelsText("مدل از فهرست ذخیره‌شده حذف شد.", "Saved model deleted."), "success");
+  } catch (err) {
+    toastError(err);
+    button.disabled = false;
+    button.classList.remove("is-deleting");
+    button.innerHTML = '<span aria-hidden="true">×</span><span class="saved-model-delete-label"></span>';
+    button.querySelector(".saved-model-delete-label").textContent = savedChatModelsText("حذف", "Delete");
+  }
+}
+
+function refreshBattleModelOptions() {
+  if (!CURRENT_SETTINGS) return;
+  const settings = CURRENT_SETTINGS;
+  const models = [...new Set(settings.default_chat_models || [])];
+  SAVED_CHAT_MODELS.forEach((entry) => {
+    if (entry && entry.model_id && !models.includes(entry.model_id)) models.push(entry.model_id);
+  });
+  // Keep the active custom model selectable even if its reusable saved profile
+  // was deleted; deleting a profile must not silently change the active config.
+  const activeCustom = !settings.use_default_provider && settings.chat_model ? settings.chat_model : "";
+  if (activeCustom && !models.includes(activeCustom)) models.push(activeCustom);
+  const selectA = document.getElementById("battleModelA");
+  const selectB = document.getElementById("battleModelB");
+  const oldA = selectA.value;
+  const oldB = selectB.value;
+  const fallbackA = (settings.default_chat_models || [])[0] || models[0] || "";
+  const fallbackB = activeCustom || (settings.default_chat_models || [])[1] || fallbackA;
+  fillModelSelect(selectA, models, models.includes(oldA) ? oldA : fallbackA);
+  fillModelSelect(selectB, models, models.includes(oldB) ? oldB : fallbackB);
+}
+
+function renderSavedModelList(listId, countId, models, kind = "embedding") {
   const list = document.getElementById(listId);
   const count = document.getElementById(countId);
   if (!list || !count) return;
@@ -205,25 +272,32 @@ function renderSavedModelList(listId, countId, models) {
   });
   count.textContent = String(unique.size).replace(/[0-9]/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
   if (!unique.size) {
-    const empty = document.createElement("span");
-    empty.className = "saved-models-empty";
-    empty.textContent = window.QZI18n ? window.QZI18n.t("هنوز مدلی ذخیره نشده است.") : "هنوز مدلی ذخیره نشده است.";
+    const empty = document.createElement("div");
+    empty.className = "saved-models-empty-card compact-empty";
+    const copy = document.createElement("span");
+    copy.textContent = window.QZI18n ? window.QZI18n.t("هنوز مدلی ذخیره نشده است.") : "هنوز مدلی ذخیره نشده است.";
+    empty.appendChild(copy);
     list.appendChild(empty);
     return;
   }
   unique.forEach((entry) => {
-    const pill = document.createElement("span");
-    pill.className = "saved-model-pill";
+    const card = document.createElement("article");
+    card.className = "saved-model-pill saved-embedding-model-card";
+    card.setAttribute("role", "listitem");
+    const info = document.createElement("div");
+    info.className = "saved-model-pill-info";
     const modelName = document.createElement("strong");
     modelName.textContent = entry.model_id;
-    pill.appendChild(modelName);
+    info.appendChild(modelName);
     if (entry.base_url) {
       const provider = document.createElement("small");
-      try { provider.textContent = new URL(entry.base_url).hostname; }
+      try { provider.textContent = new URL(entry.base_url).host; }
       catch (_) { provider.textContent = entry.base_url; }
-      pill.appendChild(provider);
+      provider.title = entry.base_url;
+      info.appendChild(provider);
     }
-    list.appendChild(pill);
+    card.append(info, savedModelDeleteButton(kind, entry));
+    list.appendChild(card);
   });
 }
 
@@ -526,6 +600,10 @@ function renderSavedChatModels(models, loadError = null) {
       provider.append(label, url);
       card.appendChild(provider);
     }
+    const actions = document.createElement("div");
+    actions.className = "saved-chat-model-card-actions";
+    actions.appendChild(savedModelDeleteButton("chat", entry));
+    card.appendChild(actions);
     list.appendChild(card);
   });
 }
@@ -549,7 +627,7 @@ async function loadSavedEmbeddingModels() {
   } catch (_) {
     SAVED_EMBEDDING_MODELS = [];
   }
-  renderSavedModelList("savedEmbeddingModelsList", "savedEmbeddingModelsCount", SAVED_EMBEDDING_MODELS);
+  renderSavedModelList("savedEmbeddingModelsList", "savedEmbeddingModelsCount", SAVED_EMBEDDING_MODELS, "embedding");
 }
 
 async function loadProviderSettings() {
