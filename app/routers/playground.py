@@ -78,6 +78,7 @@ def chat_test(
         reply, matches = rag_pipeline.run_rag_chat(
             db, current_user, session, payload.message, model=selected_model,
             language=request.headers.get("X-QZ-Language", "fa"),
+            fast_mode=True,
         )
     except llm_client.LLMError:
         db.commit()  # نشست را حتی در صورت خطا نگه می‌داریم
@@ -122,7 +123,10 @@ def chat_test_stream(
             with Session(bind=bind, autoflush=False) as work_db:
                 owner = work_db.get(models.User, owner_id)
                 chat_session = work_db.get(models.ChatSession, session_id)
-                plan = rag_pipeline.prepare_rag_chat(work_db, owner, chat_session, message, model=selected_model, language=language)
+                plan = rag_pipeline.prepare_rag_chat(
+                    work_db, owner, chat_session, message,
+                    model=selected_model, language=language, fast_mode=True,
+                )
                 meta = {"session_id": session_id, "model": selected_model, "sources": streaming.sources_payload(plan.matches)}
             # اتصال دیتابیس پیش از تماس طولانی با مدل آزاد شد.
             yield streaming.sse("meta", meta)
@@ -132,11 +136,21 @@ def chat_test_stream(
                 yield streaming.sse("delta", {"t": reply or ""})
             else:
                 started = time.perf_counter()
+                first_token_ms = None
+
+                def mark_first_token() -> None:
+                    nonlocal first_token_ms
+                    if first_token_ms is None:
+                        first_token_ms = int((time.perf_counter() - started) * 1000)
+
                 pieces = llm_client.stream_chat_completion(
-                    plan.messages, plan.provider, temperature=plan.temperature, model=plan.model
+                    plan.messages, plan.provider, temperature=plan.temperature, model=plan.model,
+                    max_tokens=plan.max_output_tokens, fast_mode=plan.fast_mode,
                 )
-                yield from streaming.relay_model_stream(pieces, collected)
-                rag_pipeline.log_rag_timing(owner_id, plan, int((time.perf_counter() - started) * 1000))
+                yield from streaming.relay_model_stream(pieces, collected, on_first_delta=mark_first_token)
+                rag_pipeline.log_rag_timing(
+                    owner_id, plan, int((time.perf_counter() - started) * 1000), first_token_ms=first_token_ms,
+                )
             yield streaming.sse("done", {})
         except llm_client.LLMError as exc:
             yield streaming.sse("error", {"message": str(exc), "retry": True, "partial": bool(collected)})

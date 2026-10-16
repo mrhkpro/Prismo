@@ -99,3 +99,53 @@ class RAGPerformanceContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class FastLabModeTests(unittest.TestCase):
+    def test_fast_lab_uses_smaller_context_history_and_output_budget(self):
+        settings = SimpleNamespace(
+            chat_model="saved-model", embedding_model="embed", system_prompt="System",
+            temperature=0.7, top_k=4, similarity_threshold=0.0,
+        )
+        owner = SimpleNamespace(id=11, settings=settings)
+        history = [
+            SimpleNamespace(role=("user" if i % 2 == 0 else "assistant"), content=f"history-{i}")
+            for i in range(10)
+        ]
+        session = SimpleNamespace(id="s1", user_id=11, messages=history)
+        provider = SimpleNamespace(chat_model="saved-model", base_url="https://api.example.test/v1")
+        chunks = [
+            (SimpleNamespace(text=(f"context-{i} " + "x" * 1500), document=SimpleNamespace(title=f"Doc {i}")), 0.9 - i / 10)
+            for i in range(4)
+        ]
+        with patch.object(rag_pipeline.injection_scanner, "scan", return_value=(False, None)), \
+             patch.object(rag_pipeline.answer_cache, "find_historical_answer", return_value=None), \
+             patch.object(rag_pipeline.llm_client, "resolve_provider", return_value=provider), \
+             patch.object(rag_pipeline.llm_client, "embed_text", return_value=[0.1]), \
+             patch.object(rag_pipeline.rag_store, "search", return_value=chunks):
+            plan = rag_pipeline.prepare_rag_chat(
+                SimpleNamespace(), owner, session, "این سند درباره چیست؟", fast_mode=True,
+            )
+
+        self.assertTrue(plan.fast_mode)
+        self.assertLessEqual(plan.max_output_tokens, rag_pipeline.FAST_LAB_MAX_OUTPUT_TOKENS)
+        self.assertLessEqual(len(plan.messages) - 2, rag_pipeline.FAST_LAB_HISTORY_MESSAGES)
+        system_message = plan.messages[0]["content"]
+        context_start = system_message.index("--- دانشنامه")
+        context = system_message[context_start:]
+        self.assertLessEqual(len(context), rag_pipeline.FAST_LAB_CONTEXT_CHARS + 150)
+
+    def test_openrouter_reasoning_effort_is_lowered_only_for_fast_lab(self):
+        provider = SimpleNamespace(base_url="https://openrouter.ai/api/v1")
+        self.assertEqual(
+            rag_pipeline.llm_client._fast_reasoning_kwargs(provider, "deepseek-v4-flash-reasoning", True),
+            {"extra_body": {"reasoning": {"effort": "low"}}},
+        )
+        self.assertEqual(
+            rag_pipeline.llm_client._fast_reasoning_kwargs(provider, "deepseek-v4-flash-reasoning", False),
+            {},
+        )
+        non_openrouter = SimpleNamespace(base_url="https://api.example.test/v1")
+        self.assertEqual(
+            rag_pipeline.llm_client._fast_reasoning_kwargs(non_openrouter, "deepseek-v4-flash-reasoning", True),
+            {},
+        )

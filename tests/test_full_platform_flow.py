@@ -74,13 +74,13 @@ class PlatformTestCase(unittest.TestCase):
         def fake_embed_text(text, provider):
             return vector(text)
 
-        def fake_chat(messages, provider, temperature=0.7, model=None):
+        def fake_chat(messages, provider, temperature=0.7, model=None, max_tokens=None, fast_mode=False):
             self.chat_calls.append({"messages": messages, "provider": provider, "model": model, "temperature": temperature})
             return f"پاسخ آزمایشی ({model or provider.chat_model})"
 
         self.stream_fail_after = None  # اگر عدد باشد، پس از این تعداد تکه خطا می‌دهد
 
-        def fake_stream(messages, provider, temperature=0.7, model=None):
+        def fake_stream(messages, provider, temperature=0.7, model=None, max_tokens=None, fast_mode=False):
             self.chat_calls.append({"messages": messages, "provider": provider, "model": model, "temperature": temperature, "stream": True})
             for i, piece in enumerate(["پاسخ ", "تکه‌تکه ", f"({model or provider.chat_model})"]):
                 if self.stream_fail_after is not None and i >= self.stream_fail_after:

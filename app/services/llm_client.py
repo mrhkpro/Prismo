@@ -81,6 +81,21 @@ def normalize_base_url(base_url: str) -> str:
     return (base_url or "").strip().rstrip("/")
 
 
+
+def _fast_reasoning_kwargs(provider: ProviderConfig, model: str, enabled: bool) -> dict:
+    """Request low reasoning effort only for reasoning models routed through OpenRouter.
+
+    Battle and general chat retain provider defaults. The RAG lab uses this option
+    because its goal is a fast, practical answer grounded in retrieved documents.
+    """
+    if not enabled or "openrouter.ai" not in normalize_base_url(getattr(provider, "base_url", "")).lower():
+        return {}
+    name = (model or "").lower()
+    is_reasoning = any(token in name for token in (
+        "reasoning", "thinking", "deepseek-r1", "qwq", "/o1", "/o3", "/o4",
+    ))
+    return {"extra_body": {"reasoning": {"effort": "low"}}} if is_reasoning else {}
+
 @lru_cache(maxsize=16)
 def _cached_client(base_url: str, api_key: str) -> OpenAI:
     """Reuse warm OpenAI-compatible clients across requests in the same runtime."""
@@ -1173,7 +1188,8 @@ def _visible_message_text(message) -> str:
 
 
 def chat_completion(
-    messages: List[dict], provider: ProviderConfig, temperature: float = 0.7, model: Optional[str] = None
+    messages: List[dict], provider: ProviderConfig, temperature: float = 0.7,
+    model: Optional[str] = None, max_tokens: Optional[int] = None, fast_mode: bool = False,
 ) -> str:
     client = _client(provider.base_url, provider.api_key)
     selected_model = model or provider.chat_model
@@ -1187,7 +1203,8 @@ def chat_completion(
                 model=selected_model,
                 messages=messages,
                 temperature=temperature if attempt == 0 else min(float(temperature), 0.2),
-                max_tokens=config.AI_MAX_OUTPUT_TOKENS,
+                max_tokens=max_tokens or config.AI_MAX_OUTPUT_TOKENS,
+                **_fast_reasoning_kwargs(provider, selected_model, fast_mode),
             )
             choices = _field(response, "choices", None) or []
             choice = choices[0] if choices else None
@@ -1210,7 +1227,8 @@ def chat_completion(
 
 
 def stream_chat_completion(
-    messages: List[dict], provider: ProviderConfig, temperature: float = 0.7, model: Optional[str] = None
+    messages: List[dict], provider: ProviderConfig, temperature: float = 0.7,
+    model: Optional[str] = None, max_tokens: Optional[int] = None, fast_mode: bool = False,
 ):
     """پاسخ مدل را تکه‌تکه (به‌صورت generator از رشته‌ها) برمی‌گرداند.
 
@@ -1223,8 +1241,9 @@ def stream_chat_completion(
             model=selected_model,
             messages=messages,
             temperature=temperature,
-            max_tokens=config.AI_MAX_OUTPUT_TOKENS,
+            max_tokens=max_tokens or config.AI_MAX_OUTPUT_TOKENS,
             stream=True,
+            **_fast_reasoning_kwargs(provider, selected_model, fast_mode),
         )
         for chunk in stream:
             choices = getattr(chunk, "choices", None) or []

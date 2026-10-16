@@ -83,7 +83,7 @@ def test_widget_answers_from_real_knowledge_chunk_then_recalls_without_second_se
     chunk_phrase = "طبق دانشنامه، هاشم ۳۷ سال دارد"
     prompted_questions = []
 
-    def mocked_chat_completion(messages, _provider, temperature=None, model=None):
+    def mocked_chat_completion(messages, _provider, temperature=None, model=None, max_tokens=None, fast_mode=False):
         system_text = messages[0]["content"]
         # This is an assertion over the prompt sent to the model, not just the
         # final answer: the first widget reply really contained retrieved KB text.
