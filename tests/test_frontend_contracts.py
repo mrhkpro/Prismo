@@ -160,7 +160,7 @@ def test_saved_custom_model_is_rehydrated_for_battle_and_english_widget_labels()
     assert 'fillModelSelect(document.getElementById("battleModelB"), battleModels' in dashboard
     assert '{ dog: "Dog", cat: "Cat", raccoon: "Raccoon" }' in dashboard
     assert 'embedCodeBox.textContent = english ? "Loading…" : "در حال بارگذاری…";' in dashboard
-    assert 'dashboard.js?v=2.8.18' in html
+    assert 'dashboard.js?v=2.8.17' in html
 
 
 def test_widget_quick_replies_do_not_keep_the_streaming_caret():
@@ -224,7 +224,7 @@ def test_vercel_rag_chat_uses_bounded_json_path_and_ready_models_are_marked_loca
     note = "توجه:</strong> این مدل‌های آماده هنگام ورود و استفاده از نسخهٔ سایت کار نمی‌کنند."
     install_note = "برای استفاده از مدل‌های آماده، پروژه را از GitLab دریافت و نصب کن و آن را به‌صورت لوکال، با Supabase یا بدون Supabase، اجرا کن."
     assert "/api/runtime" in js and "PRISMO_IS_VERCEL_RUNTIME" in js
-    assert "await chatViaRequest(message, selectedModel, bubble, 26000)" in js
+    assert "await chatViaRequest(message, selectedModel, bubble, 65000)" in js
     assert 'bubble.dataset.hasText = "1";' in js and 'if (!reply) {' in js
     assert html.count(note) == 2
     assert html.count(install_note) == 2
@@ -233,20 +233,8 @@ def test_vercel_rag_chat_uses_bounded_json_path_and_ready_models_are_marked_loca
     assert "renderSavedChatModels(SAVED_CHAT_MODELS, loadError)" in js
     assert "saved-chat-models-retry" in js
     assert "توجه: این مدل‌های آماده هنگام ورود و استفاده از نسخهٔ سایت کار نمی‌کنند." in translations
-    assert "/assets/js/dashboard.js?v=2.8.18" in html
+    assert "/assets/js/dashboard.js?v=2.8.17" in html
     assert "v2.8.9" in html
-
-
-def test_lab_fast_timeout_does_not_trigger_a_second_slow_fallback_request():
-    js = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
-    api = (ROOT / "frontend" / "assets" / "js" / "api.js").read_text(encoding="utf-8")
-    backend = (ROOT / "app" / "routers" / "playground.py").read_text(encoding="utf-8")
-    assert "!err?.fastTimeout" in js
-    assert "e.fastTimeout = Boolean(data.fast_timeout)" in api
-    assert '"fast_timeout": bool(getattr(exc, "fast_timeout", False))' in backend
-    # The public widget intentionally does not opt into the lab-only fast-mode client.
-    widget = (ROOT / "app" / "routers" / "public_widget.py").read_text(encoding="utf-8")
-    assert "fast_mode=True" not in widget
 
 
 def test_empty_model_reply_is_never_rendered_as_an_empty_chat_bubble():
@@ -256,9 +244,8 @@ def test_empty_model_reply_is_never_rendered_as_an_empty_chat_bubble():
     assert 'throw new Error(window.QZI18n ? window.QZI18n.t(message) : message)' in js
     assert "The model returned no visible text." in translations
     backend = (ROOT / "app" / "services" / "llm_client.py").read_text(encoding="utf-8")
-    assert 'attempts = 1 if fast_mode else 2' in backend
+    assert 'for attempt in range(2)' in backend
     assert 'provider_empty_chat_response' in backend
-    assert 'FAST_LAB_REQUEST_TIMEOUT_SECONDS' in backend
     assert 'مدل پاسخ متنی برنگرداند' in backend
 
 

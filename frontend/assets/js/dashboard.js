@@ -1729,7 +1729,7 @@ async function sendChatMessage() {
         // Vercel serverless SSE can send metadata without a text delta. Use the
         // ordinary RAG JSON endpoint with a bounded timeout for this runtime.
         bubble.textContent = window.QZI18n ? window.QZI18n.t("در حال پاسخ…") : "در حال پاسخ…";
-        await chatViaRequest(message, selectedModel, bubble, 26000);
+        await chatViaRequest(message, selectedModel, bubble, 65000);
       } else if (window.QZSettings && window.QZSettings.get("streaming") === false) {
         await chatViaRequest(message, selectedModel, bubble);
       } else {
@@ -1746,7 +1746,7 @@ async function sendChatMessage() {
         bubble.classList.remove("pending");
       } else if (PRISMO_IS_VERCEL_RUNTIME || (window.QZSettings && window.QZSettings.get("streaming") === false)) {
         throw err;
-      } else if (bubble.dataset.hasText !== "1" && !err?.fastTimeout && (err?.streamError || STREAM_FALLBACK_STATUSES.includes(err?.status))) {
+      } else if (bubble.dataset.hasText !== "1" && (err?.streamError || STREAM_FALLBACK_STATUSES.includes(err?.status))) {
         // خطای خود Stream را مخفی می‌کنیم و مسیر معمولی را امتحان می‌کنیم.
         await chatViaRequest(message, selectedModel, bubble);
       } else if (bubble.dataset.hasText === "1") {

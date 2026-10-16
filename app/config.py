@@ -224,18 +224,6 @@ AI_MAX_RETRIES = int(
     os.getenv("AI_MAX_RETRIES", "0")
 )
 
-# آزمایشگاه تست timeout مستقل و کوتاه‌تری دارد تا خطای provider نتواند
-# کاربر را تا timeout عمومی ۱۲۰ ثانیه منتظر نگه دارد. ویجت عمومی از این مقدار استفاده نمی‌کند.
-FAST_LAB_REQUEST_TIMEOUT_SECONDS = float(
-    os.getenv("FAST_LAB_REQUEST_TIMEOUT_SECONDS", "18")
-)
-FAST_LAB_CONNECT_TIMEOUT_SECONDS = min(
-    8.0, FAST_LAB_REQUEST_TIMEOUT_SECONDS
-)
-FAST_LAB_TOTAL_TIMEOUT_SECONDS = float(
-    os.getenv("FAST_LAB_TOTAL_TIMEOUT_SECONDS", "35")
-)
-
 # ============================================================
 # کشف مدل (Discover models) برای Providerهای سفارشی
 # ============================================================

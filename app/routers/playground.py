@@ -153,10 +153,7 @@ def chat_test_stream(
                 )
             yield streaming.sse("done", {})
         except llm_client.LLMError as exc:
-            yield streaming.sse("error", {
-                "message": str(exc), "retry": True, "partial": bool(collected),
-                "fast_timeout": bool(getattr(exc, "fast_timeout", False)),
-            })
+            yield streaming.sse("error", {"message": str(exc), "retry": True, "partial": bool(collected)})
         except Exception:  # noqa: BLE001
             logger.exception("playground stream failed")
             yield streaming.sse("error", {"message": "", "retry": True, "partial": bool(collected)})

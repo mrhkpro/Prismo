@@ -94,9 +94,7 @@ def _fast_reasoning_kwargs(provider: ProviderConfig, model: str, enabled: bool) 
     is_reasoning = any(token in name for token in (
         "reasoning", "thinking", "deepseek-r1", "qwq", "/o1", "/o3", "/o4",
     ))
-    # OpenRouter supports a reasoning-token budget as well as an effort level.
-    # Limit both in the lab; public-widget and normal chat requests keep provider defaults.
-    return {"extra_body": {"reasoning": {"effort": "low", "max_tokens": 96}}} if is_reasoning else {}
+    return {"extra_body": {"reasoning": {"effort": "low"}}} if is_reasoning else {}
 
 @lru_cache(maxsize=16)
 def _cached_client(base_url: str, api_key: str) -> OpenAI:
@@ -110,21 +108,6 @@ def _cached_client(base_url: str, api_key: str) -> OpenAI:
         api_key=api_key,
         timeout=timeout,
         max_retries=config.AI_MAX_RETRIES,
-    )
-
-
-@lru_cache(maxsize=16)
-def _cached_fast_lab_client(base_url: str, api_key: str) -> OpenAI:
-    """Isolated, short-timeout client used only by the Test Lab chat path."""
-    timeout = httpx.Timeout(
-        config.FAST_LAB_REQUEST_TIMEOUT_SECONDS,
-        connect=config.FAST_LAB_CONNECT_TIMEOUT_SECONDS,
-    )
-    return OpenAI(
-        base_url=base_url,
-        api_key=api_key,
-        timeout=timeout,
-        max_retries=0,
     )
 
 
@@ -149,21 +132,16 @@ def _cached_probe_client(base_url: str, api_key: str) -> OpenAI:
     )
 
 
-def _client(
-    base_url: str, api_key: str, *, short_timeout: bool = False, fast_lab: bool = False
-) -> OpenAI:
-    """Create/reuse an OpenAI-compatible client.
+def _client(base_url: str, api_key: str, *, short_timeout: bool = False) -> OpenAI:
+    """Create/reuse an OpenAI-compatible client with serverless-friendly timeouts.
 
-    ``fast_lab`` is intentionally isolated from the public widget and general chat;
-    ``short_timeout`` remains reserved for model discovery.
+    short_timeout=True returns the probe-tuned client (see _cached_probe_client).
     """
     normalized = normalize_base_url(base_url)
     if not normalized:
         raise LLMError("آدرس سرویس (Base URL) را وارد کنید.")
     if not api_key:
         raise LLMError("API Key سرویس را وارد کنید.")
-    if fast_lab:
-        return _cached_fast_lab_client(normalized, api_key)
     if short_timeout:
         return _cached_probe_client(normalized, api_key)
     return _cached_client(normalized, api_key)
@@ -1213,20 +1191,14 @@ def chat_completion(
     messages: List[dict], provider: ProviderConfig, temperature: float = 0.7,
     model: Optional[str] = None, max_tokens: Optional[int] = None, fast_mode: bool = False,
 ) -> str:
-    client = (
-        _client(provider.base_url, provider.api_key, fast_lab=True)
-        if fast_mode else _client(provider.base_url, provider.api_key)
-    )
+    client = _client(provider.base_url, provider.api_key)
     selected_model = model or provider.chat_model
     empty_response_message = (
         "مدل پاسخ متنی برنگرداند. یک بار دیگر تلاش کنید؛ اگر تکرار شد، مدل دیگری را انتخاب یا اتصال API را بررسی کنید."
     )
     try:
         # Only retry an otherwise successful but empty model response once.
-        # Lab never repeats a slow provider call: keep general chat's one empty-response
-        # retry, but in fast mode make a single bounded attempt.
-        attempts = 1 if fast_mode else 2
-        for attempt in range(attempts):
+        for attempt in range(2):
             response = client.chat.completions.create(
                 model=selected_model,
                 messages=messages,
@@ -1248,29 +1220,10 @@ def chat_completion(
     except LLMError:
         raise
     except Exception as exc:  # noqa: BLE001
-        if fast_mode and _is_timeout_exception(exc):
-            raise LLMError(
-                f"زمان پاسخ مدل آزمایشگاه از {int(config.FAST_LAB_REQUEST_TIMEOUT_SECONDS)} ثانیه بیشتر شد. "
-                "برای آزمایشگاه یک مدل سریع‌تر از نوع Flash/Instruct انتخاب کنید."
-            ) from exc
         if isinstance(exc, APIConnectionError):
             _log_connection_error(provider.base_url, exc)
         raise LLMError(format_provider_error(exc, provider, operation="chat")) from exc
     raise LLMError(empty_response_message)
-
-
-def _is_timeout_exception(exc: Exception) -> bool:
-    """Recognize timeouts wrapped by the OpenAI SDK/httpx without logging secrets."""
-    current = exc
-    seen = set()
-    while current is not None and id(current) not in seen:
-        seen.add(id(current))
-        name = type(current).__name__.lower()
-        message = str(current).lower()
-        if "timeout" in name or "timed out" in message or "timeout" in message:
-            return True
-        current = getattr(current, "__cause__", None) or getattr(current, "__context__", None)
-    return False
 
 
 def stream_chat_completion(
@@ -1281,15 +1234,8 @@ def stream_chat_completion(
 
     خطاها همان LLMError فارسی و قابل‌نمایش‌اند؛ چه قبل از اولین تکه چه وسط پاسخ.
     """
-    client = (
-        _client(provider.base_url, provider.api_key, fast_lab=True)
-        if fast_mode else _client(provider.base_url, provider.api_key)
-    )
+    client = _client(provider.base_url, provider.api_key)
     selected_model = model or provider.chat_model
-    started = time.monotonic()
-    first_text_deadline = config.FAST_LAB_REQUEST_TIMEOUT_SECONDS
-    got_visible_text = False
-    stream = None
     try:
         stream = client.chat.completions.create(
             model=selected_model,
@@ -1300,52 +1246,14 @@ def stream_chat_completion(
             **_fast_reasoning_kwargs(provider, selected_model, fast_mode),
         )
         for chunk in stream:
-            # Bound both time-to-first-visible-text and the full lab generation.
-            # The total limit still applies if the provider trickles tiny chunks and
-            # therefore never triggers httpx's per-read timeout.
-            elapsed = time.monotonic() - started
-            if fast_mode and elapsed >= config.FAST_LAB_TOTAL_TIMEOUT_SECONDS:
-                try:
-                    stream.close()
-                except Exception:  # noqa: BLE001
-                    pass
-                error = LLMError(
-                    f"پاسخ آزمایشگاه بیش از {int(config.FAST_LAB_TOTAL_TIMEOUT_SECONDS)} ثانیه طول کشید و برای جلوگیری از انتظار طولانی متوقف شد. "
-                    "برای آزمایشگاه یک مدل سریع‌تر از نوع Flash/Instruct انتخاب کنید."
-                )
-                error.fast_timeout = True
-                raise error
-            # Some reasoning models stream only hidden reasoning for a long time and
-            # do not provide a visible answer delta. Bound this even if the connection stays active.
-            if fast_mode and not got_visible_text and elapsed >= first_text_deadline:
-                try:
-                    stream.close()
-                except Exception:  # noqa: BLE001
-                    pass
-                error = LLMError(
-                    f"مدل در {int(first_text_deadline)} ثانیه پاسخ قابل‌نمایش را شروع نکرد. "
-                    "برای آزمایشگاه یک مدل سریع‌تر از نوع Flash/Instruct انتخاب کنید."
-                )
-                error.fast_timeout = True
-                raise error
             choices = getattr(chunk, "choices", None) or []
             if not choices:
                 continue
             delta = getattr(choices[0], "delta", None)
             piece = getattr(delta, "content", None) if delta is not None else None
             if piece:
-                got_visible_text = True
                 yield piece
-    except LLMError:
-        raise
     except Exception as exc:  # noqa: BLE001
-        if fast_mode and _is_timeout_exception(exc):
-            error = LLMError(
-                f"زمان پاسخ مدل آزمایشگاه از {int(first_text_deadline)} ثانیه بیشتر شد. "
-                "برای آزمایشگاه یک مدل سریع‌تر از نوع Flash/Instruct انتخاب کنید."
-            )
-            error.fast_timeout = True
-            raise error from exc
         if isinstance(exc, APIConnectionError):
             _log_connection_error(provider.base_url, exc)
         raise LLMError(format_provider_error(exc, provider, operation="chat")) from exc
