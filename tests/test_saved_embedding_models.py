@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
+from unittest.mock import patch
 
 from app.database import Base, get_db
 from app import models
@@ -96,6 +97,41 @@ class TestSavedEmbeddingModelRegistry:
         assert deleted.status_code == 200, deleted.text
         assert deleted.json()["deleted"] is True
         assert self.client.get("/api/settings/saved-embedding-models").json() == []
+
+    def test_saved_embedding_model_can_be_activated_without_changing_chat_settings(self):
+        self.client.put("/api/settings", json={"chat_model": "keep-chat", "base_url": "https://chat.example/v1", "api_key": "chat-secret", "use_default_provider": False})
+        self.client.post("/api/settings/saved-embedding-models", json={
+            "model_id": "qwen/qwen3-embedding-8b", "base_url": "https://openrouter.ai/api/v1", "api_key": "embedding-use-secret",
+        })
+        response = self.client.post("/api/settings/saved-embedding-models/use", json={
+            "model_id": "qwen/qwen3-embedding-8b", "base_url": "https://openrouter.ai/api/v1",
+        })
+        assert response.status_code == 200, response.text
+        settings = self.client.get("/api/settings").json()
+        assert settings["chat_model"] == "keep-chat"
+        assert settings["base_url"] == "https://chat.example/v1"
+        assert settings["embedding_use_default_provider"] is False
+        assert settings["separate_embedding_provider"] is True
+        assert settings["embedding_model"] == "qwen/qwen3-embedding-8b"
+        assert settings["embedding_base_url"] == "https://openrouter.ai/api/v1"
+        assert settings["embedding_api_key_set"] is True
+        assert "embedding-use-secret" not in response.text
+
+    def test_saved_embedding_model_test_calls_embedding_endpoint_and_does_not_change_settings(self):
+        self.client.post("/api/settings/saved-embedding-models", json={
+            "model_id": "qwen/qwen3-embedding-8b", "base_url": "https://openrouter.ai/api/v1", "api_key": "embedding-test-secret",
+        })
+        with patch("app.routers.settings.llm_client.embed_text", return_value=[0.0] * 8) as embed:
+            response = self.client.post("/api/settings/saved-embedding-models/test", json={
+                "model_id": "qwen/qwen3-embedding-8b", "base_url": "https://openrouter.ai/api/v1",
+            })
+        assert response.status_code == 200, response.text
+        assert response.json()["ok"] is True
+        provider = embed.call_args.args[1]
+        assert provider.embedding_model == "qwen/qwen3-embedding-8b"
+        assert provider.embedding_base_url == "https://openrouter.ai/api/v1"
+        assert provider.embedding_api_key == "embedding-test-secret"
+        assert self.client.get("/api/settings").json()["embedding_use_default_provider"] is True
 
     def test_embedding_delete_requires_matching_endpoint(self):
         self.client.post(

@@ -238,6 +238,117 @@ async function deleteSavedModel(kind, entry, button) {
   }
 }
 
+function savedModelActionButton(kind, entry, action) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `saved-model-action-btn saved-model-${action}-btn`;
+  const labels = {
+    use: ["استفاده", "Use"],
+    test: ["تست API", "Test API"],
+  };
+  const label = labels[action] || labels.use;
+  button.textContent = savedChatModelsText(label[0], label[1]);
+  button.addEventListener("click", () => action === "use"
+    ? useSavedModel(kind, entry, button)
+    : testSavedModel(kind, entry, button));
+  return button;
+}
+
+async function useSavedModel(kind, entry, button) {
+  if (!entry || !entry.model_id || button.disabled) return;
+  const isEmbedding = kind === "embedding";
+  const endpoint = isEmbedding ? "/api/settings/saved-embedding-models/use" : "/api/settings/saved-chat-models/use";
+  const body = isEmbedding
+    ? { model_id: entry.model_id, base_url: entry.base_url }
+    : { model_id: entry.model_id };
+  const oldText = button.textContent;
+  button.disabled = true;
+  button.textContent = savedChatModelsText("در حال فعال‌سازی…", "Activating…");
+  try {
+    await apiCall(endpoint, { method: "POST", body });
+    await loadProviderSettings();
+    toast(savedChatModelsText(
+      isEmbedding ? `مدل Embedding «${entry.model_id}» فعال شد.` : `مدل چت «${entry.model_id}» فعال شد.`,
+      isEmbedding ? `Embedding model “${entry.model_id}” is now active.` : `Chat model “${entry.model_id}” is now active.`
+    ), "success");
+  } catch (err) {
+    toastError(err);
+  } finally {
+    button.disabled = false;
+    button.textContent = oldText;
+  }
+}
+
+async function testSavedModel(kind, entry, button) {
+  if (!entry || !entry.model_id || button.disabled) return;
+  const isEmbedding = kind === "embedding";
+  const endpoint = isEmbedding ? "/api/settings/saved-embedding-models/test" : "/api/settings/saved-chat-models/test";
+  const body = isEmbedding
+    ? { model_id: entry.model_id, base_url: entry.base_url }
+    : { model_id: entry.model_id };
+  const oldText = button.textContent;
+  button.disabled = true;
+  button.textContent = savedChatModelsText("در حال تست…", "Testing…");
+  try {
+    const result = await apiCall(endpoint, { method: "POST", body, timeoutMs: 45000 });
+    const message = result && result.message ? result.message : savedChatModelsText("پاسخ معتبری از سرویس دریافت نشد.", "The service returned no result.");
+    toast(`${result && result.ok ? "✓ " : "✕ "}${message}`, result && result.ok ? "success" : "error");
+  } catch (err) {
+    toastError(err);
+  } finally {
+    button.disabled = false;
+    button.textContent = oldText;
+  }
+}
+
+function activeModelEndpoint(value) {
+  if (!value) return "";
+  try {
+    const parsed = new URL(value);
+    return parsed.host + (parsed.pathname !== "/" ? parsed.pathname.replace(/\/$/, "") : "");
+  } catch (_) { return value; }
+}
+
+function renderActiveModelSummary(settings) {
+  if (!settings) return;
+  const chatDefault = Boolean(settings.use_default_provider) || !settings.api_key_set || !settings.base_url;
+  const embedMode = settings.embedding_use_default_provider == null
+    ? chatDefault : Boolean(settings.embedding_use_default_provider);
+  let embeddingDefault = embedMode;
+  let embeddingBase = "";
+  if (!embeddingDefault) {
+    if (settings.separate_embedding_provider && settings.embedding_base_url) {
+      embeddingBase = settings.embedding_base_url;
+    } else if (!chatDefault && settings.base_url) {
+      embeddingBase = settings.base_url;
+    } else {
+      // Mirror resolve_provider's safe fallback when a custom embedding profile
+      // cannot be selected independently on an older database schema.
+      embeddingDefault = true;
+    }
+  }
+  const parts = [
+    { id: "activeChatModelName", metaId: "activeChatModelMeta", badgeId: "activeChatModelBadge",
+      name: settings.chat_model || "مدل چت پیش‌فرض", meta: chatDefault ? "ارائه‌دهندهٔ آماده" : activeModelEndpoint(settings.base_url),
+      badge: chatDefault ? "آماده" : "API اختصاصی", custom: !chatDefault },
+    { id: "activeEmbeddingModelName", metaId: "activeEmbeddingModelMeta", badgeId: "activeEmbeddingModelBadge",
+      name: settings.embedding_model || "مدل Embedding پیش‌فرض",
+      meta: embeddingDefault ? "ارائه‌دهندهٔ آماده" : activeModelEndpoint(embeddingBase),
+      badge: embeddingDefault ? "آماده" : "API اختصاصی", custom: !embeddingDefault },
+  ];
+  parts.forEach((item) => {
+    const name = document.getElementById(item.id);
+    const meta = document.getElementById(item.metaId);
+    const badge = document.getElementById(item.badgeId);
+    if (name) name.textContent = item.name;
+    if (meta) meta.textContent = item.meta;
+    if (badge) {
+      badge.textContent = item.badge;
+      badge.classList.toggle("is-custom", item.custom);
+    }
+  });
+}
+
 function refreshBattleModelOptions() {
   if (!CURRENT_SETTINGS) return;
   const settings = CURRENT_SETTINGS;
@@ -296,7 +407,14 @@ function renderSavedModelList(listId, countId, models, kind = "embedding") {
       provider.title = entry.base_url;
       info.appendChild(provider);
     }
-    card.append(info, savedModelDeleteButton(kind, entry));
+    const actions = document.createElement("div");
+    actions.className = "saved-model-card-actions";
+    actions.append(
+      savedModelActionButton(kind, entry, "use"),
+      savedModelActionButton(kind, entry, "test"),
+      savedModelDeleteButton(kind, entry),
+    );
+    card.append(info, actions);
     list.appendChild(card);
   });
 }
@@ -601,8 +719,12 @@ function renderSavedChatModels(models, loadError = null) {
       card.appendChild(provider);
     }
     const actions = document.createElement("div");
-    actions.className = "saved-chat-model-card-actions";
-    actions.appendChild(savedModelDeleteButton("chat", entry));
+    actions.className = "saved-chat-model-card-actions saved-model-card-actions";
+    actions.append(
+      savedModelActionButton("chat", entry, "use"),
+      savedModelActionButton("chat", entry, "test"),
+      savedModelDeleteButton("chat", entry),
+    );
     card.appendChild(actions);
     list.appendChild(card);
   });
@@ -634,6 +756,7 @@ async function loadProviderSettings() {
   try {
     const s = await apiCall("/api/settings");
     CURRENT_SETTINGS = s;
+    renderActiveModelSummary(s);
     await Promise.all([loadSavedChatModels(), loadSavedEmbeddingModels()]);
     const savedBattleA = document.getElementById("battleModelA").value;
     const savedBattleB = document.getElementById("battleModelB").value;

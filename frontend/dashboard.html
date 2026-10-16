@@ -16,7 +16,7 @@
     if (["light","dark","ocean","forest","sunset","lavender","mono","nord","amber","rose"].includes(theme)) document.documentElement.dataset.theme = theme;
   } catch (_) {}
 </script>
-<link rel="stylesheet" href="/assets/css/style.css?v=2.8.16">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.8.17">
 </head>
 <body data-theme-settings-center="1">
 
@@ -177,6 +177,33 @@
         <h1>مدل هوش مصنوعی</h1>
         <p>مدل چت و Embedding را انتخاب کن، سپس اتصال را ذخیره و آزمایش کن.</p>
       </div>
+
+      <section class="ai-active-models" aria-label="مدل‌های فعال در حال استفاده">
+        <div class="ai-active-models-heading">
+          <span class="ai-active-live-dot" aria-hidden="true"></span>
+          <div><strong>در حال استفاده</strong><small>اتصال فعلی دستیار و جست‌وجوی دانشنامه</small></div>
+        </div>
+        <div class="ai-active-model-grid">
+          <article class="ai-active-model-card">
+            <span class="ai-active-model-icon" aria-hidden="true">✦</span>
+            <div class="ai-active-model-copy">
+              <small>مدل چت</small>
+              <strong id="activeChatModelName" dir="auto">در حال بارگذاری…</strong>
+              <span id="activeChatModelMeta" dir="auto">—</span>
+            </div>
+            <span id="activeChatModelBadge" class="ai-active-model-badge">—</span>
+          </article>
+          <article class="ai-active-model-card">
+            <span class="ai-active-model-icon ai-active-embedding-icon" aria-hidden="true">⌕</span>
+            <div class="ai-active-model-copy">
+              <small>مدل Embedding</small>
+              <strong id="activeEmbeddingModelName" dir="auto">در حال بارگذاری…</strong>
+              <span id="activeEmbeddingModelMeta" dir="auto">—</span>
+            </div>
+            <span id="activeEmbeddingModelBadge" class="ai-active-model-badge">—</span>
+          </article>
+        </div>
+      </section>
 
       <div class="tab-strip" role="tablist" aria-label="بخش‌های هوش مصنوعی">
         <div class="tab-btn active" data-aitab="connect" role="tab" tabindex="0" aria-selected="true" aria-controls="aitab-connect">تنظیم مدل‌ها</div>
@@ -731,6 +758,6 @@
 <script src="/assets/js/theme.js?v=2.8.9"></script>
 <script src="/assets/js/settings.js?v=2.8.9"></script>
 <script src="/assets/js/shell.js?v=2.8.9" defer></script>
-<script src="/assets/js/dashboard.js?v=2.8.16"></script>
+<script src="/assets/js/dashboard.js?v=2.8.17"></script>
 </body>
 </html>

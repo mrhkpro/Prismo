@@ -158,7 +158,7 @@ def test_saved_custom_model_is_rehydrated_for_battle_and_english_widget_labels()
     assert 'fillModelSelect(document.getElementById("battleModelB"), battleModels' in dashboard
     assert '{ dog: "Dog", cat: "Cat", raccoon: "Raccoon" }' in dashboard
     assert 'embedCodeBox.textContent = english ? "Loading…" : "در حال بارگذاری…";' in dashboard
-    assert 'dashboard.js?v=2.8.16' in html
+    assert 'dashboard.js?v=2.8.17' in html
 
 
 def test_widget_quick_replies_do_not_keep_the_streaming_caret():
@@ -231,7 +231,7 @@ def test_vercel_rag_chat_uses_bounded_json_path_and_ready_models_are_marked_loca
     assert "renderSavedChatModels(SAVED_CHAT_MODELS, loadError)" in js
     assert "saved-chat-models-retry" in js
     assert "توجه: این مدل‌های آماده هنگام ورود و استفاده از نسخهٔ سایت کار نمی‌کنند." in translations
-    assert "/assets/js/dashboard.js?v=2.8.16" in html
+    assert "/assets/js/dashboard.js?v=2.8.17" in html
     assert "v2.8.9" in html
 
 
@@ -286,3 +286,21 @@ def test_dashboard_shell_shows_persistent_admin_security_alert_outside_admin_pag
     assert '"/admin.html#security"' in shell
     assert '.global-threat-alert[data-severity="critical"]' in css or '.global-threat-alert[data-severity="medium"]' in css
     assert "Nav.go(requestedView)" in admin
+
+
+def test_ai_settings_shows_active_models_and_saved_model_use_test_actions():
+    html = (ROOT / "frontend" / "dashboard.html").read_text(encoding="utf-8")
+    js = (ROOT / "frontend" / "assets" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    css = (ROOT / "frontend" / "assets" / "css" / "style.css").read_text(encoding="utf-8")
+    for element_id in (
+        "activeChatModelName", "activeChatModelMeta", "activeChatModelBadge",
+        "activeEmbeddingModelName", "activeEmbeddingModelMeta", "activeEmbeddingModelBadge",
+    ):
+        assert f'id="{element_id}"' in html
+    assert '"/api/settings/saved-chat-models/use"' in js
+    assert '"/api/settings/saved-chat-models/test"' in js
+    assert '"/api/settings/saved-embedding-models/use"' in js
+    assert '"/api/settings/saved-embedding-models/test"' in js
+    assert 'savedModelActionButton(kind, entry, "use")' in js
+    assert 'savedModelActionButton(kind, entry, "test")' in js
+    assert ".ai-active-model-grid" in css and ".saved-model-action-btn" in css

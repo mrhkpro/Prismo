@@ -1,3 +1,11 @@
+## v2.8.17 — Active model status, use/test saved models, and widget RAG memory regression tests
+
+- Added a top-of-page summary showing the currently active chat and embedding model and provider endpoint.
+- Added Use and Test API actions for saved chat and embedding profiles. Each action operates on the selected user-owned profile; activating one provider does not overwrite the other provider's current settings.
+- Added saved profile action APIs and tests for connection diagnostics and embedding credentials; API keys are not returned to the frontend.
+- Added an end-to-end widget regression test using a real SQLite knowledge chunk and RAG retrieval. It asserts that the retrieved chunk is included in the first prompt and that a repeated question after two intervening turns does not resolve a provider, make another embedding, search the knowledge base, or call chat completion.
+- Full test suite: 294 passed. Live Supabase/Vercel/provider connectivity was not exercised; connection configuration was not changed.
+
 ## v2.8.16 — Saved model deletion and cleaner AI setup
 
 - Added one-click deletion for saved chat and Embedding model profiles, scoped to the current user's records.

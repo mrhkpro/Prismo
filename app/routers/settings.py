@@ -184,6 +184,68 @@ def delete_saved_chat_model(
         raise
 
 
+@router.post("/saved-chat-models/use")
+def use_saved_chat_model(
+    payload: schemas.SavedChatModelActionRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Activate a saved chat profile for the current account."""
+    try:
+        row = db.query(models.SavedChatModel).filter_by(
+            user_id=current_user.id, model_id=payload.model_id
+        ).first()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        if _saved_chat_models_migration_error(exc):
+            raise _saved_chat_models_schema_http_error() from exc
+        raise
+    if row is None:
+        raise HTTPException(status_code=404, detail="مدل چت ذخیره‌شده پیدا نشد.")
+
+    user_settings_compat.update_settings(db, current_user.id, {
+        "use_default_provider": False,
+        "base_url": row.base_url,
+        "api_key": row.api_key,
+        "chat_model": row.model_id,
+    })
+    db.commit()
+    return {"ok": True, "model_id": row.model_id, "base_url": row.base_url}
+
+
+@router.post("/saved-chat-models/test", response_model=schemas.TestConnectionResult)
+def test_saved_chat_model(
+    payload: schemas.SavedChatModelActionRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Test saved credentials without changing the active provider settings."""
+    try:
+        row = db.query(models.SavedChatModel).filter_by(
+            user_id=current_user.id, model_id=payload.model_id
+        ).first()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        if _saved_chat_models_migration_error(exc):
+            raise _saved_chat_models_schema_http_error() from exc
+        raise
+    if row is None:
+        raise HTTPException(status_code=404, detail="مدل چت ذخیره‌شده پیدا نشد.")
+
+    settings = user_settings_compat.get(db, current_user.id)
+    provider = llm_client.ProviderConfig(
+        base_url=row.base_url,
+        api_key=row.api_key,
+        chat_model=row.model_id,
+        embedding_model=settings.embedding_model,
+        is_default=False,
+        embedding_base_url=(settings.embedding_base_url if settings.separate_embedding_provider else row.base_url),
+        embedding_api_key=(settings.embedding_api_key if settings.separate_embedding_provider else row.api_key),
+    )
+    result = llm_client.provider_diagnostics(provider)
+    return schemas.TestConnectionResult(ok=bool(result.get("ok")), message=str(result.get("message") or "آزمون اتصال کامل نشد."))
+
+
 @router.post("/discover-models", response_model=schemas.DiscoverModelsResponse)
 def discover_models(
     payload: schemas.DiscoverModelsRequest,
@@ -337,6 +399,105 @@ def delete_saved_embedding_model(
         if _saved_embedding_models_migration_error(exc):
             raise _saved_embedding_models_schema_http_error() from exc
         raise
+
+
+@router.post("/saved-embedding-models/use")
+def use_saved_embedding_model(
+    payload: schemas.SavedEmbeddingModelActionRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Activate a saved embedding profile without overwriting chat settings."""
+    try:
+        row = db.query(models.SavedEmbeddingModel).filter_by(
+            user_id=current_user.id,
+            model_id=payload.model_id,
+            base_url=payload.base_url,
+        ).first()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        if _saved_embedding_models_migration_error(exc):
+            raise _saved_embedding_models_schema_http_error() from exc
+        raise
+    if row is None:
+        raise HTTPException(status_code=404, detail="مدل Embedding ذخیره‌شده پیدا نشد.")
+
+    # Re-check the actual schema because Supabase migrations can be applied while
+    # a worker is running. Never report a successful activation if the older
+    # settings schema cannot persist the independent embedding profile.
+    user_settings_compat.invalidate_optional_cache()
+    required_columns = {
+        "separate_embedding_provider", "embedding_use_default_provider",
+        "embedding_api_key", "embedding_base_url",
+    }
+    if not required_columns.issubset(user_settings_compat.optional_columns(db)):
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "برای فعال‌کردن سرویس مستقل Embedding، ستون‌های مهاجرت تنظیمات Embedding کامل نیستند. "
+                "فایل supabase/migrations/009_repair_all_embedding_provider_columns.sql را در SQL Editor سوپابیس اجرا کن."
+            ),
+        )
+    try:
+        updated = user_settings_compat.update_settings(db, current_user.id, {
+            "separate_embedding_provider": True,
+            "embedding_use_default_provider": False,
+            "embedding_base_url": row.base_url,
+            "embedding_api_key": row.api_key,
+            "embedding_model": row.model_id,
+        })
+        if not updated.separate_embedding_provider or updated.embedding_use_default_provider is not False:
+            db.rollback()
+            raise HTTPException(status_code=503, detail="تنظیمات مستقل Embedding در دیتابیس ذخیره نشد؛ migration تنظیمات را بررسی کن.")
+        db.commit()
+    except HTTPException:
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    return {"ok": True, "model_id": row.model_id, "base_url": row.base_url}
+
+
+@router.post("/saved-embedding-models/test", response_model=schemas.TestConnectionResult)
+def test_saved_embedding_model(
+    payload: schemas.SavedEmbeddingModelActionRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Test saved embedding endpoint and credentials by making an embedding request."""
+    try:
+        row = db.query(models.SavedEmbeddingModel).filter_by(
+            user_id=current_user.id,
+            model_id=payload.model_id,
+            base_url=payload.base_url,
+        ).first()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        if _saved_embedding_models_migration_error(exc):
+            raise _saved_embedding_models_schema_http_error() from exc
+        raise
+    if row is None:
+        raise HTTPException(status_code=404, detail="مدل Embedding ذخیره‌شده پیدا نشد.")
+
+    settings = user_settings_compat.get(db, current_user.id)
+    provider = llm_client.ProviderConfig(
+        base_url=settings.base_url or row.base_url,
+        api_key=settings.api_key or row.api_key,
+        chat_model=settings.chat_model,
+        embedding_model=row.model_id,
+        is_default=False,
+        embedding_base_url=row.base_url,
+        embedding_api_key=row.api_key,
+    )
+    try:
+        vector = llm_client.embed_text("Prismo API connection test", provider)
+        if not vector:
+            return schemas.TestConnectionResult(ok=False, message="سرویس Embedding پاسخ خالی برگرداند.")
+        return schemas.TestConnectionResult(ok=True, message=f"اتصال Embedding موفق است؛ بردار {len(vector)} بُعد دارد.")
+    except llm_client.LLMError as exc:
+        return schemas.TestConnectionResult(ok=False, message=str(exc)[:1000])
+    except Exception as exc:  # noqa: BLE001 - test endpoint returns a safe failure instead of a 500 page
+        return schemas.TestConnectionResult(ok=False, message=f"آزمون Embedding ناموفق بود: {str(exc)[:500]}")
 
 
 @router.post("/saved-embedding-models", response_model=schemas.SavedEmbeddingModelOut)

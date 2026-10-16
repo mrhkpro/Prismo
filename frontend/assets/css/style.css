@@ -181,6 +181,29 @@ html { scrollbar-width: thin; scrollbar-color: var(--accent-line) transparent; }
   color: var(--text-muted);
   line-height: 1.9;
 }
+/* Current-model status at the top of the AI settings page. */
+.ai-active-models {
+  display:grid; gap:12px; margin:0 0 18px; padding:15px;
+  border:1px solid var(--border); border-radius:16px;
+  background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--bg-elevated)), var(--bg-elevated-2));
+  box-shadow:var(--shadow-card);
+}
+.ai-active-models-heading { display:flex; align-items:center; gap:10px; color:var(--text); }
+.ai-active-live-dot { width:9px; height:9px; flex:0 0 9px; border-radius:50%; background:var(--success); box-shadow:0 0 0 4px color-mix(in srgb, var(--success) 15%, transparent); }
+.ai-active-models-heading > div { display:flex; min-width:0; flex-direction:column; gap:1px; }
+.ai-active-models-heading strong { font-size:13px; font-weight:850; }
+.ai-active-models-heading small { color:var(--text-muted); font-size:11px; line-height:1.6; }
+.ai-active-model-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+.ai-active-model-card { display:flex; align-items:center; gap:11px; min-width:0; padding:12px; border:1px solid var(--border-soft); border-radius:13px; background:var(--bg-elevated); }
+.ai-active-model-icon { display:grid; place-items:center; width:36px; height:36px; flex:0 0 36px; border-radius:11px; color:var(--accent-text, var(--accent)); background:var(--accent-soft); font-size:20px; }
+.ai-active-embedding-icon { font-size:25px; }
+.ai-active-model-copy { display:flex; flex:1 1 auto; min-width:0; flex-direction:column; gap:2px; }
+.ai-active-model-copy small { color:var(--text-muted); font-size:10.5px; font-weight:800; }
+.ai-active-model-copy strong { color:var(--text); font-size:12px; overflow-wrap:anywhere; line-height:1.6; }
+.ai-active-model-copy > span { color:var(--text-faint); font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:10px; direction:ltr; text-align:right; overflow-wrap:anywhere; }
+.ai-active-model-badge { flex:0 0 auto; padding:4px 7px; border:1px solid var(--border); border-radius:999px; color:var(--text-muted); background:var(--bg-elevated-2); font-size:10px; font-weight:800; white-space:nowrap; }
+.ai-active-model-badge.is-custom { border-color:color-mix(in srgb, var(--accent) 35%, var(--border)); color:var(--accent-text, var(--accent)); background:var(--accent-soft); }
+
 #aitab-connect .saved-models-details {
   margin-top: 12px;
   border: 1px solid var(--border);
@@ -226,7 +249,9 @@ html { scrollbar-width: thin; scrollbar-color: var(--accent-line) transparent; }
   background: var(--bg-elevated);
 }
 #aitab-connect .saved-model-pill-info { display:flex; flex:1 1 auto; min-width:0; flex-direction:column; gap:3px; }
-#aitab-connect .saved-embedding-model-card { flex:1 1 245px; justify-content:space-between; gap:12px; box-shadow:var(--shadow-card); }
+#aitab-connect .saved-embedding-model-card { flex:1 1 330px; justify-content:space-between; gap:12px; box-shadow:var(--shadow-card); }
+#aitab-connect .saved-model-card-actions { display:flex; align-items:center; justify-content:flex-end; flex:0 0 auto; flex-wrap:wrap; gap:6px; }
+#aitab-connect .saved-embedding-model-card .saved-model-card-actions { max-width:100%; }
 #aitab-connect .saved-embedding-model-card .saved-model-delete-btn { flex:0 0 auto; }
 #aitab-connect .saved-model-pill strong {
   overflow-wrap: anywhere;
@@ -423,7 +448,16 @@ html { scrollbar-width: thin; scrollbar-color: var(--accent-line) transparent; }
   white-space: nowrap;
   direction: ltr;
 }
-#aitab-connect .saved-chat-model-card-actions { display:flex; justify-content:flex-end; margin-top:1px; }
+#aitab-connect .saved-chat-model-card-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:6px; margin-top:1px; }
+#aitab-connect .saved-model-action-btn {
+  display:inline-flex; align-items:center; justify-content:center; min-height:29px; padding:4px 9px;
+  border:1px solid var(--border); border-radius:8px; color:var(--text); background:var(--bg-elevated);
+  font:inherit; font-size:10.5px; font-weight:800; cursor:pointer;
+  transition:background .15s ease, border-color .15s ease, opacity .15s ease;
+}
+#aitab-connect .saved-model-use-btn { border-color:color-mix(in srgb, var(--accent) 34%, var(--border)); color:var(--accent-text, var(--accent)); background:var(--accent-soft); }
+#aitab-connect .saved-model-test-btn:hover, #aitab-connect .saved-model-use-btn:hover { border-color:var(--accent); filter:brightness(.98); }
+#aitab-connect .saved-model-action-btn:disabled { opacity:.6; cursor:wait; }
 #aitab-connect .saved-model-delete-btn {
   display:inline-flex; align-items:center; justify-content:center; gap:5px;
   min-height:29px; padding:4px 9px; border:1px solid color-mix(in srgb, var(--danger) 28%, var(--border));
@@ -503,6 +537,11 @@ html { scrollbar-width: thin; scrollbar-color: var(--accent-line) transparent; }
 }
 #aitab-connect .saved-chat-models-retry:hover { border-color: var(--accent); color: var(--accent-text, var(--accent)); }
 @media (max-width: 620px) {
+  .ai-active-model-grid { grid-template-columns:minmax(0, 1fr); }
+  .ai-active-models { padding:12px; }
+  .ai-active-model-card { padding:10px; }
+  #aitab-connect .saved-embedding-model-card { align-items:stretch; flex-direction:column; }
+  #aitab-connect .saved-model-card-actions { justify-content:flex-start; }
   #aitab-connect .saved-chat-models-panel { padding: 13px; border-radius: 14px; }
   #aitab-connect .saved-chat-models-heading { gap: 9px; }
   #aitab-connect .saved-chat-models-heading-icon { flex-basis: 36px; width: 36px; height: 36px; border-radius: 11px; }

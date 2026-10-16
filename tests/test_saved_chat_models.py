@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
+from unittest.mock import patch
 
 from app.database import Base, get_db
 from app import models
@@ -100,6 +101,32 @@ class TestSavedChatModelRegistry:
         assert deleted.status_code == 200, deleted.text
         assert deleted.json()["deleted"] is True
         assert self.client.get("/api/settings/saved-chat-models").json() == []
+
+    def test_saved_chat_model_can_be_activated_without_changing_embedding_settings(self):
+        self.client.put("/api/settings", json={"embedding_model": "old-embed"})
+        self.client.post("/api/settings/saved-chat-models", json={
+            "model_id": "cohere/command-r", "base_url": "https://openrouter.ai/api/v1", "api_key": "chat-use-secret",
+        })
+        response = self.client.post("/api/settings/saved-chat-models/use", json={"model_id": "cohere/command-r"})
+        assert response.status_code == 200, response.text
+        settings = self.client.get("/api/settings").json()
+        assert settings["use_default_provider"] is False
+        assert settings["chat_model"] == "cohere/command-r"
+        assert settings["base_url"] == "https://openrouter.ai/api/v1"
+        assert settings["api_key_set"] is True
+        assert settings["embedding_model"] == "old-embed"
+        assert "chat-use-secret" not in response.text
+
+    def test_saved_chat_model_test_uses_saved_credentials_without_activating_it(self):
+        self.client.post("/api/settings/saved-chat-models", json={
+            "model_id": "cohere/command-r", "base_url": "https://openrouter.ai/api/v1", "api_key": "chat-test-secret",
+        })
+        with patch("app.routers.settings.llm_client.provider_diagnostics", return_value={"ok": True, "message": "Connection OK"}) as diagnostic:
+            response = self.client.post("/api/settings/saved-chat-models/test", json={"model_id": "cohere/command-r"})
+        assert response.status_code == 200, response.text
+        assert response.json() == {"ok": True, "message": "Connection OK"}
+        assert diagnostic.call_args.args[0].api_key == "chat-test-secret"
+        assert self.client.get("/api/settings").json()["use_default_provider"] is True
 
     def test_chat_model_delete_is_scoped_to_current_user(self):
         db = self.Session()
