@@ -515,6 +515,49 @@ class KnowledgeFlowTests(PlatformTestCase):
         self.assertEqual(db.query(func.count(models.Chunk.id)).scalar(), 0)
         db.close()
 
+    def test_sync_upload_preserves_source_when_embedding_provider_fails(self):
+        token = self.register("embedfailure")
+        with patch.object(llm_client, "embed_texts", side_effect=llm_client.LLMError("provider unavailable")):
+            response = self.client.post(
+                "/api/knowledge/documents",
+                headers=h(token),
+                json={"title": "PDF offline", "content": "محتوای سند برای تست ذخیره شدن بدون ایندکس."},
+            )
+
+        self.assertEqual(response.status_code, 201)
+        doc = response.json()
+        self.assertEqual(doc["chunk_count"], 0)
+        listing = self.client.get("/api/knowledge/documents", headers=h(token)).json()
+        self.assertEqual(len(listing), 1)
+        self.assertEqual(listing[0]["title"], "PDF offline")
+        detail = self.client.get(f"/api/knowledge/documents/{doc['id']}", headers=h(token)).json()
+        self.assertIn("ذخیره شدن بدون ایندکس", detail["content"])
+
+    def test_stream_upload_preserves_source_and_reports_reindex_after_embedding_failure(self):
+        token = self.register("streamembedfailure")
+        with patch.object(llm_client, "embed_texts", side_effect=llm_client.LLMError("provider unavailable")):
+            response = self.client.post(
+                "/api/knowledge/documents/stream",
+                headers=h(token),
+                json={"title": "PDF stream offline", "content": "متن این سند باید حتی با خطای embedding ذخیره بماند."},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        events = parse_sse(response.text)
+        errors = [data for name, data in events if name == "error"]
+        self.assertTrue(errors)
+        self.assertTrue(errors[-1]["document_saved"])
+        self.assertFalse(errors[-1]["indexed"])
+        self.assertIsNotNone(errors[-1]["document_id"])
+        listing = self.client.get("/api/knowledge/documents", headers=h(token)).json()
+        self.assertEqual(len(listing), 1)
+        self.assertEqual(listing[0]["title"], "PDF stream offline")
+        self.assertEqual(listing[0]["chunk_count"], 0)
+        detail = self.client.get(
+            f"/api/knowledge/documents/{errors[-1]['document_id']}", headers=h(token)
+        ).json()
+        self.assertIn("حتی با خطای embedding", detail["content"])
+
     def test_long_document_is_split_into_chunks(self):
         token = self.register("roya")
         content = "\n".join(f"پاراگراف {i} " + "ارسال " * 120 for i in range(4))

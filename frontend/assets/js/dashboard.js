@@ -1095,6 +1095,9 @@ async function loadDocuments() {
           <div class="meta">${d.chunk_count} تکه · بروزرسانی ${formatDate(d.updated_at)}</div>
         </div>
         <div class="actions">
+          ${Number(d.chunk_count) === 0 ? `<button class="icon-btn" onclick="reindexDocument(${d.id})" title="ایندکس دوباره" aria-label="ایندکس دوباره">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg>
+          </button>` : ""}
           <button class="icon-btn" onclick="editDocument(${d.id})" title="ویرایش">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
           </button>
@@ -1144,6 +1147,25 @@ document.getElementById("closeDocModalBtn").addEventListener("click", closeDocMo
 document.getElementById("docModal").addEventListener("click", (e) => {
   if (e.target.id === "docModal") closeDocModal();
 });
+
+// اسنادی که متن‌شان ذخیره شده ولی embedding نگرفته‌اند، بدون بارگذاری دوباره قابل ایندکس‌اند.
+function reindexDocument(id) {
+  return once(`reindex-doc:${id}`, () => reindexDocumentImpl(id));
+}
+
+async function reindexDocumentImpl(id) {
+  try {
+    const result = await apiCall(`/api/knowledge/documents/${id}/reindex`, { method: "POST", timeoutMs: 0 });
+    if (result && Number(result.chunk_count) > 0) {
+      toast("سند با موفقیت ایندکس شد و آمادهٔ جست‌وجو است.", "success");
+    } else {
+      toast("متن سند ذخیره است، اما هنوز بخش قابل جست‌وجویی ساخته نشده است.", "warning");
+    }
+    await loadDocuments();
+  } catch (err) {
+    toastError(err);
+  }
+}
 
 // دوبار کلیک روی «ویرایش»/«حذف» فقط یک‌بار اجرا می‌شود؛ بعد از بسته‌شدن، کلیک بعدی دوباره کار می‌کند
 function editDocument(id) {
@@ -1338,8 +1360,16 @@ document.getElementById("saveDocBtn").addEventListener("click", async () => {
     loadDocuments();
   } catch (err) {
     stopDocProgressEstimator();
-    setDocIndexProgress(DOC_PROGRESS_PERCENT, err && err.message ? err.message : "ایندکس سند ناموفق بود.", true);
-    toastError(err);
+    if (err && err.documentSaved) {
+      setDocIndexProgress(100, "متن سند ذخیره شد؛ ایندکس کامل نشد. از دکمهٔ «ایندکس دوباره» استفاده کن.", true);
+      toast(`${err.message || "ایندکس سند ناموفق بود."}\nمتن سند محفوظ است؛ از فهرست دانشنامه آن را دوباره ایندکس کن.`, "warning");
+      closeDocModal();
+      await loadDocuments();
+    } else {
+      setDocIndexProgress(DOC_PROGRESS_PERCENT, err && err.message ? err.message : "ایندکس سند ناموفق بود.", true);
+      toastError(err);
+      if (err && err.networkInterrupted) await loadDocuments();
+    }
   } finally {
     stopDocProgressEstimator();
     btn.disabled = false;
@@ -1400,6 +1430,8 @@ async function importFiles(fileList) {
   dz.classList.add("busy");
 
   let imported = 0;
+  let savedWithoutIndex = 0;
+  let saveAttempted = false;
   const progress = ensureOperationProgress(`در حال وارد کردن ${files.length} فایل…`);
   let completedFiles = 0;
   try {
@@ -1436,7 +1468,17 @@ async function importFiles(fileList) {
           const base = (completedFiles / files.length) * 100;
           const share = ((i + 1) / parts.length) * (100 / files.length);
           progress.set(Math.min(99, base + share), `ایندکس ${file.name}`);
-          await apiCall("/api/knowledge/documents", { method: "POST", timeoutMs: 0, body: { title: docTitle.slice(0, 200), content: parts[i] } });
+          saveAttempted = true;
+          await apiStream("/api/knowledge/documents/stream", {
+            body: { title: docTitle.slice(0, 200), content: parts[i] },
+            idleTimeoutMs: 0,
+            onMeta(data) {
+              if (!data || typeof data.progress !== "number") return;
+              const partFraction = (i + Math.max(0, Math.min(100, data.progress)) / 100) / parts.length;
+              const overall = ((completedFiles + partFraction) / files.length) * 100;
+              progress.set(Math.min(99, overall), `ایندکس ${file.name} · بخش ${i + 1} از ${parts.length}`);
+            },
+          });
           imported += 1;
         }
         const englishUI = !!(window.QZSettings && window.QZSettings.isEnglish());
@@ -1447,7 +1489,12 @@ async function importFiles(fileList) {
         progress.set(Math.round((completedFiles / files.length) * 100), `${completedFiles} از ${files.length} فایل انجام شد`);
         row.done();
       } catch (err) {
-        row.set(err && err.message ? err.message : "ناموفق", "error");
+        if (err && err.documentSaved) {
+          savedWithoutIndex += 1;
+          row.set(`متن ذخیره شد ولی ایندکس نشد: ${err.message || "خطای مدل"} · از فهرست دانشنامه «ایندکس دوباره» را بزن.`, "warning");
+        } else {
+          row.set(err && err.message ? err.message : "ناموفق", "error");
+        }
         completedFiles += 1;
         progress.set(Math.round((completedFiles / files.length) * 100), `${completedFiles} از ${files.length} فایل`);
       }
@@ -1457,10 +1504,9 @@ async function importFiles(fileList) {
     progress.finish();
     IMPORT_BUSY = false;
     dz.classList.remove("busy");
-    if (imported) {
-      toast(`${imported} سند به دانشنامه اضافه شد.`, "success");
-      loadDocuments();
-    }
+    if (imported) toast(`${imported} بخش سند با موفقیت در دانشنامه ایندکس شد.`, "success");
+    if (savedWithoutIndex) toast(`${savedWithoutIndex} بخش از فایل ذخیره شد، اما ایندکس نشد؛ فهرست دانشنامه را بررسی و «ایندکس دوباره» را اجرا کن.`, "warning");
+    if (saveAttempted) await loadDocuments();
   }
 }
 

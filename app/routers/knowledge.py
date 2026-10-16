@@ -1,4 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait
 
 from sqlalchemy import func
 from fastapi import APIRouter, Depends, HTTPException
@@ -84,7 +84,7 @@ def create_document_stream(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """افزودن سند با درصد واقعیِ chunkهای کامل‌شده و بدون مرحله‌بندی مصنوعی."""
+    """افزودن سند با پیشرفت واقعی و heartbeat برای اتصال‌های طولانی Vercel."""
     doc = models.Document(user_id=current_user.id, title=payload.title, content=payload.content)
     db.add(doc)
     db.commit()
@@ -98,12 +98,12 @@ def create_document_stream(
                 user = work_db.get(models.User, user_id)
                 doc = work_db.get(models.Document, doc_id)
                 if not user or not doc:
-                    yield streaming.sse("error", {"message": "سند یافت نشد."})
+                    yield streaming.sse("error", {"message": "سند در پایگاه داده پیدا نشد.", "document_saved": False})
                     return
 
                 pieces = text_split.split_text(doc.content)
                 if not pieces:
-                    raise ValueError("محتوای سند خالی است.")
+                    raise ValueError("از متن این سند بخش قابل ایندکسی ساخته نشد؛ متن فایل را بررسی کنید.")
 
                 total = len(pieces)
                 provider = llm_client.resolve_provider(user_settings_compat.get(work_db, user.id))
@@ -124,32 +124,23 @@ def create_document_stream(
                 )
                 completed = 0
 
-                if concurrency == 1:
-                    batches = [
-                        _embed_batch(pieces, start, provider, batch_size)
+                # Even when only one batch exists, run it in a worker and send a
+                # small heartbeat every 15 seconds. This keeps browser/proxy SSE
+                # connections alive while a slow embedding provider is responding.
+                with ThreadPoolExecutor(max_workers=concurrency) as pool:
+                    pending = {
+                        pool.submit(_embed_batch, pieces, start, provider, batch_size): start
                         for start in range(0, total, batch_size)
-                    ]
-                    for start, embeddings in batches:
-                        rag_store.add_chunks_bulk(work_db, user.id, doc.id, pieces[start:start + len(embeddings)], embeddings, start_index=start)
-                        completed += len(embeddings)
-                        percent = min(99, int((completed / total) * 100))
-                        yield streaming.sse(
-                            "meta",
-                            {
-                                "progress": percent,
-                                "message": _index_progress_message(percent, completed, total),
-                                "completed": completed,
-                                "total": total,
-                            },
-                        )
-                else:
-                    with ThreadPoolExecutor(max_workers=concurrency) as pool:
-                        futures = {
-                            pool.submit(_embed_batch, pieces, start, provider, batch_size): start
-                            for start in range(0, total, batch_size)
-                        }
-                        for future in as_completed(futures):
-                            start = futures[future]
+                    }
+                    while pending:
+                        ready, _ = wait(tuple(pending), timeout=15, return_when=FIRST_COMPLETED)
+                        if not ready:
+                            progress = min(99, int((completed / total) * 100))
+                            yield streaming.sse("heartbeat", {"progress": progress})
+                            continue
+
+                        for future in ready:
+                            start = pending.pop(future)
                             batch_start, embeddings = future.result()
                             if batch_start != start:
                                 start = batch_start
@@ -174,8 +165,6 @@ def create_document_stream(
                                 },
                             )
 
-                # تا قبل از commit درصد 100 نشان داده نمی‌شود؛ بنابراین عدد همیشه
-                # بازتاب‌دهنده‌ی بخش‌هایی است که واقعاً وارد transaction شده‌اند.
                 work_db.commit()
                 yield streaming.sse(
                     "meta",
@@ -186,17 +175,32 @@ def create_document_stream(
                         "total": total,
                     },
                 )
-                yield streaming.sse("done", {})
+                yield streaming.sse("done", {"document_id": doc_id, "indexed": True})
         except llm_client.LLMError as exc:
-            with Session(bind=bind, autoflush=False) as cleanup_db:
-                cleanup_db.query(models.Document).filter(models.Document.id == doc_id).delete()
-                cleanup_db.commit()
-            yield streaming.sse("error", {"message": str(exc)})
+            # متن سند از قبل commit شده است؛ خطای موقت provider نباید فایل را
+            # پاک کند. کاربر می‌تواند بعد از اصلاح مدل از دکمهٔ «ایندکس دوباره» استفاده کند.
+            yield streaming.sse(
+                "error",
+                {
+                    "message": str(exc),
+                    "document_saved": True,
+                    "indexed": False,
+                    "document_id": doc_id,
+                },
+            )
         except Exception as exc:  # noqa: BLE001
-            with Session(bind=bind, autoflush=False) as cleanup_db:
-                cleanup_db.query(models.Document).filter(models.Document.id == doc_id).delete()
-                cleanup_db.commit()
-            yield streaming.sse("error", {"message": str(exc) or "ایندکس سند ناموفق بود."})
+            message = str(exc) if isinstance(exc, ValueError) else (
+                "متن سند ذخیره شد، اما ایندکس کامل نشد. اتصال مدل و پایگاه داده را بررسی و دوباره ایندکس کنید."
+            )
+            yield streaming.sse(
+                "error",
+                {
+                    "message": message,
+                    "document_saved": True,
+                    "indexed": False,
+                    "document_id": doc_id,
+                },
+            )
 
     return StreamingResponse(event_stream(), media_type="text/event-stream", headers=streaming.SSE_HEADERS)
 
@@ -234,12 +238,19 @@ def create_document(
 ):
     doc = models.Document(user_id=current_user.id, title=payload.title, content=payload.content)
     db.add(doc)
-    db.flush()
-
-    _index_document(db, current_user, doc)
-
+    # Commit the source text first so a temporary embedding/provider failure
+    # does not destroy the user's upload. An unindexed document is returned with
+    # chunk_count=0 and can be repaired using the reindex endpoint.
     db.commit()
     db.refresh(doc)
+
+    try:
+        _index_document(db, current_user, doc)
+        db.commit()
+    except llm_client.LLMError:
+        db.rollback()
+        db.refresh(doc)
+
     return _doc_out(doc)
 
 

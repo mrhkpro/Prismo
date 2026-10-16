@@ -227,11 +227,15 @@ async function apiStream(path, { body, onMeta, onDelta, onEvent, signal, auth = 
   } catch (err) {
     clearTimeout(idleTimer);
     if (err && err.name === "AbortError") {
-      const e = new Error("ارتباط با سرویس قطع شد.");
+      const e = new Error(lang === "en" ? "The service connection was interrupted." : "ارتباط با سرویس قطع شد.");
       e.aborted = Boolean(signal && signal.aborted);
       throw e;
     }
-    throw new Error("ارتباط با سرور برقرار نشد.");
+    const e = new Error(lang === "en"
+      ? "The network connection to the server failed before the operation was confirmed."
+      : "ارتباط شبکه با سرور برقرار نشد و نتیجهٔ عملیات تأیید نشد؛ وضعیت دانشنامه را بررسی کن.");
+    e.networkInterrupted = true;
+    throw e;
   }
 
   if (res.status === 401 && auth) {
@@ -274,9 +278,12 @@ async function apiStream(path, { body, onMeta, onDelta, onEvent, signal, auth = 
     else if (event === "delta") { gotDelta = true; if (onDelta) onDelta(data.t || ""); }
     else if (event === "done") finished = true;
     else if (event === "error") {
-      const e = new Error(data.message || "خطا در دریافت پاسخ.");
+      const e = new Error(data.message || (lang === "en" ? "The server could not finish the operation." : "سرور نتوانست عملیات را کامل کند."));
       e.partial = Boolean(data.partial);
       e.streamError = true;
+      e.documentSaved = Boolean(data.document_saved);
+      e.documentId = data.document_id || null;
+      e.indexed = typeof data.indexed === "boolean" ? data.indexed : null;
       throw e;
     }
   };
@@ -297,14 +304,30 @@ async function apiStream(path, { body, onMeta, onDelta, onEvent, signal, auth = 
     if (buffer.trim()) handleFrame(buffer);
   } catch (err) {
     if (err && err.name === "AbortError") {
-      const e = new Error("ارتباط با سرویس قطع شد.");
+      const e = new Error(lang === "en" ? "The service connection was interrupted." : "ارتباط با سرویس قطع شد.");
       e.aborted = Boolean(signal && signal.aborted);
+      e.partial = gotDelta;
+      throw e;
+    }
+    if (err && (err.name === "TypeError" || /networkerror|failed to fetch|network request failed/i.test(err.message || ""))) {
+      const e = new Error(lang === "en"
+        ? "The network connection was interrupted before the stream finished; check whether the operation completed."
+        : "ارتباط شبکه قبل از پایان پردازش قطع شد؛ فهرست دانشنامه را بررسی کن تا عملیات تکراری انجام نشود.");
+      e.networkInterrupted = true;
       e.partial = gotDelta;
       throw e;
     }
     throw err;
   } finally {
     clearTimeout(idleTimer);
+  }
+  if (!finished) {
+    const e = new Error(lang === "en"
+      ? "The server closed the stream before confirming completion; check the result before retrying."
+      : "اتصال پیش از تأیید پایان کار بسته شد؛ قبل از تلاش دوباره، نتیجه را در دانشنامه بررسی کن.");
+    e.networkInterrupted = true;
+    e.partial = gotDelta;
+    throw e;
   }
   return { finished, gotDelta };
 }

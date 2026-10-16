@@ -160,6 +160,87 @@ class AIProviderTests(unittest.TestCase):
         self.assertEqual(kwargs["timeout"].connect, llm_client.config.AI_CONNECT_TIMEOUT_SECONDS)
         self.assertEqual(kwargs["max_retries"], llm_client.config.AI_MAX_RETRIES)
 
+    def test_embedding_retries_transient_rate_limit_and_uses_embedding_endpoint(self):
+        class FakeProviderError(Exception):
+            def __init__(self, status_code, message):
+                super().__init__(message)
+                self.status_code = status_code
+                self.message = message
+                self.response = SimpleNamespace(text=message)
+
+        calls = []
+        def create(**kwargs):
+            calls.append(kwargs)
+            if len(calls) == 1:
+                raise FakeProviderError(429, "rate limit")
+            return SimpleNamespace(data=[SimpleNamespace(index=0, embedding=[0.25, 0.75])])
+
+        client = SimpleNamespace(embeddings=SimpleNamespace(create=create))
+        provider = llm_client.ProviderConfig(
+            base_url="https://chat.example/v1", api_key="chat-key", chat_model="chat",
+            embedding_model="embed-model", is_default=False,
+            embedding_base_url="https://openrouter.ai/api/v1", embedding_api_key="embed-key",
+        )
+        with patch("app.services.llm_client._client", return_value=client) as get_client, \
+             patch.object(llm_client.config, "EMBEDDING_DIMENSIONS", 2), \
+             patch.object(llm_client.time, "sleep") as sleep:
+            result = llm_client.embed_texts(["a text"], provider)
+
+        self.assertEqual(result, [[0.25, 0.75]])
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[-1]["model"], "embed-model")
+        get_client.assert_called_once_with("https://openrouter.ai/api/v1", "embed-key")
+        sleep.assert_called_once_with(0.25)
+
+    def test_embedding_splits_provider_batch_limit_without_reordering(self):
+        class FakeProviderError(Exception):
+            def __init__(self, status_code, message):
+                super().__init__(message)
+                self.status_code = status_code
+                self.message = message
+                self.response = SimpleNamespace(text=message)
+
+        calls = []
+        def create(**kwargs):
+            values = kwargs["input"]
+            values = [values] if isinstance(values, str) else list(values)
+            calls.append(values)
+            if len(values) > 2:
+                raise FakeProviderError(413, "payload too large")
+            return SimpleNamespace(data=[
+                SimpleNamespace(index=i, embedding=[float(len(text)), 1.0])
+                for i, text in enumerate(values)
+            ])
+
+        client = SimpleNamespace(embeddings=SimpleNamespace(create=create))
+        provider = llm_client.ProviderConfig(
+            base_url="https://chat.example/v1", api_key="chat-key", chat_model="chat",
+            embedding_model="embed-model", is_default=False,
+            embedding_base_url="https://openrouter.ai/api/v1", embedding_api_key="embed-key",
+        )
+        with patch("app.services.llm_client._client", return_value=client), \
+             patch.object(llm_client.config, "EMBEDDING_DIMENSIONS", 2):
+            result = llm_client.embed_texts(["a", "bb", "ccc"], provider)
+
+        self.assertEqual(result, [[1.0, 1.0], [2.0, 1.0], [3.0, 1.0]])
+        self.assertEqual(calls[0], ["a", "bb", "ccc"])
+        self.assertGreater(len(calls), 1)
+
+    def test_embedding_errors_report_the_separate_embedding_endpoint(self):
+        class FakeProviderError(Exception):
+            status_code = 404
+            message = "unknown embedding model"
+            response = SimpleNamespace(text="unknown embedding model")
+
+        provider = llm_client.ProviderConfig(
+            base_url="https://chat.example/v1", api_key="chat-key", chat_model="chat",
+            embedding_model="missing-embed", is_default=False,
+            embedding_base_url="https://openrouter.ai/api/v1", embedding_api_key="embed-key",
+        )
+        message = llm_client.format_provider_error(FakeProviderError(), provider, operation="embedding")
+        self.assertIn("Base URL: https://openrouter.ai/api/v1", message)
+        self.assertIn("missing-embed", message)
+
     def test_chat_completion_honors_explicit_model_and_output_cap(self):
         fake_client = SimpleNamespace(
             chat=SimpleNamespace(

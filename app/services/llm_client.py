@@ -834,8 +834,22 @@ def format_provider_error(
 ) -> str:
     """Build a user-visible diagnostic without ever exposing the API key."""
     status, body = _http_error_details(exc)
-    endpoint = normalize_base_url(provider.base_url)
-    model = provider.chat_model if operation != "embedding" else provider.embedding_model
+    if operation == "embedding":
+        endpoint = normalize_base_url(provider.embedding_base_url or provider.base_url)
+        model = provider.embedding_model
+        configured_default_endpoint = normalize_base_url(
+            config.AI_PROXY_BASE_URL or config.DEFAULT_PROVIDER_BASE_URL
+        )
+        configured_default_key = config.AI_PROXY_API_KEY or config.DEFAULT_PROVIDER_API_KEY
+        provider_key = provider.embedding_api_key or provider.api_key
+        is_default_endpoint = bool(
+            endpoint and endpoint == configured_default_endpoint
+            and provider_key == configured_default_key
+        )
+    else:
+        endpoint = normalize_base_url(provider.base_url)
+        model = provider.chat_model
+        is_default_endpoint = bool(provider.is_default)
 
     if isinstance(exc, AuthenticationError) or status == 401:
         reason = "کلید API نامعتبر است یا سرویس دسترسی را رد کرده است."
@@ -877,7 +891,7 @@ def format_provider_error(
     if nested and nested not in body:
         details.append(f"جزئیات فنی: {nested[:1200]}")
 
-    if stage in {"connect_timeout", "network", "dns"} and provider.is_default and config.AI_PROXY_BASE_URL == "":
+    if stage in {"connect_timeout", "network", "dns"} and is_default_endpoint and config.AI_PROXY_BASE_URL == "":
         details.append(
             "راه‌حل پیشنهادی: این سرویس از شبکه Vercel قابل دسترسی نیست؛ "
             "AI_PROXY_BASE_URL را روی یک Relay قابل‌دسترسی تنظیم کنید یا IP خروجی Vercel را در فایروال مقصد مجاز کنید."
@@ -1009,11 +1023,98 @@ def provider_diagnostics(provider: ProviderConfig) -> dict:
     return result
 
 
+def _embedding_status_code(exc: Exception) -> Optional[int]:
+    status, _ = _http_error_details(exc)
+    return status
+
+
+def _is_transient_embedding_error(exc: Exception) -> bool:
+    status = _embedding_status_code(exc)
+    return isinstance(exc, APIConnectionError) or status in {408, 425, 429, 500, 502, 503, 504}
+
+
+def _is_embedding_batch_limit_error(exc: Exception) -> bool:
+    status, body = _http_error_details(exc)
+    if status == 413:
+        return True
+    if status not in {400, 422}:
+        return False
+    message = body.casefold()
+    return any(
+        hint in message
+        for hint in (
+            "too many inputs", "too many items", "batch size", "batch limit",
+            "input is too long", "input length", "too many tokens",
+            "maximum number of inputs", "payload too large", "request too large",
+        )
+    )
+
+
+def _embedding_vectors_from_response(response, expected_count: int) -> List[List[float]]:
+    data = list(_field(response, "data", []) or [])
+
+    def response_index(item) -> int:
+        try:
+            return int(_field(item, "index", -1))
+        except (TypeError, ValueError):
+            return -1
+
+    ordered = sorted(data, key=response_index)
+    indices = [response_index(item) for item in ordered]
+    if len(ordered) != expected_count or indices != list(range(expected_count)):
+        raise LLMError("پاسخ سرویس embedding ناقص است یا ترتیب معتبر ندارد.")
+    vectors = [_field(item, "embedding", None) for item in ordered]
+    if any(not isinstance(vector, (list, tuple)) or not vector for vector in vectors):
+        raise LLMError("سرویس embedding برای بخشی از ورودی‌ها بردار معتبری برنگرداند.")
+    return [list(vector) for vector in vectors]
+
+
+def _request_embedding_vectors(
+    client: OpenAI,
+    texts: List[str],
+    provider: ProviderConfig,
+    *,
+    split_depth: int = 0,
+) -> List[List[float]]:
+    """Call an embedding provider reliably, retrying transient faults and splitting oversized batches."""
+    response = None
+    for attempt in range(3):
+        try:
+            response = client.embeddings.create(
+                model=provider.embedding_model,
+                input=texts,
+            )
+            break
+        except Exception as exc:  # noqa: BLE001
+            # Some OpenRouter/provider routes accept arrays but impose a smaller
+            # batch ceiling. Split only when the provider identifies a payload/batch
+            # limit; do not fan out ordinary invalid-model errors into many calls.
+            if len(texts) > 1 and split_depth < 8 and _is_embedding_batch_limit_error(exc):
+                midpoint = max(1, len(texts) // 2)
+                return (
+                    _request_embedding_vectors(client, texts[:midpoint], provider, split_depth=split_depth + 1)
+                    + _request_embedding_vectors(client, texts[midpoint:], provider, split_depth=split_depth + 1)
+                )
+
+            if attempt < 2 and _is_transient_embedding_error(exc):
+                # The normal path adds no delay; short backoff applies only after a
+                # transient network/rate-limit/server failure.
+                time.sleep(0.25 * (2 ** attempt))
+                continue
+
+            if isinstance(exc, APIConnectionError):
+                _log_connection_error(provider.embedding_base_url or provider.base_url, exc)
+            raise LLMError(format_provider_error(exc, provider, operation="embedding")) from exc
+
+    if response is None:
+        raise LLMError("سرویس embedding پس از چند تلاش پاسخ نداد.")
+    return _embedding_vectors_from_response(response, len(texts))
+
+
 def embed_texts(
     texts: List[str],
     provider: ProviderConfig,
 ) -> List[List[float]]:
-
     if not texts:
         return []
 
@@ -1021,64 +1122,17 @@ def embed_texts(
         provider.embedding_base_url or provider.base_url,
         provider.embedding_api_key or provider.api_key,
     )
+    embeddings = _request_embedding_vectors(client, texts, provider)
 
-    try:
-
-        response = client.embeddings.create(
-            model=provider.embedding_model,
-            input=texts,
-        )
-
-    except Exception as exc:  # noqa: BLE001
-        if isinstance(exc, APIConnectionError):
-            _log_connection_error(provider.embedding_base_url or provider.base_url, exc)
-        raise LLMError(format_provider_error(exc, provider, operation="embedding")) from exc
-
-    # --------------------------------------------------------
-    # Preserve input ordering
-    # --------------------------------------------------------
-
-    ordered = sorted(
-        response.data,
-        key=lambda item: item.index,
-    )
-
-    if (
-        len(ordered) != len(texts)
-        or [item.index for item in ordered] != list(range(len(texts)))
-    ):
-        raise LLMError(
-            "پاسخ سرویس embedding ناقص است یا ترتیب معتبر ندارد."
-        )
-
-    embeddings = [
-        item.embedding
-        for item in ordered
-    ]
-
-    # --------------------------------------------------------
-    # Validate embedding dimensions
-    # --------------------------------------------------------
-
-    expected_dimension = (
-        config.EMBEDDING_DIMENSIONS
-    )
-
+    expected_dimension = config.EMBEDDING_DIMENSIONS
     for embedding in embeddings:
-
-        actual_dimension = len(
-            embedding
-        )
-
+        actual_dimension = len(embedding)
         if actual_dimension != expected_dimension:
-
             raise LLMError(
-                "اندازه embedding با تنظیمات پروژه "
-                "هماهنگ نیست. "
-                f"Received={actual_dimension}, "
-                f"Expected={expected_dimension}."
+                "اندازه embedding با تنظیمات پروژه هماهنگ نیست. "
+                f"Received={actual_dimension}, Expected={expected_dimension}. "
+                "یک مدل embedding با بُعد سازگار انتخاب کنید."
             )
-
     return embeddings
 
 
