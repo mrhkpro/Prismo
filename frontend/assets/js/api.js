@@ -281,6 +281,7 @@ async function apiStream(path, { body, onMeta, onDelta, onEvent, signal, auth = 
       const e = new Error(data.message || (lang === "en" ? "The server could not finish the operation." : "سرور نتوانست عملیات را کامل کند."));
       e.partial = Boolean(data.partial);
       e.streamError = true;
+      e.fastTimeout = Boolean(data.fast_timeout);
       e.documentSaved = Boolean(data.document_saved);
       e.documentId = data.document_id || null;
       e.indexed = typeof data.indexed === "boolean" ? data.indexed : null;

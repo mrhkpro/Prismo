@@ -130,15 +130,38 @@ class FastLabModeTests(unittest.TestCase):
         self.assertLessEqual(plan.max_output_tokens, rag_pipeline.FAST_LAB_MAX_OUTPUT_TOKENS)
         self.assertLessEqual(len(plan.messages) - 2, rag_pipeline.FAST_LAB_HISTORY_MESSAGES)
         system_message = plan.messages[0]["content"]
+        self.assertIn("مستقیم و کوتاه پاسخ بده", system_message)
         context_start = system_message.index("--- دانشنامه")
         context = system_message[context_start:]
         self.assertLessEqual(len(context), rag_pipeline.FAST_LAB_CONTEXT_CHARS + 150)
+
+    def test_fast_lab_does_not_spend_another_generation_retrying_noisy_text(self):
+        settings = SimpleNamespace(
+            chat_model="saved-model", embedding_model="embed", system_prompt="System",
+            temperature=0.7, top_k=4, similarity_threshold=0.0,
+        )
+        owner = SimpleNamespace(id=11, settings=settings)
+        session = SimpleNamespace(id="s1", user_id=11, messages=[])
+        provider = SimpleNamespace(chat_model="saved-model", base_url="https://api.example.test/v1")
+        chunk = SimpleNamespace(text="Context", document=SimpleNamespace(title="Doc"))
+        noise = ("فارسی " * 18) + ("deployment calculation " * 30) + ("中文字符 " * 12) + ("русский текст " * 10)
+        with patch.object(rag_pipeline.injection_scanner, "scan", return_value=(False, None)), \
+             patch.object(rag_pipeline.answer_cache, "find_historical_answer", return_value=None), \
+             patch.object(rag_pipeline.llm_client, "resolve_provider", return_value=provider), \
+             patch.object(rag_pipeline.llm_client, "embed_text", return_value=[0.1]), \
+             patch.object(rag_pipeline.rag_store, "search", return_value=[(chunk, 0.9)]), \
+             patch.object(rag_pipeline.llm_client, "chat_completion", return_value=noise) as completion:
+            reply, _ = rag_pipeline.run_rag_chat(
+                SimpleNamespace(), owner, session, "سند درباره چیست؟", language="fa", fast_mode=True,
+            )
+        self.assertIn("مدل پاسخ قابل‌خواندن نداد", reply)
+        completion.assert_called_once()
 
     def test_openrouter_reasoning_effort_is_lowered_only_for_fast_lab(self):
         provider = SimpleNamespace(base_url="https://openrouter.ai/api/v1")
         self.assertEqual(
             rag_pipeline.llm_client._fast_reasoning_kwargs(provider, "deepseek-v4-flash-reasoning", True),
-            {"extra_body": {"reasoning": {"effort": "low"}}},
+            {"extra_body": {"reasoning": {"effort": "low", "max_tokens": 96}}},
         )
         self.assertEqual(
             rag_pipeline.llm_client._fast_reasoning_kwargs(provider, "deepseek-v4-flash-reasoning", False),

@@ -19,10 +19,19 @@ MAX_CONTEXT_CHARS = 6000
 
 # آزمایشگاه باید برای سؤال‌های روزمره سریع پاسخ بدهد؛ ویجت عمومی همچنان
 # محدودیت کامل RAG را دارد تا برای مکالمه‌های پیچیده‌تر زمینه کافی حفظ شود.
-FAST_LAB_HISTORY_MESSAGES = 4
-FAST_LAB_HISTORY_CHARS = 2200
-FAST_LAB_CONTEXT_CHARS = 3200
-FAST_LAB_MAX_OUTPUT_TOKENS = 480
+FAST_LAB_HISTORY_MESSAGES = 2
+FAST_LAB_HISTORY_CHARS = 1000
+FAST_LAB_CONTEXT_CHARS = 1800
+FAST_LAB_MAX_OUTPUT_TOKENS = 240
+
+FAST_LAB_DIRECT_ANSWER_FA = (
+    "برای آزمایشگاه، مستقیم و کوتاه پاسخ بده و فقط از دانشنامهٔ بالا برای اطلاعات مربوط به سند استفاده کن. "
+    "استدلال داخلی را نمایش نده. معمولاً در ۲ تا ۵ جمله جواب بده؛ اگر پاسخ در منبع نیست، روشن بگو اطلاعات کافی در دانشنامه وجود ندارد."
+)
+FAST_LAB_DIRECT_ANSWER_EN = (
+    "For this test lab, answer directly and concisely using the retrieved knowledge base for document facts. "
+    "Do not reveal internal reasoning. Usually answer in 2–5 sentences; if the sources do not contain the answer, say so clearly."
+)
 
 
 def build_messages(
@@ -175,6 +184,13 @@ def prepare_rag_chat(
     stored_system_prompt = getattr(settings, "system_prompt", config.DEFAULT_SYSTEM_PROMPT)
     language = "en" if language == "en" or (language is None and stored_system_prompt == config.DEFAULT_SYSTEM_PROMPT_EN) else "fa"
     effective_system_prompt = i18n.localize_default_system_prompt(stored_system_prompt, language)
+    if fast_mode:
+        # Test Lab only. Public widget calls prepare_rag_chat with fast_mode=False,
+        # so its original prompt, context budget, and provider timeout stay unchanged.
+        effective_system_prompt = (
+            f"{effective_system_prompt}\n\n"
+            f"{FAST_LAB_DIRECT_ANSWER_EN if language == 'en' else FAST_LAB_DIRECT_ANSWER_FA}"
+        )
 
     # Common greetings and acknowledgements bypass both embedding and chat providers.
     common_reply = get_common_response(user_message, language=language)
@@ -328,19 +344,22 @@ def run_rag_chat(
         max_tokens=plan.max_output_tokens, fast_mode=plan.fast_mode,
     )
     if isinstance(reply, str) and looks_like_mixed_script_noise(reply):
-        logger.warning("rag_model_output_quality_rejected owner_id=%s model=%s", owner.id, plan.model)
+        logger.warning("rag_model_output_quality_rejected owner_id=%s model=%s fast_mode=%s", owner.id, plan.model, plan.fast_mode)
         retry_text = ""
-        try:
-            retry_text = llm_client.chat_completion(
-                plan.messages,
-                plan.provider,
-                temperature=min(float(plan.temperature or 0.2), 0.2),
-                model=plan.model,
-                max_tokens=plan.max_output_tokens,
-                fast_mode=plan.fast_mode,
-            )
-        except llm_client.LLMError as exc:
-            logger.warning("rag_model_quality_retry_failed owner_id=%s model=%s error_type=%s", owner.id, plan.model, type(exc).__name__)
+        # In the Test Lab, do not spend another full provider timeout retrying an
+        # unreadable answer. General chat/widget retain the existing quality retry.
+        if not plan.fast_mode:
+            try:
+                retry_text = llm_client.chat_completion(
+                    plan.messages,
+                    plan.provider,
+                    temperature=min(float(plan.temperature or 0.2), 0.2),
+                    model=plan.model,
+                    max_tokens=plan.max_output_tokens,
+                    fast_mode=plan.fast_mode,
+                )
+            except llm_client.LLMError as exc:
+                logger.warning("rag_model_quality_retry_failed owner_id=%s model=%s error_type=%s", owner.id, plan.model, type(exc).__name__)
         if retry_text and not looks_like_mixed_script_noise(retry_text):
             reply = retry_text
         else:
@@ -348,6 +367,8 @@ def run_rag_chat(
             reply = (
                 "The selected model returned unreadable text. Check the active chat model and test its connection in settings, then try again."
                 if language == "en" else
+                "مدل پاسخ قابل‌خواندن نداد. برای آزمایشگاه یک مدل سریع‌تر از نوع Flash/Instruct انتخاب و دوباره امتحان کن."
+                if plan.fast_mode else
                 "مدل انتخاب‌شده متن قابل‌خواندنی تولید نکرد. مدل چت فعال و اتصال آن را در تنظیمات بررسی کنید و دوباره تلاش کنید."
             )
     # The RAG boundary must never return or persist a blank assistant turn.
