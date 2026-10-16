@@ -11,14 +11,12 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"></noscript>
 <script>
-  try {
-    var theme = localStorage.getItem("qz_theme");
-    if (["light","dark","ocean","forest","sunset","lavender","mono","nord","amber","rose"].includes(theme)) document.documentElement.dataset.theme = theme;
-  } catch (_) {}
+  // پنل مدیریت همیشه تیره است و از ترجیح تم عمومی حساب پیروی نمی‌کند.
+  document.documentElement.dataset.theme = "dark";
 </script>
 <link rel="stylesheet" href="/assets/css/style.css?v=2.8.9">
 </head>
-<body data-theme-settings-center="1">
+<body data-theme-settings-center="1" data-admin-dark-only="1">
 
 <div class="app-shell">
   <!-- =================== نوار کناری =================== -->
@@ -69,7 +67,6 @@
       <button class="icon-btn topbar-menu" id="sidebarToggle" type="button" aria-label="باز و بسته‌کردن منو"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
       <nav class="breadcrumb" aria-label="مسیر صفحه"><span>پنل مدیریت</span><span class="sep">/</span><b id="crumbCurrent">آمار کلان</b></nav>
       <div class="topbar-spacer"></div>
-      <button class="theme-toggle" id="themeToggle" type="button" aria-label="تغییر حالت نمایش"></button>
       <div class="topbar-user" id="topbarAvatar" aria-hidden="true">?</div>
     </header>
     <div class="main-body">

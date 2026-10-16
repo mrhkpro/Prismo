@@ -8,6 +8,7 @@ from .. import models, schemas, i18n
 from ..database import get_db
 from ..services import user_settings_compat
 from ..services import answer_cache, llm_client, rag_pipeline, rate_limit, streaming, widget_extras
+from ..services.response_quality import looks_like_mixed_script_noise
 
 
 logger = logging.getLogger("prismo.public_widget")
@@ -20,6 +21,80 @@ WIDGET_PRIVATE_HEADERS = {
     "Expires": "0",
     "X-Robots-Tag": "noindex, noarchive, nosnippet",
 }
+
+
+def _text_chunks(text: str, chunk_size: int = 48):
+    """Split a retry response into small deltas to preserve the widget's typing effect."""
+    for index in range(0, len(text), chunk_size):
+        yield text[index:index + chunk_size]
+
+
+def _recover_widget_model_reply(plan, collected: list[str], language: str):
+    """Retry corrupted output once, then return a readable localized diagnostic."""
+    logger.warning("widget_model_output_quality_rejected model=%s language=%s", plan.model, language)
+    retry_text = ""
+    try:
+        retry_text = llm_client.chat_completion(
+            plan.messages,
+            plan.provider,
+            temperature=min(float(plan.temperature or 0.2), 0.2),
+            model=plan.model,
+        )
+    except llm_client.LLMError as exc:
+        logger.warning("widget_model_quality_retry_failed model=%s error_type=%s", plan.model, type(exc).__name__)
+
+    if retry_text and not looks_like_mixed_script_noise(retry_text):
+        yield from streaming.relay_model_stream(_text_chunks(retry_text), collected)
+    else:
+        plan.cache_allowed = False
+        fallback = (
+            "The selected model returned unreadable text. Check the active chat model and test its connection in settings, then try again."
+            if language == "en" else
+            "مدل انتخاب‌شده متن قابل‌خواندنی تولید نکرد. مدل چت فعال و اتصال آن را در تنظیمات بررسی کنید و دوباره تلاش کنید."
+        )
+        yield from streaming.relay_model_stream([fallback], collected)
+
+
+def _stream_checked_model_reply(plan, collected: list[str], language: str):
+    """Stream normal answers quickly, but suppress obvious mixed-script noise before display.
+
+    The first 180 characters are buffered solely for the quality check. If the response
+    resembles corrupted token soup, retry once at a low temperature; never expose the
+    corrupted stream to website visitors or save it in the answer cache.
+    """
+    pieces = iter(llm_client.stream_chat_completion(
+        plan.messages, plan.provider, temperature=plan.temperature, model=plan.model
+    ))
+    pending: list[str] = []
+    sample = ""
+    released = False
+
+    for piece in pieces:
+        sample += piece
+        if released:
+            yield from streaming.relay_model_stream([piece], collected)
+            continue
+
+        pending.append(piece)
+        if len(sample) < 180:
+            continue
+
+        if looks_like_mixed_script_noise(sample[:1600]):
+            close = getattr(pieces, "close", None)
+            if callable(close):
+                close()
+            yield from _recover_widget_model_reply(plan, collected, language)
+            return
+
+        released = True
+        yield from streaming.relay_model_stream(pending, collected)
+        pending.clear()
+
+    if pending:
+        if not released and looks_like_mixed_script_noise(sample):
+            yield from _recover_widget_model_reply(plan, collected, language)
+        else:
+            yield from streaming.relay_model_stream(pending, collected)
 
 
 def _get_owner_by_widget(db: Session, widget_id: str) -> models.User:
@@ -138,10 +213,7 @@ def widget_chat_stream(widget_id: str, payload: schemas.WidgetChatRequest, reque
                 collected.append(reply or "")
                 yield streaming.sse("delta", {"t": reply or ""})
             else:
-                pieces = llm_client.stream_chat_completion(
-                    plan.messages, plan.provider, temperature=plan.temperature, model=plan.model
-                )
-                yield from streaming.relay_model_stream(pieces, collected)
+                yield from _stream_checked_model_reply(plan, collected, language)
             yield streaming.sse("done", {})
         except llm_client.LLMError:
             yield streaming.sse("error", {"message": "", "retry": True, "partial": bool(collected)})

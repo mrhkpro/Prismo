@@ -14,6 +14,8 @@ def test_admin_page_loads_theme_support():
     html = (ROOT / "frontend" / "admin.html").read_text(encoding="utf-8")
     assert "/assets/js/theme.js?v=2.8.9" in html
     assert "/assets/css/style.css?v=2.8.9" in html
+    assert 'data-admin-dark-only="1"' in html
+    assert 'id="themeToggle"' not in html
     assert 'id="sessionModalBody" class="chat-stream" aria-live="polite"' in html
     css = (ROOT / "frontend" / "assets" / "css" / "style.css").read_text(encoding="utf-8")
     assert "#sessionModal .modal-box" in css
@@ -304,3 +306,11 @@ def test_ai_settings_shows_active_models_and_saved_model_use_test_actions():
     assert 'savedModelActionButton(kind, entry, "use")' in js
     assert 'savedModelActionButton(kind, entry, "test")' in js
     assert ".ai-active-model-grid" in css and ".saved-model-action-btn" in css
+
+
+def test_account_panel_does_not_expose_admin_shortcut_to_regular_users():
+    html = (ROOT / "frontend" / "dashboard.html").read_text(encoding="utf-8")
+    account_actions = html.split('class="panel-foot account-actions"', 1)[1].split("</div>", 1)[0]
+    assert 'id="logoutBtn"' in account_actions
+    assert 'پنل ادمین' not in account_actions
+    assert 'id="openAdminLink"' not in html

@@ -56,6 +56,29 @@
     };
     var T = function (key) { return I18N[LANGUAGE][key] || key; };
 
+    // Vercel serverless can finish an SSE response without delivering the text deltas.
+    // Match the dashboard: use ordinary JSON in Vercel, and retain live streaming locally.
+    var PRISMO_IS_VERCEL_RUNTIME = true;
+    var runtimeController = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var runtimeTimeout = runtimeController ? setTimeout(function () { runtimeController.abort(); }, 3000) : null;
+    var RUNTIME_READY = fetch(API_BASE + "/api/runtime", {
+      cache: "no-store",
+      headers: { "Accept": "application/json" },
+      signal: runtimeController ? runtimeController.signal : undefined
+    }).then(function (response) {
+      if (!response.ok) throw new Error("Runtime detection failed");
+      return response.json();
+    }).then(function (runtime) {
+      PRISMO_IS_VERCEL_RUNTIME = Boolean(runtime && runtime.vercel);
+      return { vercel: PRISMO_IS_VERCEL_RUNTIME };
+    }).catch(function () {
+      // Fail closed to the more reliable non-streaming path if runtime detection fails.
+      PRISMO_IS_VERCEL_RUNTIME = true;
+      return { vercel: true };
+    }).finally(function () {
+      if (runtimeTimeout) clearTimeout(runtimeTimeout);
+    });
+
     if (!WIDGET_ID) {
       console.error("[Prismo widget] data-widget-id is missing.");
       return;
@@ -398,18 +421,10 @@
         stream.scrollTop = stream.scrollHeight;
       }
 
-      streamChat(chatUrl + "/stream", payload, {
-        meta: function (d) { setSessionId(d.session_id); },
-        delta: function (piece) {
-          if (!fullText) { pending.classList.remove("pending"); pending.classList.add("streaming"); }
-          fullText += piece;
-          if (raf === null) raf = requestAnimationFrame(paint);
-        }
-      }, 0).catch(function (err) {
-        // قطع/خطای SSE را به کاربر نشان نده؛ همان پیام را به صورت یک‌جا
-        // دوباره می‌فرستیم. این مسیر timeout ندارد تا پاسخ‌های طولانی قطع نشوند.
-        if (!fullText && (err && (err.streamError || err.status === undefined || FALLBACK_STATUSES.indexOf(err.status) !== -1))) {
-          payload.session_id = getSessionId();
+      RUNTIME_READY.then(function (runtime) {
+        if (runtime.vercel) {
+          // Same reliable JSON path used by the dashboard on Vercel; no SSE token
+          // framing/proxy behavior can corrupt or silently drop the generated answer.
           return fetchJson(chatUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Cache-Control": "no-cache", "X-QZ-Language": LANGUAGE },
@@ -417,10 +432,34 @@
             cache: "no-store"
           }, 0).then(function (data) {
             setSessionId(data.session_id);
-            fullText = data.reply || "";
+            fullText = typeof data.reply === "string" ? data.reply : "";
           });
         }
-        throw err;
+
+        return streamChat(chatUrl + "/stream", payload, {
+          meta: function (d) { setSessionId(d.session_id); },
+          delta: function (piece) {
+            if (!fullText) { pending.classList.remove("pending"); pending.classList.add("streaming"); }
+            fullText += piece;
+            if (raf === null) raf = requestAnimationFrame(paint);
+          }
+        }, 0).catch(function (err) {
+          // قطع/خطای SSE را به کاربر نشان نده؛ همان پیام را به صورت یک‌جا
+          // دوباره می‌فرستیم. این مسیر timeout ندارد تا پاسخ‌های طولانی قطع نشوند.
+          if (!fullText && (err && (err.streamError || err.status === undefined || FALLBACK_STATUSES.indexOf(err.status) !== -1))) {
+            payload.session_id = getSessionId();
+            return fetchJson(chatUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Cache-Control": "no-cache", "X-QZ-Language": LANGUAGE },
+              body: JSON.stringify(payload),
+              cache: "no-store"
+            }, 0).then(function (data) {
+              setSessionId(data.session_id);
+              fullText = typeof data.reply === "string" ? data.reply : "";
+            });
+          }
+          throw err;
+        });
       }).then(function () {
         if (raf !== null) cancelAnimationFrame(raf);
         pending.classList.remove("pending", "streaming");

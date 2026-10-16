@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from .. import config, models, i18n
 from . import answer_cache, injection_scanner, llm_client, rag_store, user_settings_compat
+from .response_quality import looks_like_mixed_script_noise
 from .common_responses import get_common_response
 
 logger = logging.getLogger("prismo.rag")
@@ -288,6 +289,27 @@ def run_rag_chat(
     reply = llm_client.chat_completion(
         plan.messages, plan.provider, temperature=plan.temperature, model=plan.model,
     )
+    if isinstance(reply, str) and looks_like_mixed_script_noise(reply):
+        logger.warning("rag_model_output_quality_rejected owner_id=%s model=%s", owner.id, plan.model)
+        retry_text = ""
+        try:
+            retry_text = llm_client.chat_completion(
+                plan.messages,
+                plan.provider,
+                temperature=min(float(plan.temperature or 0.2), 0.2),
+                model=plan.model,
+            )
+        except llm_client.LLMError as exc:
+            logger.warning("rag_model_quality_retry_failed owner_id=%s model=%s error_type=%s", owner.id, plan.model, type(exc).__name__)
+        if retry_text and not looks_like_mixed_script_noise(retry_text):
+            reply = retry_text
+        else:
+            plan.cache_allowed = False
+            reply = (
+                "The selected model returned unreadable text. Check the active chat model and test its connection in settings, then try again."
+                if language == "en" else
+                "مدل انتخاب‌شده متن قابل‌خواندنی تولید نکرد. مدل چت فعال و اتصال آن را در تنظیمات بررسی کنید و دوباره تلاش کنید."
+            )
     # The RAG boundary must never return or persist a blank assistant turn.
     if not isinstance(reply, str) or not reply.strip():
         logger.error("rag_chat_empty_reply owner_id=%s model=%s", owner.id, plan.model)

@@ -22,6 +22,14 @@ class WidgetContractTests(unittest.TestCase):
         self.assertNotIn("فعلاً نتونستم پاسخ را آماده کنم.", source)
         self.assertIn('cache: "no-store"', source)
 
+    def test_widget_uses_json_on_vercel_and_streams_only_on_local_runtime(self):
+        source = (ROOT / "frontend/widget.js").read_text(encoding="utf-8")
+        self.assertIn('API_BASE + "/api/runtime"', source)
+        self.assertIn('var PRISMO_IS_VERCEL_RUNTIME = true;', source)
+        self.assertIn('if (runtime.vercel)', source)
+        self.assertIn('fetchJson(chatUrl,', source)
+        self.assertIn('streamChat(chatUrl + "/stream"', source)
+
     def test_widget_endpoints_are_private_and_not_archived(self):
         source = (ROOT / "app/main.py").read_text(encoding="utf-8")
         streaming = (ROOT / "app/services/streaming.py").read_text(encoding="utf-8")

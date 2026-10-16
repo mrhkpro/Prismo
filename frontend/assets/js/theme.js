@@ -5,7 +5,12 @@
   const root = document.documentElement;
   const THEMES = ["light", "dark", "ocean", "forest", "sunset", "lavender", "mono", "nord", "amber", "rose"];
 
+  function isAdminDarkOnly() {
+    return Boolean(document.body && document.body.hasAttribute("data-admin-dark-only"));
+  }
+
   function getInitialTheme() {
+    if (isAdminDarkOnly()) return "dark";
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       return THEMES.includes(saved) ? saved : "dark";
@@ -15,7 +20,7 @@
   }
 
   function setTheme(theme, persist) {
-    const next = THEMES.includes(theme) ? theme : "dark";
+    const next = isAdminDarkOnly() ? "dark" : (THEMES.includes(theme) ? theme : "dark");
     root.dataset.theme = next;
     if (persist) {
       try { localStorage.setItem(STORAGE_KEY, next); } catch (_) {}
