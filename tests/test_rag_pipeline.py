@@ -68,6 +68,34 @@ class RAGPerformanceContractTests(unittest.TestCase):
         self.assertEqual(completion.call_count, 2)
         self.assertLessEqual(completion.call_args.kwargs["temperature"], 0.2)
 
+    def test_widget_pipeline_recovers_once_when_model_returns_no_visible_text(self):
+        settings = SimpleNamespace(
+            chat_model="saved-model", embedding_model="embed", system_prompt="System",
+            temperature=0.7, top_k=4, similarity_threshold=0.0,
+        )
+        owner = SimpleNamespace(id=17, settings=settings)
+        session = SimpleNamespace(id="s1", user_id=17, messages=[])
+        provider = SimpleNamespace(chat_model="saved-model", base_url="https://openrouter.ai/api/v1")
+        chunk = SimpleNamespace(text="پشمک معمولاً سفید است.", document=SimpleNamespace(title="Doc"))
+        empty = rag_pipeline.llm_client.LLMError(
+            "مدل پاسخ متنی برنگرداند. یک بار دیگر تلاش کنید؛ اگر تکرار شد، مدل دیگری را انتخاب یا اتصال API را بررسی کنید."
+        )
+        with patch.object(rag_pipeline.injection_scanner, "scan", return_value=(False, None)), \
+             patch.object(rag_pipeline.answer_cache, "find_historical_answer", return_value=None), \
+             patch.object(rag_pipeline.answer_cache, "make_cache_key", return_value=(None, False, None)), \
+             patch.object(rag_pipeline.llm_client, "resolve_provider", return_value=provider), \
+             patch.object(rag_pipeline.llm_client, "embed_text", return_value=[0.1]), \
+             patch.object(rag_pipeline.rag_store, "search", return_value=[(chunk, 0.9)]), \
+             patch.object(rag_pipeline.llm_client, "chat_completion", side_effect=[empty, "پشمک معمولاً سفید است."]) as completion:
+            reply, matches = rag_pipeline.run_rag_chat(
+                SimpleNamespace(), owner, session, "پشمک چه رنگیه؟", language="fa", widget_mode=True,
+            )
+        self.assertEqual(reply, "پشمک معمولاً سفید است.")
+        self.assertEqual(matches, [(chunk, 0.9)])
+        self.assertEqual(completion.call_count, 2)
+        self.assertTrue(completion.call_args.kwargs["widget_retry"])
+        self.assertLessEqual(completion.call_args.kwargs["max_tokens"], 480)
+
     def test_chat_pipeline_logs_timing_with_selected_model(self):
         settings = SimpleNamespace(
             chat_model="saved-model",

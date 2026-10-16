@@ -244,9 +244,17 @@ def test_empty_model_reply_is_never_rendered_as_an_empty_chat_bubble():
     assert 'throw new Error(window.QZI18n ? window.QZI18n.t(message) : message)' in js
     assert "The model returned no visible text." in translations
     backend = (ROOT / "app" / "services" / "llm_client.py").read_text(encoding="utf-8")
-    assert 'for attempt in range(2)' in backend
+    assert 'attempts = 1 if widget_retry else 2' in backend
+    assert 'for attempt in range(attempts)' in backend
     assert 'provider_empty_chat_response' in backend
     assert 'مدل پاسخ متنی برنگرداند' in backend
+
+
+def test_public_widget_supports_reset_when_a_streamed_answer_is_corrupted():
+    js = (ROOT / "frontend" / "widget.js").read_text(encoding="utf-8")
+    assert 'event === "reset" && handlers.reset' in js
+    assert 'reset: function () {' in js
+    assert 'fullText = "";' in js
 
 
 def test_dashboard_home_refresh_keeps_live_bindings_and_quick_actions():

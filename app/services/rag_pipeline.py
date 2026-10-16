@@ -313,8 +313,9 @@ def run_rag_chat(
     model: str | None = None,
     language: str | None = None,
     fast_mode: bool = False,
+    widget_mode: bool = False,
 ) -> Tuple[str, List[Tuple[models.Chunk, float]]]:
-    """یک چرخه‌ی کامل RAG را روی «دانشنامه‌ی owner» اجرا می‌کند و پاسخ + منابع را برمی‌گرداند."""
+    """یک چرخه‌ی کامل RAG را اجرا می‌کند؛ بازیابی اضافه فقط برای ویجت فعال می‌شود."""
     plan = prepare_rag_chat(db, owner, session, user_message, model=model, language=language, fast_mode=fast_mode)
     if plan.instant_reply:
         return plan.instant_reply, plan.matches if plan.cache_hit else []
@@ -323,24 +324,65 @@ def run_rag_chat(
             answer_cache.store(db, owner.id, plan.cache_key, plan.no_answer, plan.matches)
         return plan.no_answer, []
     llm_started = time.perf_counter()
-    reply = llm_client.chat_completion(
-        plan.messages, plan.provider, temperature=plan.temperature, model=plan.model,
-        max_tokens=plan.max_output_tokens, fast_mode=plan.fast_mode,
-    )
-    if isinstance(reply, str) and looks_like_mixed_script_noise(reply):
-        logger.warning("rag_model_output_quality_rejected owner_id=%s model=%s", owner.id, plan.model)
-        retry_text = ""
+    widget_retry_used = False
+    try:
+        reply = llm_client.chat_completion(
+            plan.messages, plan.provider, temperature=plan.temperature, model=plan.model,
+            max_tokens=plan.max_output_tokens, fast_mode=plan.fast_mode,
+        )
+    except llm_client.LLMError as exc:
+        # The widget's non-streaming path needs one recovery for OpenRouter models
+        # that return an empty visible `content` field. Keep this isolated from the
+        # Test Lab and general chat, and don't repeat a full retrieval cycle.
+        empty_reply_error = (
+            "پاسخ متنی برنگرداند" in str(exc)
+            or "no visible text" in str(exc).lower()
+            or "returned no text" in str(exc).lower()
+        )
+        if not widget_mode or not empty_reply_error:
+            raise
+        widget_retry_used = True
+        logger.warning("widget_empty_model_reply_retry owner_id=%s model=%s", owner.id, plan.model)
         try:
-            retry_text = llm_client.chat_completion(
-                plan.messages,
-                plan.provider,
+            reply = llm_client.chat_completion(
+                plan.messages, plan.provider,
                 temperature=min(float(plan.temperature or 0.2), 0.2),
-                model=plan.model,
-                max_tokens=plan.max_output_tokens,
-                fast_mode=plan.fast_mode,
+                model=plan.model, max_tokens=min(plan.max_output_tokens, 480),
+                widget_retry=True,
             )
-        except llm_client.LLMError as exc:
-            logger.warning("rag_model_quality_retry_failed owner_id=%s model=%s error_type=%s", owner.id, plan.model, type(exc).__name__)
+        except llm_client.LLMError as retry_exc:
+            logger.warning("widget_empty_model_reply_retry_failed owner_id=%s model=%s error_type=%s", owner.id, plan.model, type(retry_exc).__name__)
+            plan.cache_allowed = False
+            reply = (
+                "The model returned no readable text after one retry. Check the widget chat model connection and try again."
+                if language == "en" else
+                "مدل پس از یک تلاش مجدد پاسخ قابل‌خواندنی نداد. اتصال مدل چت ویجت را بررسی کن و دوباره بفرست."
+            )
+    if isinstance(reply, str) and looks_like_mixed_script_noise(reply):
+        logger.warning("rag_model_output_quality_rejected owner_id=%s model=%s widget_mode=%s", owner.id, plan.model, widget_mode)
+        retry_text = ""
+        # Widget gets one lightweight recovery only. Other RAG callers retain the
+        # previous retry behavior and token budget.
+        if not (widget_mode and widget_retry_used):
+            try:
+                if widget_mode:
+                    retry_text = llm_client.chat_completion(
+                        plan.messages, plan.provider,
+                        temperature=min(float(plan.temperature or 0.2), 0.2),
+                        model=plan.model, max_tokens=min(plan.max_output_tokens, 480),
+                        widget_retry=True,
+                    )
+                else:
+                    retry_text = llm_client.chat_completion(
+                        plan.messages,
+                        plan.provider,
+                        temperature=min(float(plan.temperature or 0.2), 0.2),
+                        model=plan.model,
+                        max_tokens=plan.max_output_tokens,
+                        fast_mode=plan.fast_mode,
+                    )
+            except llm_client.LLMError as exc:
+                logger.warning("rag_model_quality_retry_failed owner_id=%s model=%s error_type=%s", owner.id, plan.model, type(exc).__name__)
         if retry_text and not looks_like_mixed_script_noise(retry_text):
             reply = retry_text
         else:

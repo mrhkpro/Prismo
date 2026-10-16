@@ -209,6 +209,7 @@
           try { data = JSON.parse(dataParts.join("\n")); } catch (e) { return; }
           if (event === "meta" && handlers.meta) handlers.meta(data);
           else if (event === "delta" && handlers.delta) handlers.delta(data.t || "");
+          else if (event === "reset" && handlers.reset) handlers.reset(data);
           else if (event === "error") {
             var err = new Error(data.message || "STREAM_RETRY");
             err.streamError = true;
@@ -438,6 +439,13 @@
 
         return streamChat(chatUrl + "/stream", payload, {
           meta: function (d) { setSessionId(d.session_id); },
+          reset: function () {
+            fullText = "";
+            pending.textContent = "";
+            pending.classList.remove("pending");
+            pending.classList.add("streaming");
+            if (raf !== null) { cancelAnimationFrame(raf); raf = null; }
+          },
           delta: function (piece) {
             if (!fullText) { pending.classList.remove("pending"); pending.classList.add("streaming"); }
             fullText += piece;

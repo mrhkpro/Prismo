@@ -1190,21 +1190,31 @@ def _visible_message_text(message) -> str:
 def chat_completion(
     messages: List[dict], provider: ProviderConfig, temperature: float = 0.7,
     model: Optional[str] = None, max_tokens: Optional[int] = None, fast_mode: bool = False,
+    widget_retry: bool = False,
 ) -> str:
+    """Run a chat completion.
+
+    ``widget_retry`` is deliberately narrow: it is used only after the public
+    widget has detected an empty or obviously corrupted first response. It keeps
+    the regular provider timeout, but asks OpenRouter reasoning models for low
+    effort and makes only one bounded recovery attempt.
+    """
     client = _client(provider.base_url, provider.api_key)
     selected_model = model or provider.chat_model
     empty_response_message = (
         "مدل پاسخ متنی برنگرداند. یک بار دیگر تلاش کنید؛ اگر تکرار شد، مدل دیگری را انتخاب یا اتصال API را بررسی کنید."
     )
     try:
-        # Only retry an otherwise successful but empty model response once.
-        for attempt in range(2):
+        # Regular calls retain the existing empty-response retry. A widget quality
+        # recovery is already a retry, so it performs one focused request only.
+        attempts = 1 if widget_retry else 2
+        for attempt in range(attempts):
             response = client.chat.completions.create(
                 model=selected_model,
                 messages=messages,
-                temperature=temperature if attempt == 0 else min(float(temperature), 0.2),
+                temperature=min(float(temperature), 0.2) if (attempt > 0 or widget_retry) else temperature,
                 max_tokens=max_tokens or config.AI_MAX_OUTPUT_TOKENS,
-                **_fast_reasoning_kwargs(provider, selected_model, fast_mode),
+                **_fast_reasoning_kwargs(provider, selected_model, fast_mode or widget_retry),
             )
             choices = _field(response, "choices", None) or []
             choice = choices[0] if choices else None

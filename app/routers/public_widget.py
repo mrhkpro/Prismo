@@ -39,6 +39,8 @@ def _recover_widget_model_reply(plan, collected: list[str], language: str):
             plan.provider,
             temperature=min(float(plan.temperature or 0.2), 0.2),
             model=plan.model,
+            max_tokens=480,
+            widget_retry=True,
         )
     except llm_client.LLMError as exc:
         logger.warning("widget_model_quality_retry_failed model=%s error_type=%s", plan.model, type(exc).__name__)
@@ -72,6 +74,17 @@ def _stream_checked_model_reply(plan, collected: list[str], language: str):
     for piece in pieces:
         sample += piece
         if released:
+            # Continue checking later chunks too. If corruption starts after a
+            # plausible opening sentence, clear the already-rendered draft in the
+            # widget and replace it with one clean recovery answer.
+            if looks_like_mixed_script_noise(sample[-1600:]):
+                close = getattr(pieces, "close", None)
+                if callable(close):
+                    close()
+                yield streaming.sse("reset", {})
+                collected.clear()
+                yield from _recover_widget_model_reply(plan, collected, language)
+                return
             yield from streaming.relay_model_stream([piece], collected)
             continue
 
@@ -79,7 +92,7 @@ def _stream_checked_model_reply(plan, collected: list[str], language: str):
         if len(sample) < 180:
             continue
 
-        if looks_like_mixed_script_noise(sample[:1600]):
+        if looks_like_mixed_script_noise(sample):
             close = getattr(pieces, "close", None)
             if callable(close):
                 close()
@@ -90,7 +103,11 @@ def _stream_checked_model_reply(plan, collected: list[str], language: str):
         yield from streaming.relay_model_stream(pending, collected)
         pending.clear()
 
-    if pending:
+    if not sample.strip():
+        # Some OpenAI-compatible providers complete an SSE request but send no
+        # visible content delta. Recover once rather than ending with an empty bubble.
+        yield from _recover_widget_model_reply(plan, collected, language)
+    elif pending:
         if not released and looks_like_mixed_script_noise(sample):
             yield from _recover_widget_model_reply(plan, collected, language)
         else:
@@ -156,7 +173,10 @@ def widget_chat(widget_id: str, payload: schemas.WidgetChatRequest, request: Req
         db.flush()
 
     try:
-        reply, _matches = rag_pipeline.run_rag_chat(db, owner, session, payload.message, language=i18n.get_language(request))
+        reply, _matches = rag_pipeline.run_rag_chat(
+            db, owner, session, payload.message,
+            language=i18n.get_language(request), widget_mode=True,
+        )
     except llm_client.LLMError:
         db.commit()
         raise

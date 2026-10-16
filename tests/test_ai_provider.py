@@ -90,6 +90,29 @@ class AIProviderTests(unittest.TestCase):
     def test_normalize_base_url(self):
         self.assertEqual(llm_client.normalize_base_url(" https://example.com/v1/// "), "https://example.com/v1")
 
+    def test_widget_quality_retry_uses_low_reasoning_and_only_one_recovery_call(self):
+        create = unittest.mock.Mock(return_value=SimpleNamespace(
+            choices=[SimpleNamespace(
+                message=SimpleNamespace(content="پشمک سفید است."), finish_reason="stop"
+            )]
+        ))
+        fake_client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+        provider = llm_client.ProviderConfig(
+            base_url="https://openrouter.ai/api/v1", api_key="secret",
+            chat_model="deepseek-v4-reasoning", embedding_model="embed", is_default=False,
+        )
+        with patch("app.services.llm_client._client", return_value=fake_client) as get_client:
+            reply = llm_client.chat_completion(
+                [{"role": "user", "content": "پشمک چه رنگیه؟"}], provider,
+                temperature=0.8, max_tokens=480, widget_retry=True,
+            )
+        self.assertEqual(reply, "پشمک سفید است.")
+        get_client.assert_called_once_with("https://openrouter.ai/api/v1", "secret")
+        create.assert_called_once()
+        self.assertEqual(create.call_args.kwargs["temperature"], 0.2)
+        self.assertEqual(create.call_args.kwargs["max_tokens"], 480)
+        self.assertEqual(create.call_args.kwargs["extra_body"], {"reasoning": {"effort": "low"}})
+
     def test_discovery_sorts_and_deduplicates_model_ids(self):
         fake_client = SimpleNamespace(
             models=SimpleNamespace(

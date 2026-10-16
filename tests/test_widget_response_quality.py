@@ -53,6 +53,8 @@ def test_widget_quality_guard_retries_before_emitting_corrupted_text():
     assert "calculation deployment model" not in rendered_text
     assert "中文字符" not in rendered_text
     assert retry.call_args.kwargs["temperature"] <= 0.2
+    assert retry.call_args.kwargs["widget_retry"] is True
+    assert retry.call_args.kwargs["max_tokens"] == 480
     assert plan.cache_allowed is True
 
 
@@ -92,3 +94,35 @@ def test_admin_is_dark_only_and_accounts_do_not_show_admin_link():
     assert 'id="openAdminLink"' not in dashboard
     assert 'href="/admin.html" id="openAdminLink"' not in dashboard
     assert "isAdminDarkOnly() ? \"dark\"" in theme_js
+
+
+def test_widget_empty_stream_retries_once_instead_of_finishing_blank():
+    plan = _plan()
+    collected = []
+    corrected = "پشمک معمولاً سفید یا صورتی است."
+    with patch.object(public_widget.llm_client, "stream_chat_completion", return_value=iter([])), \
+         patch.object(public_widget.llm_client, "chat_completion", return_value=corrected) as retry:
+        list(public_widget._stream_checked_model_reply(plan, collected, "fa"))
+    assert "".join(collected) == corrected
+    retry.assert_called_once()
+    assert retry.call_args.kwargs["widget_retry"] is True
+
+
+def test_widget_quality_guard_can_reset_a_stream_if_corruption_starts_later():
+    normal = "این بخش اول پاسخ خواندنی و منطقی است. " * 7
+    noise = (
+        ("calculation deployment model " * 10)
+        + ("中文字符 " * 10)
+        + ("русский текст " * 8)
+        + ("한국어 문장 " * 8)
+        + ("ภาษาไทย " * 8)
+    )
+    corrected = "پشمک معمولاً سفید یا صورتی است."
+    plan = _plan()
+    collected = []
+    with patch.object(public_widget.llm_client, "stream_chat_completion", return_value=iter([normal, noise])), \
+         patch.object(public_widget.llm_client, "chat_completion", return_value=corrected) as retry:
+        frames = list(public_widget._stream_checked_model_reply(plan, collected, "fa"))
+    assert any("event: reset" in frame for frame in frames)
+    assert "".join(collected) == corrected
+    retry.assert_called_once()
