@@ -13,7 +13,7 @@ import unicodedata
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -129,26 +129,36 @@ def same_fact_followup_for_recall(current: str, previous: str) -> bool:
     return bool(current_intents and current_intents.intersection(previous_intents))
 
 
-def find_historical_answer(db: Session, session: models.ChatSession, question: str) -> str | None:
+def find_historical_answer(
+    db: Session, session: models.ChatSession, question: str, *, rows: list | None = None,
+) -> str | None:
     """Reuse a prior answer in this exact conversation without embedding or LLM calls.
 
     Only complete user/assistant turn pairs are considered. Flagged user messages
     are excluded, and history is bounded so the fast path remains inexpensive.
+
+    ``rows`` lets a caller that already fetched the session's recent messages
+    (newest-first, same query as below) hand them in directly, saving a second
+    round trip to the same table. When omitted, the query runs as before.
     """
-    if not getattr(session, "id", None) or not hasattr(db, "query"):
-        return None
+    if rows is None:
+        if not getattr(session, "id", None) or not hasattr(db, "query"):
+            return None
     normalized = normalize_recall_question(question)
     if len(normalized) < 3:
         return None
     try:
-        rows = (
-            db.query(models.ChatMessage)
-            .filter(models.ChatMessage.session_id == session.id)
-            .order_by(models.ChatMessage.id.desc())
-            .limit(500)
-            .all()
-        )
-        rows.reverse()
+        if rows is None:
+            rows = (
+                db.query(models.ChatMessage)
+                .filter(models.ChatMessage.session_id == session.id)
+                .order_by(models.ChatMessage.id.desc())
+                .limit(500)
+                .all()
+            )
+        # Build the chronological view without mutating a list the caller may
+        # also be using (e.g. still newest-first) elsewhere in the same request.
+        rows = list(reversed(rows))
         turns: list[tuple[models.ChatMessage, models.ChatMessage]] = []
         pending_user = None
         for row in rows:
@@ -184,18 +194,29 @@ def find_historical_answer(db: Session, session: models.ChatSession, question: s
     return None
 
 
-def _session_context(db: Session, session: models.ChatSession, message: str) -> tuple[bool, str | None]:
-    """Return (cache-safe, immediate-repeat-answer)."""
-    if not getattr(session, "id", None) or not hasattr(db, "query"):
-        return False, None
+def _session_context(
+    db: Session, session: models.ChatSession, message: str, *, rows: list | None = None,
+) -> tuple[bool, str | None]:
+    """Return (cache-safe, immediate-repeat-answer).
+
+    ``rows`` lets a caller hand in the session's messages it already fetched
+    (newest-first; only the first two entries are used here) instead of this
+    function querying the same table again. When omitted, it queries as before.
+    """
+    if rows is None:
+        if not getattr(session, "id", None) or not hasattr(db, "query"):
+            return False, None
     try:
-        last_two = (
-            db.query(models.ChatMessage)
-            .filter(models.ChatMessage.session_id == session.id)
-            .order_by(models.ChatMessage.id.desc())
-            .limit(2)
-            .all()
-        )
+        if rows is not None:
+            last_two = rows[:2]
+        else:
+            last_two = (
+                db.query(models.ChatMessage)
+                .filter(models.ChatMessage.session_id == session.id)
+                .order_by(models.ChatMessage.id.desc())
+                .limit(2)
+                .all()
+            )
         if len(last_two) >= 2:
             newest, previous = last_two[0], last_two[1]
             if (
@@ -207,8 +228,9 @@ def _session_context(db: Session, session: models.ChatSession, message: str) -> 
             ):
                 return True, newest.content.strip()
         # An empty session has no previous conversational context to contaminate a cross-chat cache hit.
-        count = db.query(func.count(models.ChatMessage.id)).filter(models.ChatMessage.session_id == session.id).scalar() or 0
-        return count == 0, None
+        # `last_two` (already fetched above) tells us this directly — zero rows means an
+        # empty session — so no extra COUNT(*) round trip to the database is needed here.
+        return len(last_two) == 0, None
     except SQLAlchemyError:
         db.rollback()
         return False, None
@@ -222,21 +244,36 @@ def make_cache_key(
     settings: Any,
     provider: Any,
     language: str,
+    *,
+    session_rows: list | None = None,
 ) -> tuple[str | None, bool, str | None]:
-    allowed, repeated_answer = _session_context(db, session, question)
+    """``session_rows`` is forwarded to ``_session_context`` to avoid a repeat query; see there."""
+    allowed, repeated_answer = _session_context(db, session, question, rows=session_rows)
     if not allowed or len(normalize_question(question)) < 4:
         return None, allowed, repeated_answer
     try:
-        chunk_count, max_chunk_id = (
-            db.query(func.count(models.Chunk.id), func.max(models.Chunk.id))
-            .filter(models.Chunk.user_id == owner.id)
-            .one()
+        # Combined into a single round trip (one SELECT with scalar subqueries)
+        # instead of two separate queries against chunks/documents. Built with
+        # typed SQLAlchemy constructs (not raw text) so the DateTime column
+        # still comes back as a Python datetime, exactly as before.
+        chunk_count_sq = (
+            select(func.count(models.Chunk.id))
+            .where(models.Chunk.user_id == owner.id)
+            .scalar_subquery()
         )
-        latest_document_update = (
-            db.query(func.max(models.Document.updated_at))
-            .filter(models.Document.user_id == owner.id)
-            .scalar()
+        max_chunk_id_sq = (
+            select(func.max(models.Chunk.id))
+            .where(models.Chunk.user_id == owner.id)
+            .scalar_subquery()
         )
+        latest_document_update_sq = (
+            select(func.max(models.Document.updated_at))
+            .where(models.Document.user_id == owner.id)
+            .scalar_subquery()
+        )
+        chunk_count, max_chunk_id, latest_document_update = db.execute(
+            select(chunk_count_sq, max_chunk_id_sq, latest_document_update_sq)
+        ).one()
     except SQLAlchemyError:
         db.rollback()
         return None, allowed, repeated_answer

@@ -107,7 +107,11 @@ def chat_test_stream(
 ):
     """نسخه‌ی استریم چت آزمایشگاه (SSE): meta → delta... → done (یا error)."""
     session = _get_or_create_session(db, current_user, payload.session_id)
-    selected_model = payload.model or user_settings_compat.get(db, current_user.id).chat_model
+    # The model fallback (payload.model or settings.chat_model) is resolved once,
+    # inside prepare_rag_chat below (plan.model), instead of fetching the user's
+    # settings here too — prepare_rag_chat already fetches them for other fields
+    # (system prompt, temperature, top_k, ...), so this avoided a second,
+    # redundant round trip to the database before the stream could even start.
     session_id, owner_id, message = session.id, current_user.id, payload.message
     language = request.headers.get("X-QZ-Language", "fa")
     db.commit()  # نشست حتی اگر مدل خطا بدهد حفظ می‌شود
@@ -125,9 +129,9 @@ def chat_test_stream(
                 chat_session = work_db.get(models.ChatSession, session_id)
                 plan = rag_pipeline.prepare_rag_chat(
                     work_db, owner, chat_session, message,
-                    model=selected_model, language=language, fast_mode=True,
+                    model=payload.model, language=language, fast_mode=True,
                 )
-                meta = {"session_id": session_id, "model": selected_model, "sources": streaming.sources_payload(plan.matches)}
+                meta = {"session_id": session_id, "model": plan.model, "sources": streaming.sources_payload(plan.matches)}
             # اتصال دیتابیس پیش از تماس طولانی با مدل آزاد شد.
             yield streaming.sse("meta", meta)
             if plan.instant_reply or plan.no_answer:
@@ -177,9 +181,9 @@ def semantic_search(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    provider = llm_client.resolve_provider(user_settings_compat.get(db, current_user.id))
-    query_embedding = llm_client.embed_text(payload.query, provider)
     settings = user_settings_compat.get(db, current_user.id)
+    provider = llm_client.resolve_provider(settings)
+    query_embedding = llm_client.embed_text(payload.query, provider)
     matches = rag_store.search(db, current_user.id, query_embedding, top_k=payload.top_k, similarity_threshold=settings.similarity_threshold or 0.0)
     return [
         schemas.SemanticSearchResult(

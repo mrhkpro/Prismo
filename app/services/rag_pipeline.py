@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .. import config, models, i18n
@@ -188,7 +189,26 @@ def prepare_rag_chat(
     # Conversation memory is checked before resolving the provider, embedding,
     # semantic search, or generating another completion. This is session-scoped:
     # a prior answer from a different visitor/session is never reused here.
-    historical_answer = answer_cache.find_historical_answer(db, session, user_message)
+    #
+    # The session's recent messages are fetched once here and handed to both
+    # find_historical_answer() and make_cache_key() below, which otherwise would
+    # each query the same chat_messages table separately on every single turn.
+    # On any lookup failure this stays None, and both calls transparently fall
+    # back to doing their own query, exactly as before.
+    session_rows = None
+    if getattr(session, "id", None) and hasattr(db, "query"):
+        try:
+            session_rows = (
+                db.query(models.ChatMessage)
+                .filter(models.ChatMessage.session_id == session.id)
+                .order_by(models.ChatMessage.id.desc())
+                .limit(500)
+                .all()
+            )
+        except SQLAlchemyError:
+            session_rows = None
+
+    historical_answer = answer_cache.find_historical_answer(db, session, user_message, rows=session_rows)
     if historical_answer:
         logger.info("rag_conversation_memory_hit owner_id=%s session_id=%s", owner.id, session.id)
         return make_plan(
@@ -199,7 +219,7 @@ def prepare_rag_chat(
 
     provider = llm_client.resolve_provider(settings)
     cache_key, cache_allowed, repeated_answer = answer_cache.make_cache_key(
-        db, owner, session, user_message, settings, provider, language,
+        db, owner, session, user_message, settings, provider, language, session_rows=session_rows,
     ) if hasattr(db, "query") else (None, False, None)
 
     # An adjacent exact repeat in the same session can reuse its prior assistant turn,
