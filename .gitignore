@@ -1,7 +1,7 @@
 # Environment
 
 
-.env.*
+
 !.env.example
 
 # ============================================================
@@ -71,10 +71,13 @@ htmlcov/
 .vercel
 
 .vercel
-.env*
+.env.local
 
 # Local credentials
-.env
+
 
 .vercel
-.env*
+
+
+.vercel
+
