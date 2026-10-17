@@ -1,59 +1,70 @@
-# Security Guide
+# Security Guide — Prismo
 
-## Authentication
+این سند کنترل‌های امنیتی موجود، محل پیاده‌سازی و محدودیت‌های آن‌ها را توضیح می‌دهد. وجود این کنترل‌ها به معنای تضمین امنیت کامل برنامه نیست.
 
-Authentication uses Prismo JWT access tokens with a `sub` claim containing the numeric user ID. Invalid, expired or malformed tokens return `401`; inactive accounts return `403`. The application supports the existing username/password flow and an optional Google sign-in flow through Supabase Auth. Google sign-in uses the PKCE authorization-code flow; the backend exchanges the one-time code with the session-held verifier, validates the resulting Supabase user, and issues the same Prismo JWT used by the rest of the application.
+## 1. Authentication
 
-Configure the Google provider and exact redirect allow list in Supabase. Keep Google's Client Secret inside Google Cloud/Supabase provider settings; do not put it in frontend code. `SUPABASE_ANON_KEY` is the public anon/publishable key and is not interchangeable with the `service_role` key. The backend calls Supabase's `/auth/v1/user` endpoint to validate the returned access token before it creates the Prismo session.
+- ورود عادی با نام کاربری/رمز عبور از طریق `/api/auth/login` انجام می‌شود.
+- رمزها در `app/security.py` با PBKDF2-HMAC-SHA256، Salt تصادفی مستقل و 260,000 تکرار هش می‌شوند؛ مقدار خام رمز نباید ذخیره شود.
+- ورود موفق یک JWT اختصاصی Prismo با شناسه‌ی کاربر در claim `sub` تولید می‌کند. توکن با `SECRET_KEY` و `HS256` امضا می‌شود.
+- مسیرهای حفاظت‌شده اعتبار، امضا و زمان انقضا را بررسی می‌کنند و حساب غیرفعال را رد می‌کنند.
+- Google sign-in اختیاری است و از Supabase Auth استفاده می‌کند. جریان PKCE در callback، کد یک‌بارمصرف و verifier را به بک‌اند می‌دهد؛ بک‌اند هویت Supabase را اعتبارسنجی می‌کند و JWT خود Prismo را صادر می‌کند. رمز Google در اختیار Prismo قرار نمی‌گیرد.
 
-Passwords are stored as PBKDF2-HMAC-SHA256 hashes with a per-password random salt. The project avoids a compiled password-hashing dependency so the one-click Windows setup stays reliable.
+در مرورگر، JWT برنامه در `localStorage` ذخیره می‌شود؛ این پیاده‌سازی در برابر XSS مصونیت مطلق ندارد. خروج از حساب باید توکن محلی را حذف کند. برای محیط عمومی، HTTPS و جلوگیری از XSS ضروری‌اند.
 
-## Authorization and tenancy
+## 2. Authorization and tenant isolation
 
-Protected endpoints resolve the current user before business logic runs. Queries for documents, chunks and chat sessions are scoped to the owner. Admin endpoints require the `admin` role.
+- مسیرهای خصوصی ابتدا کاربر جاری را از توکن resolve می‌کنند.
+- endpointهای مدیریتی نقش `admin` را بررسی می‌کنند.
+- کوئری‌های اسناد، chunkها، تنظیمات و نشست‌ها باید با شناسه‌ی مالک محدود شوند.
+- مسیرهای عمومی ویجت از JWT بازدیدکننده استفاده نمی‌کنند؛ صاحب ویجت از طریق شناسه‌ی ویجت resolve می‌شود و وضعیت فعال بودن حساب بررسی می‌شود.
+- عملیات مدیریتی محافظت‌هایی برای جلوگیری از مسدود کردن خود مدیر یا حذف/مسدود کردن آخرین مدیر فعال دارند.
+- ورود موقت به‌جای کاربر از توکن کوتاه‌عمر impersonation استفاده می‌کند و فقط باید در اختیار مدیر مجاز باشد.
 
-The admin impersonation flow issues a short-lived token and records the original admin token in browser storage so the UI can return to the admin account. Google sign-in uses Supabase Auth PKCE: the browser keeps a short-lived verifier in session storage, the one-time callback code is removed from browser history immediately, and the backend exchanges the code before issuing a Prismo JWT. Supabase and Google provider tokens are not written to Prismo localStorage.
+در SQLite، فایل دیتابیس به‌طور پیش‌فرض رمزنگاری کامل در حالت سکون ندارد. دسترسی سیستم‌عامل و پشتیبان‌گیری از فایل `data/app.db` را محافظت کنید. فیلترهای application-level نیز باید در تست‌های tenant-isolation باقی بمانند.
 
-The backend prevents an administrator from blocking themselves and from removing/blocking the last active administrator.
+## 3. Secrets and provider keys
 
-## Secrets
+- `.env` و فایل دیتابیس حاوی داده نباید به Git عمومی commit شوند.
+- در Production یک `SECRET_KEY` صریح، قوی و حداقل 32 نویسه‌ای تنظیم کنید؛ مقدار پیش‌فرض توسعه برای سرویس عمومی مناسب نیست.
+- کلید API ارائه‌دهنده در پاسخ معمول settings ارسال نمی‌شود؛ رابط یک نشانگر مانند `api_key_set` دریافت می‌کند. بااین‌حال Provider keyها طبق رفتار جاری در تنظیمات سرور/دیتابیس حساب ذخیره می‌شوند و نباید ادعا شود که همه‌ی آن‌ها در پایگاه‌داده به‌صورت رمزنگاری‌شده در حالت سکون هستند.
+- فایل `.env.example` باید فقط حاوی placeholder و مقادیر غیرمحرمانه باشد. قبل از انتشار هر ZIP یا مخزن، `.env` واقعی و داده‌های runtime را بررسی و از بسته‌ی عمومی خارج کنید.
+- از کلید Supabase `service_role` در مرورگر استفاده نکنید. `SUPABASE_ANON_KEY` کلید عمومی client است و جایگزین service-role secret نیست.
+- چون APIهای مدل متن سؤال و زمینه‌ی بازیابی‌شده را دریافت می‌کنند، در استفاده از provider آنلاین، داده‌های لازم برای تولید پاسخ از دستگاه خارج می‌شوند. سیاست محرمانگی ارائه‌دهنده را بررسی کنید.
 
-`.env` is ignored by Git. Provider API keys are never returned in settings responses; clients receive only an `api_key_set` boolean.
+## 4. Public widget
 
-Production requires an explicitly configured `SECRET_KEY` of at least 32 characters. Development may use a generated runtime key.
+ویجت باید روی دامنه‌های اشخاص ثالث اجرا شود؛ بنابراین API عمومی آن بدون JWT بازدیدکننده در دسترس است. کنترل‌های موجود شامل شناسه‌ی opaque ویجت، اعتبارسنجی طول ورودی، بررسی فعال بودن مالک، عدم ارسال کلید provider به مرورگر و rate limit درون‌پردازشی است.
 
-The repository's original pre-hardening history contained a tracked `.env` file. This branch history does not reproduce or expose its value. Treat any real credential from that old history as compromised and rotate/revoke it before production use.
+CORS برای اجازه‌ی جاسازی در سایت‌های دیگر باز تنظیم شده است. Rate limiter فعلی حافظه‌ای و per-process است؛ در چند نمونه‌ی برنامه، یک شمارنده‌ی مشترک نمی‌سازد. برای سطح کنترل عملیاتی قوی‌تر، storage مشترک و محدودسازی زیرساختی در نظر بگیرید.
 
-## Public widget
+Shadow DOM تداخل CSS ویجت با سایت میزبان را کاهش می‌دهد، اما ویژگی امنیتی یا کنترل دسترسی محسوب نمی‌شود.
 
-The public widget intentionally has unauthenticated endpoints because it runs on third-party sites. The design therefore relies on:
+## 5. Prompt-injection monitoring
 
-- opaque per-widget IDs rather than user IDs;
-- no provider API key in browser responses;
-- owner active-state checking before public chat;
-- input length validation;
-- a per-process rate limiter returning `429` after the configured window limit;
-- Shadow DOM isolation for widget presentation.
+`app/services/injection_scanner.py` مجموعه‌ای از قواعد heuristic فارسی و انگلیسی را برای پیام‌های آزمایشگاه و ویجت بررسی می‌کند. قواعد می‌توانند تلاش برای استخراج system prompt، credential، متغیرهای محیطی، dump دانشنامه، دور زدن کنترل دسترسی و عملیات مخرب را علامت‌گذاری کنند.
 
-CORS is intentionally open for the embeddable widget. A deployment that does not need cross-origin embedding should narrow CORS to known origins.
+در مواردی که با قواعد حساس فعلی منطبق باشند، pipeline پیام را با دلیل rule-code و پرچم امنیتی ذخیره می‌کند و درخواست را پیش از inference رد می‌کند. ادمین می‌تواند هشدارها را از مسیرهای `/api/admin/security/flags` و `/api/admin/security/summary` بررسی و resolved کند.
 
-## Prompt injection monitoring and admin alerts
+این سیستم regex/heuristic است؛ هم امکان false positive و هم false negative دارد و تضمین نمی‌کند همه‌ی حملات را بگیرد. کنترل دسترسی واقعی نباید به اسکن prompt متکی باشد؛ همیشه authorization و جداسازی داده‌ها باید مستقل برقرار باشند.
 
-`app/services/injection_scanner.py` applies normalized Persian/English heuristic rules to incoming Test Lab and public-widget messages. Categories cover system-prompt extraction, instruction override/jailbreak, knowledge-base exfiltration, API keys and other credentials, environment files/variables, destructive database actions, disabling access controls, and requests to read other users' data.
+## 6. Logging and error handling
 
-When an incoming request matches an extraction or dangerous-action rule, `app/services/rag_pipeline.py` persists the user message as a flagged `ChatMessage` **before model inference** and returns a fixed refusal without forwarding the request to the chat model or embedding provider. The database row stores `is_flagged`, a stable `flag_reason` made of rule codes, and the original user-submitted message. The original message is deliberately not copied into application logs. Consequently, a provider timeout or inference error does not erase the security event. Duplicate insertion is avoided when the normal chat turn is subsequently saved. A further suspicious attempt in the same chat session adds a `repeat-sensitive-attempt` rule and sets severity to critical.
+- Middleware برای هر درخواست Request ID می‌سازد و زمان اجرا را log می‌کند؛ مقدار `X-Request-ID` کمک می‌کند درخواست در لاگ پیدا شود.
+- خطای داخلی خام نباید به پاسخ کلاینت نشت کند.
+- از ثبت رمزها، JWTها، API Keyها، Connection String یا محتوای حساس کامل در لاگ خودداری کنید.
+- هشدارهای امنیتی ثبت‌شده در Admin UI با خطاهای عمومی runtime یکسان نیستند؛ هر خطای فنی لزوماً در فهرست هشدارهای امنیتی نمایش داده نمی‌شود.
 
-The admin security endpoints (`/api/admin/security/flags` and `/api/admin/security/summary`) query flagged messages from the shared application database, so every administrator authorized against that same database can inspect the message, reason/category, severity, originating source (Test Lab or widget), user and timestamp. The UI raises a banner/live notification for the latest unresolved critical/high alert and keeps all severities in the review list; admins can open the conversation, block the account, or mark the event reviewed. A newer medium-level event does not hide a still-unresolved critical/high alert from the headline notification.
+## 7. Answer cache
 
-This is **heuristic defense and monitoring, not a guarantee that every attack is detected or blocked**. Pattern-based rules can generate false positives and miss novel wording. Requests matched by current extraction/dangerous-action rules are refused before model inference; novel or unrecognized attacks may still reach the model, so model-provider/system-prompt controls and ordinary authorization checks remain necessary. Review the original message in the restricted admin panel and use a shared database if alerts must be visible across several application instances. A separate Local SQLite installation has its own isolated alert store unless it is explicitly connected to the same database.
+`app/services/answer_cache.py` پاسخ‌های واجد شرایط را تا هفت روز نگه می‌دارد. کلید cache از سؤال نرمال‌شده و fingerprint تنظیمات/provider/دانشنامه ساخته می‌شود و کلید خام provider وارد cache key نمی‌شود. پاسخ قبلی فقط در شرایط تعیین‌شده‌ی مالک، تنظیمات و زمینه‌ی گفتگو قابل استفاده است. خطای cache باید یک miss تلقی شود، نه دلیل متوقف‌شدن چت.
 
-## API and logging
+برای PostgreSQL/Supabase، migration مربوطه را پیش از انتظار برای کش پایدار اعمال کنید: `supabase/migrations/007_answer_cache.sql`.
 
-Input schemas constrain string lengths, enum values, URLs, temperature, top-k and similarity threshold. Unexpected server exceptions are logged with a request ID while the raw exception text is not returned to the client.
+## 8. قبل از انتشار عمومی
 
-Request logs include method, path, status and duration. Do not log API keys, passwords, JWTs or full sensitive message payloads.
-
-
-## Repeated answer cache
-
-`app/services/answer_cache.py` stores only non-empty, context-independent RAG answers for up to seven days. Cache keys are per user and are based on a normalized question hash, language, chat/embedding endpoint and model, fingerprints (not raw values) of provider keys, system-prompt hash, temperature/top-k/threshold, and the current document/chunk fingerprint. Raw questions and raw API keys are not used as cache-key material. A cross-session hit is allowed only for an empty chat session; an immediate exact repeat in the same session can return the prior assistant answer. Source chunks are revalidated as still belonging to that user before the cached result is returned. Cache-table errors are treated as an optimization miss, not as a reason to fail chat. Apply `supabase/migrations/007_answer_cache.sql` to enable the table on PostgreSQL/Supabase.
+- `.env` واقعی را از مخزن/ZIP حذف کنید و هر credential افشاشده را rotate/revoke کنید.
+- `SECRET_KEY` یکتا و قوی، HTTPS و CORS متناسب با نیاز استقرار را تنظیم کنید.
+- Migrationهای دیتابیس را روی پایگاه‌داده‌ی هدف بررسی و اعمال کنید.
+- tenant-isolation، RBAC، ورود و خروج و محدودیت ویجت را تست کنید.
+- برای چند instance، rate limit و نیازهای cache/observability اشتراکی را ارزیابی کنید.

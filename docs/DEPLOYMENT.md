@@ -1,326 +1,140 @@
-# Deployment Guide
+# Deployment Guide — Prismo
 
-Prismo is a FastAPI application with a static frontend, SQLite for local development, Supabase PostgreSQL with pgvector for cloud deployment, and an OpenAI-compatible model provider.
+Prismo یک برنامه‌ی Python/FastAPI با frontend استاتیک است. دیتابیس می‌تواند SQLite محلی یا PostgreSQL/Supabase باشد. مدل‌های چت و Embedding از طریق یک endpoint سازگار با OpenAI فراخوانی می‌شوند و می‌توانند بیرون از host برنامه قرار داشته باشند.
 
-## Local Windows
+## 1. انتخاب معماری استقرار
 
-Run `setup.bat`. The script creates `.venv`, verifies Python 3.10+, checks/restores pip when necessary, prepares `.env` from `.env.example`, starts Uvicorn on `127.0.0.1:8000`, and opens the browser.
+| حالت | برنامه | دیتابیس | نیاز شبکه‌ای |
+|---|---|---|---|
+| Local-only app/data | FastAPI روی کامپیوتر | SQLite در `data/app.db` | API مدل و Google Auth در صورت استفاده همچنان ممکن است اینترنت بخواهند |
+| Local + Supabase | FastAPI روی کامپیوتر | PostgreSQL/Supabase | دسترسی شبکه از کامپیوتر به Supabase و provider مدل |
+| Hosted app + Supabase | runtime ابری مثل Vercel | PostgreSQL/Supabase | دسترسی خروجی runtime به Supabase و provider مدل |
 
-Dependency installation is resilient to common package-index/DNS problems. The installer tries the official PyPI index first and then HTTPS mirrors. You can override the order with `PRISMO_PIP_INDEX_URL` before running the setup script. The legacy `QUASAR_PIP_INDEX_URL` variable remains supported for existing setups.
+**Local بودن برنامه با offline بودن مدل یکسان نیست.** برای AI کاملاً محلی باید chat و embedding provider روی خود سیستم اجرا شوند و Base URLها به آن‌ها اشاره کنند.
 
-The setup script does not ask for an API key. Provider credentials belong in the local `.env` file or can be configured through the application's provider settings.
+## 2. Local روی Windows
 
-## Local Linux / macOS
+روش پیشنهادی: از ریشه‌ی پروژه `setup.bat` را اجرا کنید. پس از آماده شدن محیط، آدرس پیش‌فرض `http://127.0.0.1:8000/` و مستندات API در `/docs` هستند.
 
-Run:
+برای اجبار به SQLite، در `.env` تنظیم کنید:
+
+```dotenv
+APP_ENV=development
+DATABASE_MODE=local
+```
+
+در حالت local، `DATABASE_URL` لازم نیست؛ فایل دیتابیس در `data/app.db` قرار می‌گیرد. حساب اولیه‌ی مدیر محلی از `ADMIN_USERNAME`, `ADMIN_PASSWORD` و `ADMIN_ORG_NAME` ساخته می‌شود. رمز دمو را پیش از اشتراک‌گذاری محیط تغییر دهید.
+
+## 3. Local روی Linux/macOS
 
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
 
-The launcher accepts:
+برای اجرای دستی، محیط مجازی بسازید، `pip install -r requirements.txt` را اجرا کنید و سپس `uvicorn app.main:app --reload --port 8000` را اجرا کنید.
 
-```bash
-HOST=127.0.0.1 PORT=8000 OPEN_BROWSER=true ./run.sh
+## 4. اتصال Local به Supabase
+
+در `.env`:
+
+```dotenv
+APP_ENV=development
+DATABASE_MODE=supabase
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/postgres
 ```
 
-For a hosted process, bind explicitly to the desired interface, for example `HOST=0.0.0.0`, and keep `OPEN_BROWSER=false`.
+مقدار واقعی را از Connect در داشبورد Supabase بردارید. اگر رمز شامل کاراکترهای ویژه‌ی URL باشد، باید درست URL-encode شود.
 
-## Environment
+برای Local Uvicorn، اگر آدرس از shared Supavisor transaction pooler روی پورت `6543` استفاده کند و hostname از نوع `*.pooler.supabase.com` باشد، کد اتصال محلی پورت را به Session Pooler یعنی `5432` تغییر می‌دهد. این تغییر فقط در URL مؤثر روی engine است و مقدار نوشته‌شده در `.env` را عوض نمی‌کند. در Vercel پورت تنظیم‌شده برای runtime حفظ می‌شود. جزئیات در [SUPABASE_LOCAL_COMPAT.md](SUPABASE_LOCAL_COMPAT.md) آمده است.
 
-Copy `.env.example` to `.env` and set production values before exposing the service publicly. At minimum, configure a strong `SECRET_KEY` (32+ characters) and provider credentials required by your selected model configuration.
+### Schema و Migrationها
 
-Never commit `.env`, API keys, database files, or other runtime secrets.
+برخلاف SQLite، برنامه در startup به‌صورت خودکار schema دیتابیس PostgreSQL/Supabase را نمی‌سازد یا اصلاح نمی‌کند. Migrationهای موردنیاز باید روی دیتابیس هدف اعمال شده باشند.
 
+1. از دیتابیس هدف backup بگیرید.
+2. فایل‌های `supabase/migrations/` و توضیحات همان نسخه را بررسی کنید.
+3. migrationهای پایه و هر migration مربوط به قابلیت‌های استفاده‌شده را در Supabase SQL Editor طبق ترتیب و راهنمای پروژه اجرا کنید.
+4. migrationها را کورکورانه تکرار نکنید؛ به‌ویژه فایل‌هایی با واژه‌هایی مثل `remove` یا `drop` را پیش از اجرا بخوانید.
+5. پس از اجرا، ستون‌ها و جدول‌های جدید را بررسی و چت، دانشنامه، saved models و cache را آزمایش کنید.
 
-## Local Supabase connection mode (v2.8.9)
+وجود فایل migration در repository ثابت نمی‌کند که آن روی دیتابیس واقعی اجرا شده است.
 
-When `DATABASE_URL` uses a shared Supavisor URL like `aws-0-REGION.pooler.supabase.com:6543`, local Uvicorn uses port `5432` instead (Supavisor Session mode). This is intended for a long-running local backend and helps when the transaction-pooler port is unreachable from the local network. The URL stored in `.env` is not edited. Vercel keeps the configured `6543` transaction pooler for serverless requests. No new environment variable is required.
+## 5. متغیرهای محیطی
 
-Supabase documents shared pooler Session mode on port 5432 and Transaction mode on port 6543: <https://supabase.com/docs/guides/database/connecting-to-postgres>. If local connection attempts still time out on 5432, test that port from the same Windows network/VPN and verify the Supabase project is active; a TCP timeout occurs before SQL authentication or schema migration and cannot be fixed by changing table columns.
+تنظیم‌های مهم در `.env.example` فهرست شده‌اند:
 
-## Health check
+| متغیر | کاربرد |
+|---|---|
+| `APP_ENV` | `development` یا `production` |
+| `DATABASE_MODE` | `local`, `supabase` یا `auto` |
+| `DATABASE_URL` | اتصال PostgreSQL؛ برای SQLite محلی لازم نیست |
+| `SECRET_KEY` | امضای JWT؛ در Production باید صریح، یکتا و حداقل ۳۲ نویسه باشد |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_ORG_NAME` | مشخصات bootstrap مدیر محلی |
+| `DEFAULT_PROVIDER_BASE_URL` | آدرس provider پیش‌فرض مدل |
+| `DEFAULT_PROVIDER_API_KEY` | کلید محرمانه‌ی provider پیش‌فرض |
+| `AI_REQUEST_TIMEOUT_SECONDS` | محدودیت زمانی درخواست مدل |
+| `AI_MAX_RETRIES` | تعداد تلاش مجدد پیکربندی‌شده برای provider |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | تنظیمات عمومی لازم برای Google/Supabase Auth |
+| `APP_PUBLIC_URL` | آدرس عمومی برنامه برای هدر/شناسه‌دهی provider در صورت نیاز |
 
-The service exposes `GET /api/health` for a lightweight availability check.
+فایل `.env` فقط برای محیط محلی باشد و وارد Git یا ZIP عمومی نشود. `SUPABASE_ANON_KEY` کلید عمومی client است؛ کلید `service_role` محرمانه است و نباید در فرانت‌اند قرار گیرد.
 
-## Production notes
+## 6. Google sign-in
 
-Run behind a reverse proxy or managed process service, terminate TLS at the edge, and restrict CORS to the origins that actually need access when the deployment is not serving the embeddable public widget.
+ورود با گوگل اختیاری است و به Supabase Auth نیاز دارد.
 
-The public widget rate limiter is in-memory and therefore scoped to one application process. A multi-instance deployment should use a shared rate-limit store before relying on the limit as a cross-instance control.
+1. در Supabase، Google provider را فعال کنید و Client ID/Secret را با تنظیمات Google Cloud هماهنگ کنید.
+2. آدرس callback واقعی برنامه، مانند `http://localhost:8000/auth-callback.html` برای Local و دامنه‌ی HTTPS واقعی برای Hosted، را به allow-list مسیرهای بازگشت اضافه کنید.
+3. در Google Cloud، URI مربوط به callback سرویس Supabase را طبق مقداری که داشبورد Supabase نشان می‌دهد ثبت کنید؛ callback گوگل به Supabase برمی‌گردد و سپس Supabase به callback Prismo هدایت می‌کند.
+4. `SUPABASE_URL` و `SUPABASE_ANON_KEY` باید به همان پروژه‌ی Supabase اشاره کنند.
+5. جریان PKCE را هم در Local و هم در دامنه‌ی نهایی آزمایش کنید. در پایان باید JWT خود Prismo صادر شود و توکن‌های provider در URL باقی نمانند.
 
-Cloud production requires a PostgreSQL `DATABASE_URL`. It must not fall back to a local SQLite file. PostgreSQL mode does not create a local data directory.
+اگر از ورود گوگل استفاده نمی‌کنید، مسیر username/password می‌تواند در حالت SQLite به‌صورت محلی کار کند.
 
-## مسیر فعلی: از مرحله ۱۴ تا Vercel
+## 7. Provider مدل و OpenRouter
 
-این راهنما برای همان پوشه `G:\desktop\پارت\راکد 2\Final Project\Supa Base` است. همه دستورها را در PowerShell همین پوشه اجرا کن. اجرای برنامه از طریق Python موجود در `.venv` است.
-
-### ۱. پایان مرحله ۱۴
-
-```powershell
-Set-Location -LiteralPath 'G:\desktop\پارت\راکد 2\Final Project\Supa Base'
-Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
-Test-Path Env:DATABASE_URL
-```
-
-خروجی دستور آخر باید `False` باشد.
-
-### ۲. اعمال اصلاحات آماده
-
-بسته `vercel-fixes.zip` را بیرون از پوشه پروژه باز کن. محتوای آن را داخل پوشه اصلی `Supa Base` کپی کن و جایگزینی فایل‌های هم‌نام را تأیید کن. بعد از کپی، `.vercelignore` باید کنار `requirements.txt` باشد.
-
-بسته فقط شامل فایل‌های اصلاح‌شده، تست‌های مربوط و این راهنماست. `.env`، دیتابیس محلی، `.venv` و `.git` در آن نیستند.
-
-اصلاحات: جلوگیری از نوشتن فایل دیتابیس در Vercel، الزام PostgreSQL در production، جلوگیری از آپلود فایل‌های خصوصی، جداسازی تست‌ها از Supabase، نمایش کنترل‌شده خطای embedding و جلوگیری از پاسخ‌سازی وقتی هیچ منبعی پیدا نمی‌شود.
-
-تست‌های مرتبط را اجرا کن:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests/test_cloud_runtime.py tests/test_cloud_rag.py tests/test_rag_store.py tests/test_rag_pipeline.py tests/test_knowledge_reindex.py tests/test_api_integration.py
-```
-
-نتیجه بررسی این نسخه: `23 passed`. در کل مجموعه `61 passed, 1 failed` مشاهده شد. همان تست صفحه‌بندی کاربران ادمین (`test_user_listing_honors_limit_and_offset`) قبل از اصلاحات هم شکست می‌خورد؛ این تغییرات آن بخش را دست نمی‌زنند.
-
-### ۳. تست واقعی با Supabase، پیش از استقرار
-
-در Supabase، بخش Table Editor باید این شش جدول را داشته باشد:
-
-`users`، `user_settings`، `documents`، `chunks`، `chat_sessions`، `chat_messages`.
-
-در PowerShell، به‌جای متن جایگزین، دقیقاً همان Connection String را قرار بده که قبلاً با آن خروجی `1` گرفته‌ای. در Supabase این آدرس از `Connect → Transaction pooler` گرفته می‌شود. اگر گذرواژه کاراکتر ویژه دارد، بخش گذرواژه در URL باید URL-encoded باشد؛ آدرسی که قبلاً تست موفق داشته را بدون تغییر استفاده کن.
-
-```powershell
-$env:DATABASE_URL='YOUR_TESTED_SUPABASE_CONNECTION_STRING'
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
-
-این اجرای برنامه واقعاً در Supabase داده ذخیره می‌کند. مرورگر را روی `http://127.0.0.1:8000` باز کن. با نام کاربری `ADMIN_USERNAME` و رمز `ADMIN_PASSWORD` فایل محلی `.env` وارد شو. در حالت SQLite، حساب ادمین در شروع برنامه ایجاد یا با مقدارهای تنظیم‌شده هماهنگ می‌شود. اگر اجرای محلی به Supabase متصل است، برای همگام‌سازی حساب پیکربندی‌شده فقط در محیط توسعه، `PRISMO_BOOTSTRAP_ADMIN_ON_STARTUP=true` را در `.env` محلی قرار بده؛ این گزینه در محیط عملیاتی نباید فعال شود.
-
-در «دانشنامه → افزودن سند جدید» این سند را ثبت کن:
-
-عنوان: `ساعات کاری`
-
-متن: `شرکت از شنبه تا چهارشنبه، ساعت ۸ تا ۱۴ فعال است. پنجشنبه و جمعه تعطیل است.`
-
-ثبت سند باید موفق باشد و تعداد تکه‌ها صفر نباشد. این مرحله علاوه بر چت، API واقعی embedding را هم امتحان می‌کند.
-
-در SQL Editor سوپابیس اجرا کن:
-
-```sql
-select id, user_id, document_id,
-       extensions.vector_dims(embedding) as dimensions
-from public.chunks
-order by id;
-```
-
-باید برای سند ثبت‌شده ردیف ببینی و `dimensions` برابر `2560` باشد.
-
-در «آزمایشگاه تست» بپرس: `ساعات کاری شرکت چیست؟` پاسخ باید ۸ تا ۱۴ باشد و بخش «منابع بازیابی‌شده» سند ساعات کاری را نشان بدهد. سپس در یک گفت‌وگوی جدید بپرس: `دفتر شرکت در کدام خیابان است؟` پاسخ باید نبود اطلاعات را اعلام کند، نه آدرس ساختگی.
-
-با یک حساب دیگر که سندی ندارد وارد شو و سؤال ساعات کاری را بپرس. سند حساب ادمین و پاسخ مستند آن نباید برای این حساب نمایش داده شود.
-
-اگر ثبت سند، ابعاد بردار، منابع یا پاسخ‌ها درست نبود، همان‌جا متوقف شو و خطا را بفرست. اجرای مراحل بعدی مشکل RAG را حل نمی‌کند.
-
-پس از موفقیت این مرحله، در Terminal برنامه `Ctrl+C` بزن و سپس:
-
-```powershell
-Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
-```
-
-### ۴. اتصال به Vercel
-
-Vercel CLI روی سیستم موجود است؛ نسخه بررسی‌شده `54.17.3` بود.
-
-```powershell
-vercel.cmd login
-vercel.cmd link
-```
-
-ورود را در مرورگر خودت تأیید کن. در `link` حساب خودت را انتخاب کن، برای ساخت پروژه جدید به `Link to existing project?` پاسخ `N` بده، نام پروژه را `rag-widget` و مسیر کد را `./` قرار بده.
-
-### ۵. متغیرهای Vercel
-
-Vercel در حال حاضر FastAPI را با Python runtime به‌صورت zero-config پشتیبانی می‌کند؛ این پروژه عمداً ساختار فعلی خود را حفظ می‌کند تا مسیرهای موجود تغییر نکنند.
-
-در داشبورد Vercel، پروژه را باز کن و به `Settings → Environment Variables` برو. برای هر پنج مقدار زیر، هر دو محیط `Preview` و `Production` را انتخاب کن. برای Preview مقدارها را به همه شاخه‌ها اعمال کن.
-
-| نام | مقدار |
-| --- | --- |
-| `APP_ENV` | `production` |
-| `DATABASE_URL` | همان Transaction Pooler URL تست‌شده |
-| `SECRET_KEY` | مقدار فعلی `SECRET_KEY` از `.env` محلی؛ مقدار بررسی‌شده ۴۳ کاراکتر داشت |
-| `DEFAULT_PROVIDER_API_KEY` | مقدار فعلی همین متغیر از `.env` محلی |
-| `ADMIN_PASSWORD` | همان رمز ادمین استفاده‌شده در تست Supabase |
-| `AI_REQUEST_TIMEOUT_SECONDS` | `45` |
-| `AI_MAX_RETRIES` | `2` |
-
-مقدارها را بدون نام متغیر، بدون علامت `=` و بدون کوتیشن وارد کن. فقط مقدار Secretها را در حساب Vercel خودت قرار بده؛ در پیام خطا یا اسکرین‌شات ارسالی منتشرشان نکن.
-
-### ۶. Preview
-
-```powershell
-vercel.cmd
-```
-
-اگر درباره تغییر تنظیمات Build/Output سؤال شد، پاسخ `N` بده. Framework باید FastAPI تشخیص داده شود. پس از رسیدن deployment به `Ready`، URL خروجی را باز کن و این مسیرها را بررسی کن:
-
-`/api/health` → `{"status":"ok"}`
-
-`/docs` → مستندات API
-
-`/` → صفحه پروژه
-
-Health فقط اجرای برنامه را بررسی می‌کند؛ به‌تنهایی اثبات سالم بودن دیتابیس و RAG نیست.
-
-با همان حساب ادمین وارد شو. سند ساعات کاری که در تست محلی با Supabase ساخته‌ای باید وجود داشته باشد. یک سند کوتاه جدید از خود سایت Vercel بساز تا ذخیره‌سازی از Vercel هم تأیید شود. سؤال ساعات کاری و سؤال آدرس را دوباره امتحان کن؛ منابع بازیابی‌شده را کنترل کن.
-
-در «ویجت و کد امبد»، پیش‌نمایش ویجت را باز کن و سؤال ساعات کاری را بپرس. پاسخ باید از همان دانشنامه باشد.
-
-### ۷. انتشار نهایی و ماندگاری داده
-
-فقط بعد از موفق بودن تست‌های Preview:
-
-```powershell
-vercel.cmd --prod
-```
-
-در URL نهایی، ورود، سند ذخیره‌شده، سؤال ساعات کاری و ویجت را دوباره بررسی کن. سند جدیدی که روی Preview ساخته‌ای باید بعد از این استقرار هم باقی مانده باشد؛ داده‌ها در Supabase هستند، نه روی فایل‌سیستم Vercel.
-
-اگر deployment شکست خورد، متن خطای قرمز Build Logs یا Runtime Logs را بفرست. کلیدها و Connection String را از متن حذف کن.
-
-## محدوده بررسی این نسخه
-
-- کد اصلی روی درایو G تغییر داده نشد؛ اصلاحات روی کپی پروژه آماده شدند.
-- مدل PostgreSQL به‌صورت `VECTOR(2560)` و اتصال به‌صورت `NullPool` بدون اتصال شبکه‌ای import شدند.
-- ۲۳ تست مرتبط با cloud، RAG، ثبت سند و جداسازی کاربران موفق شدند.
-- آزمون واقعی endpoint مدل، جداول زنده Supabase و deployment انجام نشده است؛ اتصال دیتابیس در فایل `.env` ارسالی نبود و Vercel CLI هنوز به حساب وارد نشده بود.
-- وجود migration در کد به معنی اجرای موفق آن روی دیتابیس زنده نیست. معیارهای مرحله ۳ برای تأیید واقعی لازم‌اند.
-
-## مستندات رسمی بررسی‌شده در ۲ اکتبر ۲۰۲۶
-
-- FastAPI، lifespan، frontend و entrypointهای Vercel: <https://vercel.com/docs/frameworks/backend/fastapi>
-- Connection string و Transaction Pooler: <https://supabase.com/docs/guides/database/connecting-to-postgres>
-- SQLAlchemy و NullPool: <https://supabase.com/docs/guides/troubleshooting/using-sqlalchemy-with-supabase-FUqebT>
-- Psycopg و `prepare_threshold=None`: <https://supabase.com/docs/guides/troubleshooting/disabling-prepared-statements-qL8lEL>
-- فایل‌های مجاز برای upload: <https://vercel.com/docs/deployments/vercel-ignore>
-- متغیرهای Preview و Production: <https://vercel.com/docs/environment-variables>
-- فایل‌سیستم read-only: <https://vercel.com/docs/functions/runtimes>
-- مسیر CLI تا Production: <https://vercel.com/docs/projects/deploy-from-cli>
-
-### عیب‌یابی خطای اتصال سرویس AI در Vercel
-
-اگر لوکال مدل‌ها را می‌بیند اما Vercel پیام «اتصال به سرویس هوش مصنوعی برقرار نشد» نشان می‌دهد، این پیام مربوط به `APIConnectionError` است و قبل از دریافت پاسخ مدل رخ می‌دهد. نسخه فعلی کلاینت برای اجرای hosted، timeout و retry صریح دارد و خطای اتصال را در Runtime Logs با `base_url` و نوع خطا ثبت می‌کند؛ API key هرگز در لاگ ثبت نمی‌شود.
-
-ابتدا در سایت Vercel این مسیر را باز کن:
-
-`/api/settings/test-connection`
-
-این endpoint به احراز هویت نیاز دارد و نتیجه اتصال provider را برمی‌گرداند. سپس در Runtime Logs دنبال عبارت `AI provider connection failed` بگرد. اگر خطا `ConnectError`، DNS یا timeout باشد، مشکل مسیر شبکه Vercel به `DEFAULT_PROVIDER_BASE_URL` است و تغییر RAG یا مدل‌های داخل پروژه آن را حل نمی‌کند. در این حالت باید دسترسی خروجی Vercel به `racode-llm.partschool.ir` از همان deployment تأیید شود یا provider از یک endpoint عمومی که Vercel بتواند به آن وصل شود ارائه شود.
-
-برای تست مستقل، بعد از deployment این مسیرها را بررسی کن:
-
-- `/api/health` → اجرای FastAPI
-- `/api/settings/test-connection` → اتصال provider
-- `/api/playground/free-models` → لیست مدل‌های پیش‌فرض بدون تماس با provider
-
-نکته: وجود متغیر `DEFAULT_PROVIDER_API_KEY` در Vercel کافی نیست؛ deployment باید واقعاً بتواند به Base URL متصل شود.
-
-## Google Login through Supabase Auth
-
-Google sign-in is an optional login method alongside the existing username/password route. The login button redirects to the configured Supabase project's Google provider. Supabase returns to `frontend/auth-callback.html`; the callback sends the Supabase access token to `POST /api/auth/google-supabase`. The backend verifies that token by calling the Supabase Auth user endpoint with the public project anon key, then returns Prismo's normal bearer JWT.
-
-Configure `SUPABASE_URL` and `SUPABASE_ANON_KEY` for the same project used by the frontend redirect. If not overridden, the application defaults target the Supabase project supplied with the original working Google-login flow. Set these variables explicitly when using another project.
-
-In Supabase Dashboard, enable `Authentication → Providers → Google` and enter the Google OAuth Client ID and Client Secret from Google Cloud. In `Authentication → URL Configuration`, add the exact callback URL(s) to the redirect allow list:
-
-- Local: `http://localhost:8000/auth-callback.html`
-- Hosted: `https://YOUR-DOMAIN/auth-callback.html`
-
-In Google Cloud, add the Supabase callback shown in the Supabase Google provider page as the authorized redirect URI (normally `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`). Use the exact value displayed by your Supabase project. Google Client Secret must stay in Supabase/Google Cloud configuration; never put it in browser JavaScript or `.env.example`. The `SUPABASE_ANON_KEY` is a public client key, not a service-role secret.
-
-The Google/Supabase route returns a normal Prismo JWT; the rest of the application keeps using the existing token-based authorization. The original username/password sign-in and registration endpoints remain enabled. Live OAuth must be tested with the actual Supabase Google provider and redirect allow list configured in the target deployment.
-
-
-## v2.8.5: Google sign-in, answer-cache migration, and hosted callback
-
-### Supabase Google Auth
-
-For the production site `https://rag-widget-beta.vercel.app`, set Supabase **Authentication → URL Configuration → Site URL** to:
+می‌توانید provider را از صفحه‌ی اتصال هوش مصنوعی تعیین کنید یا از متغیرهای امن سرور برای provider پیش‌فرض استفاده کنید. برای OpenRouter، Base URL متداول این است:
 
 ```text
-https://rag-widget-beta.vercel.app
+https://openrouter.ai/api/v1
 ```
 
-Add the following to the Supabase **Redirect URLs** allow-list:
+کاتالوگ OpenRouter می‌تواند شناسه و متادیتای قیمت مدل را ارائه دهد؛ رایگان بودن یا قیمت به اطلاعات جاری خود ارائه‌دهنده وابسته است. پس از انتخاب مدل، تست اتصال اجرا شود. برای Embedding، برنامه خروجی واقعی را بررسی می‌کند تا بُعد بردار با `EMBEDDING_DIMENSIONS` و ستون دیتابیس سازگار باشد.
 
-```text
-https://rag-widget-beta.vercel.app/auth-callback.html
-http://localhost:8000/auth-callback.html
-```
+کلیدهای provider باید سمت سرور نگهداری شوند. افزودن کلید به صفحه باعث ارسال آن از مرورگر به backend می‌شود و برنامه آن را برای حساب مرتبط ذخیره می‌کند؛ بنابراین دسترسی به دیتابیس و backupها هم باید محافظت شود.
 
-Keep the localhost URL only for development. When the user starts OAuth from the production `*.vercel.app` deployment, Prismo selects the canonical production callback; it does not direct a hosted sign-in to localhost. Configure Google as a provider in Supabase. In Google Cloud's OAuth web client, the authorized redirect URI is the Supabase callback (not the Prismo callback):
+## 8. Hosted deployment / Vercel
 
-```text
-https://<SUPABASE-PROJECT-REF>.supabase.co/auth/v1/callback
-```
+برای اجرای Production:
 
-Ensure `SUPABASE_URL` and `SUPABASE_ANON_KEY` (public anon/publishable key only; never `service_role`) are set consistently in Vercel Production and in local `.env`. The callback uses PKCE: it expects a short-lived `?code=...`, removes it from the address bar before exchanging it, and posts the code and a session-held verifier to `/api/auth/google-pkce`. The backend returns only Prismo's application JWT. Do not enable/require the implicit fragment-token flow for this application.
+- `APP_ENV=production` تنظیم شود.
+- `DATABASE_URL` باید PostgreSQL/Supabase معتبر باشد؛ حالت Production نباید به SQLite محلی برگردد.
+- `SECRET_KEY` قوی و سایر کلیدهای لازم را در Environment Variables سکوی میزبانی تنظیم کنید، نه در کد یا frontend.
+- schema و Migrationهای Supabase را پیش از تست runtime اعمال کنید.
+- در Preview و Production، envها را متناسب با همان محیط جداگانه تنظیم کنید.
+- بعد از هر انتشار، `/api/health`, `/docs`, ورود، ایجاد سند، پاسخ RAG و ویجت عمومی را جداگانه تست کنید.
 
-After changing Supabase URL settings, redeploy only if environment variables changed; URL allow-list changes take effect at Supabase. Test sign-in from the production domain and confirm the final URL is `/dashboard.html` on that same domain, not `localhost` and not a URL containing `access_token`, `refresh_token` or `provider_token`.
+`GET /api/health` صرفاً بررسی سبکی از اجرای برنامه است و سلامت دیتابیس، provider یا کل RAG را تضمین نمی‌کند.
 
-### RAG answer cache migration
+### محدودیت‌های استقرار
 
-On PostgreSQL/Supabase, run `supabase/migrations/007_answer_cache.sql` once in SQL Editor. SQLite/local mode creates `answer_cache` via SQLAlchemy metadata at startup. If the migration is not present in a hosted schema, chat still works without the optional cache; repeated-question speedups will be unavailable.
+- فایل‌سیستم runtimeهای serverless را محل ذخیره‌ی دائمی دیتابیس قرار ندهید؛ برای Production از PostgreSQL استفاده کنید.
+- rate limit عمومی ویجت فعلی در حافظه‌ی هر process است؛ برای چند instance به limit store مشترک نیاز دارید.
+- شبکه‌ی runtime تا provider مدل باید واقعاً قابل دسترسی باشد. تنظیم API Key به‌تنهایی موفقیت اتصال را تضمین نمی‌کند.
+- relay اختیاری است و برای معماری اصلی اجباری نیست؛ در صورت استفاده به [VERCEL_PROVIDER_RELAY.md](VERCEL_PROVIDER_RELAY.md) مراجعه کنید.
 
-### Security notifications
+## 9. پس از استقرار
 
-The lower-left red admin button is populated from `GET /api/admin/security/summary`, which queries flagged and unresolved `ChatMessage` rows in the current database. All authorized admins sharing that database see the same unresolved report count. Repeated detected extraction attempts in one session are elevated to critical. Local SQLite and the hosted Supabase database are separate alert stores unless both environments point to the same database.
+حداقل این سناریوها را آزمایش کنید:
 
-### Repair: missing provider columns in `user_settings` (v2.8.7)
+1. ورود و خروج حساب، و Google login اگر فعال شده است.
+2. ایجاد سند و تأیید غیرصفر بودن تعداد chunkها.
+3. سؤال قابل پاسخ از دانشنامه و تأیید منبع بازیابی‌شده.
+4. سؤال خارج از دانشنامه و بررسی اینکه پاسخ بی‌پشتوانه ساخته نشود.
+5. استفاده از همان سؤال با حساب دیگر برای بررسی جداسازی مالکیت.
+6. تست اتصال chat و embedding provider.
+7. بارگذاری و پاسخ‌گویی ویجت در یک صفحه‌ی بیرونی.
+8. ورود ادمین، بررسی هشدار و محدودیت نقش کاربر عادی.
 
-For any PostgreSQL `UndefinedColumn` error involving one of these settings fields:
-`separate_embedding_provider`, `embedding_api_key`, `embedding_base_url`, or
-`embedding_use_default_provider`, run
-`supabase/migrations/009_repair_all_embedding_provider_columns.sql` once in
-Supabase Dashboard → SQL Editor. This current repair migration supersedes running
-008 by itself; it creates every optional provider column together, backfills the
-new selector from `use_default_provider`, and is safe to re-run. It does not drop
-or delete existing data.
-
-You can verify all four columns with:
-
-```sql
-SELECT column_name, data_type, is_nullable, column_default
-FROM information_schema.columns
-WHERE table_schema = 'public'
-  AND table_name = 'user_settings'
-  AND column_name IN (
-    'separate_embedding_provider', 'embedding_api_key',
-    'embedding_base_url', 'embedding_use_default_provider'
-  )
-ORDER BY column_name;
-```
-
-All four columns should be returned. Restart the local Prismo process that uses
-`DATABASE_URL` for Supabase afterward. PostgreSQL schema migrations are not run
-automatically at startup. In v2.8.7, the optional development bootstrap also
-uses `user_settings_compat` to avoid loading every ORM-mapped setting column, so
-an older schema will not crash on that bootstrap check before the repair runs.
-
-
-### Repair: provider columns missing from `user_settings` (v2.8.7)
-
-If local Prismo connected to Supabase reports an `UndefinedColumn` error for
-`separate_embedding_provider`, `embedding_api_key`, `embedding_base_url`, or
-`embedding_use_default_provider`, the existing database is missing one or more
-provider migrations. Run `supabase/migrations/009_repair_all_embedding_provider_columns.sql`
-once in Supabase Dashboard → SQL Editor. This one-shot migration is idempotent and
-repairs all four columns together, including databases that applied migration 008
-but skipped migration 003. It preserves existing rows and provider choices.
-
-The development-only bootstrap path also uses `user_settings_compat` now, so it
-won't eagerly load the full SQLAlchemy `UserSettings` object while checking whether
-an admin settings row exists. Older schemas can start without crashing; the new
-independent embedding-provider options become fully available after migration 009.
-Do not recreate the database or delete existing rows.
+برای عیب‌یابی provider در Vercel از [VERCEL_PROVIDER_DEBUG.md](VERCEL_PROVIDER_DEBUG.md) و برای عملکرد چت از [VERCEL_CHAT.md](VERCEL_CHAT.md) استفاده کنید.

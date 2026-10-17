@@ -1,70 +1,98 @@
-# RAG Pipeline
+# RAG pipeline — Prismo
 
-## End-to-end flow
+RAG (Retrieval-Augmented Generation) بازیابی اطلاعات مرتبط از دانشنامه و استفاده از آن به‌عنوان زمینه‌ی پاسخ مدل چت است. این پیاده‌سازی از سرویس برداری جداگانه‌ای استفاده نمی‌کند: SQLite از JSON و NumPy استفاده می‌کند و PostgreSQL/Supabase از `pgvector`.
+
+## 1. جریان کامل سؤال
 
 ```text
-User message
-   │
-   ├─► input validation
-   │
-   ├─► resolve provider + model settings
-   │
-   ├─► embedding(query)
-   │
-   ├─► cosine search over owner-scoped chunks
-   │      ├─ similarity threshold
-   │      └─ top-k limit
-   │
-   ├─► build bounded conversation history
-   │
-   ├─► assemble system prompt + retrieved context
-   │
-   └─► chat completion
-          │
-          └─► persist user/assistant turn + injection flag
+Incoming message
+  → validate input / resolve user and session
+  → check eligible conversation recall or answer cache
+  → resolve chat + embedding providers
+  → embed the question
+  → search only this owner's chunks
+  → apply similarity threshold and top-k
+  → assemble system prompt + retrieved context + bounded history
+  → request chat completion
+  → save the turn and applicable security flags
+  → return JSON or stream events (SSE)
 ```
 
-Both the internal playground and the public widget use `services/rag_pipeline.py`, so retrieval and prompt assembly are shared.
+آزمایشگاه و چت عمومی ویجت از pipeline مشترک استفاده می‌کنند تا منطق بازیابی و ساخت prompt تا حد امکان یکسان بماند. برخی endpointها مانند Battle برای مقایسه مستقیم مدل‌ها طراحی شده‌اند و الزاماً مسیر RAG را اجرا نمی‌کنند.
 
-## Ingestion
+## 2. وارد کردن سند و ساخت index
 
-When a document is created or edited with content changes:
+1. رابط کاربری متن سند را از فرمت‌های پشتیبانی‌شده استخراج می‌کند؛ برای PDF از PDF.js استفاده می‌شود.
+2. متن استخراج‌شده به API ارسال و رکورد سند با مالک مشخص ذخیره می‌شود.
+3. `services/text_split.py` متن را به تکه‌های هم‌پوشان می‌شکند.
+4. provider فعال Embedding بردار هر تکه را می‌سازد؛ پردازش و ذخیره‌سازی می‌تواند گروهی انجام شود.
+5. رکوردهای `chunks` شامل `user_id`, `document_id`, متن و بردار ذخیره می‌شوند.
+6. با ویرایش متن یا اجرای reindex، تکه‌های قبلی سند بازسازی می‌شوند.
 
-1. The owner is resolved from the authenticated user.
-2. Existing chunks for that document are removed.
-3. `text_split` creates overlapping text chunks using the project chunk size/overlap settings.
-4. The selected embedding provider creates one vector per chunk.
-5. Chunks are stored in `chunks` with `user_id`, `document_id`, text and JSON-encoded embedding.
+برای مشاهده‌ی پیشرفت ایندکس از endpoint استریم افزودن سند استفاده می‌شود. درصد پیشرفت بر اساس تعداد تکه‌های پردازش‌شده نسبت به کل محاسبه می‌شود، نه بر اساس زمان تخمینی.
 
-A separate `POST /api/knowledge/documents/{id}/reindex` endpoint repeats the index build without changing the stored raw document content.
+## 3. Chunking و مقادیر پیش‌فرض
 
-## Retrieval
+مقادیر پیش‌فرض در کد فعلی:
 
-`rag_store.search()` always scopes rows by `user_id`. Cosine similarity is calculated with NumPy. Results below `similarity_threshold` are excluded, then the highest remaining scores are limited to `top_k`.
+- `CHUNK_SIZE`: 700 نویسه
+- `CHUNK_OVERLAP`: 80 نویسه
+- `DEFAULT_TOP_K`: 4
+- `DEFAULT_SIMILARITY_THRESHOLD`: 0.25
+- `EMBEDDING_DIMENSIONS`: 2560، مگر اینکه با متغیر محیطی تغییر داده شود
 
-Current defaults:
+تقسیم متن ابتدا پاراگراف‌ها را حفظ می‌کند و پاراگراف‌های طولانی را با پنجره‌ی متحرک می‌شکند. هم‌پوشانی به کاهش از دست رفتن معنا در مرز تکه‌ها کمک می‌کند. مقادیر بالا تنظیمات پروژه‌اند، نه بهترین مقدار برای هر سند یا مدل.
 
-- `top_k`: 4
-- `similarity_threshold`: 0.25
-- chunk size: 700 characters
-- chunk overlap: 80 characters
+## 4. Embedding و جست‌وجو
 
-The dashboard exposes the similarity threshold so retrieval behavior can be tuned without changing code.
+مدل Embedding متن سؤال یا هر تکه‌ی سند را به برداری از اعداد تبدیل می‌کند. سؤال و تکه‌های ذخیره‌شده باید از نظر فضای embedding سازگار باشند؛ به‌ویژه بُعد بردار باید با تنظیم و ستون دیتابیس یکسان باشد.
 
-## Prompt construction
+### SQLite
 
-Retrieved text is wrapped in explicit context delimiters and described as retrieved, untrusted content rather than an instruction source. The user's system prompt remains the primary system instruction.
+- بردارها به صورت JSON ذخیره می‌شوند.
+- NumPy بردارهای سؤال و chunk را به شکل ماتریس عددی آماده می‌کند و cosine similarity را محاسبه می‌کند.
+- ماتریس نرمال‌شده‌ی شناسه‌ها و بردارها در یک LRU محدودِ درون‌پردازشی و به تفکیک دیتابیس/کاربر کش می‌شود.
+- کش با تغییر chunkها یا signature داده invalidate می‌شود؛ اسناد و sessionهای ORM داخل این کش نگهداری نمی‌شوند.
 
-Conversation history is bounded to the latest 12 messages and a 12,000-character budget. This prevents an old conversation from growing the prompt without limit.
+### PostgreSQL / Supabase
 
-## Missing context
+- ستون embedding از نوع `pgvector` است.
+- query با `cosine_distance` در PostgreSQL انجام می‌شود، نتایج بر اساس فاصله مرتب و سپس بر اساس threshold فیلتر می‌شوند.
+- migrationهای PostgreSQL باید پیشاپیش اعمال شده باشند.
 
-When no chunks meet the threshold, the context block says that no suitable knowledge entry was found. The model can still answer according to its configured system prompt; the default prompt instructs it not to invent a knowledge-base answer.
+## 5. Top-K و Similarity Threshold
 
-If the embedding request fails, the pipeline continues with an empty retrieval result and still attempts the chat completion. Provider/chat failures are surfaced through the centralized LLM error handling.
+- **Similarity Threshold** کمترین نمره‌ی شباهت قابل‌قبول را مشخص می‌کند. بالاتر بردن آن می‌تواند نتایج بی‌ربط را کاهش دهد، اما ممکن است منبع مفید را نیز حذف کند.
+- **Top-K** حداکثر تعداد تکه‌هایی است که از بین نتایج واجد شرایط انتخاب می‌شوند.
 
-## Quality boundaries
+ترتیب مهم است: ابتدا نتایج بر اساس شباهت مرتب می‌شوند و فقط موارد بالاتر از آستانه نگه داشته می‌شوند؛ سپس سقف Top-K اعمال می‌شود. پس Top-K تضمین نمی‌کند به همان تعداد نتیجه برگردد.
 
-This is an embedded educational/production-demo RAG implementation, not a distributed vector-search system. The vector store loads the owner's chunk vectors into memory for each search. This is intentionally simple and keeps the project free from a separate vector database service.
+## 6. ساخت prompt و نبود منبع
 
-For larger datasets, the retrieval layer can be replaced behind the existing `rag_store` interface without changing the API contract.
+prompt شامل دستور سیستمی کاربر، متن تکه‌های بازیابی‌شده و تاریخچه‌ی محدود همان نشست است. متن بازیابی‌شده به‌عنوان محتوای مرجعِ غیرقابل‌اعتماد delimit می‌شود، نه به‌عنوان دستور جدید سیستم.
+
+تاریخچه محدود است تا متن ورودی مدل بی‌نهایت رشد نکند. مسیر معمول حداکثر ۱۲ پیام و سقف حدود ۶٬۰۰۰ نویسه را برای history در نظر می‌گیرد؛ context بازیابی‌شده نیز سقف جداگانه‌ی حدود ۶٬۰۰۰ نویسه دارد؛ مسیر سریع می‌تواند محدودیت پایین‌تری داشته باشد.
+
+اگر هیچ chunk از threshold عبور نکند، pipeline متن «اطلاعات کافی در دانشنامه ندارم» را برمی‌گرداند و در این مسیر معمول درخواست chat completion نمی‌فرستد. اگر provider مربوط به embedding با خطای قابل‌بازیابی از دسترس خارج شود، pipeline ممکن است پاسخ مستقیم با زمینه‌ی خالی را در قالب degraded path امتحان کند؛ بنابراین نبود منبع مرتبط و خطای سرویس Embedding دقیقاً یک حالت نیستند.
+
+## 7. حافظه‌ی گفتگو و کش پاسخ
+
+دو قابلیت را از هم جدا کنید:
+
+- **Conversation recall:** در همان نشست، سؤال تکراری یا بعضی بازنویسی‌های پر اطمینان و پیگیری‌های کوتاه قابل تشخیص ممکن است پاسخ قبلی را از `chat_messages` برگردانند؛ در این صورت embedding، retrieval و chat completion دوباره اجرا نمی‌شوند.
+- **Answer cache:** پاسخ‌های واجد شرایط با TTL حداکثر هفت روز کش می‌شوند. کلید به مالک، سؤال نرمال‌شده، تنظیمات/provider/model، prompt و fingerprint دانشنامه وابسته است. استفاده‌ی بین نشست‌ها فقط زمانی مجاز است که زمینه‌ی قبلی گفتگو آن پاسخ را آلوده نکند، از جمله نشست خالی. تغییر داده یا تنظیمات باید مانع استفاده‌ی کورکورانه از جواب قدیمی شود.
+
+کش یک بهینه‌سازی است. اگر جدول اختیاری آن در PostgreSQL وجود نداشته باشد یا خطای دیتابیس رخ دهد، مسیر گفتگو باید بتواند بدون مزیت cache ادامه یابد.
+
+## 8. حدود و عیب‌یابی کیفیت
+
+این پیاده‌سازی برای معماری embedded و استقرار ساده طراحی شده است. در SQLite، بخش بازیابی ابتدا index برداری مالک را از دیتابیس می‌خواند و برای مجموعه‌های بزرگ‌تر، زمان و حافظه‌ی آن باید اندازه‌گیری شود. کش حافظه‌ای در هر process است و بین چند process مشترک نیست.
+
+برای بررسی پاسخ ضعیف:
+
+1. در Semantic Search ببینید تکه‌ی درست برگردانده شده است یا نه.
+2. اگر retrieval ضعیف است، متن استخراج‌شده، chunking، کیفیت embedding، ابعاد مدل و threshold را بررسی کنید.
+3. اگر source درست است ولی پاسخ بد است، prompt، مدل چت، دمای تولید و حجم context را بررسی کنید.
+4. برای سؤال‌های تکراری مشخص کنید pipeline از conversation recall یا answer cache استفاده کرده یا نه؛ صرفاً مشابه بودن موضوع تضمین cache hit نیست.
+
+جست‌وجوی معنایی و RAG کامل یکسان نیستند: جست‌وجو تکه‌های مرتبط را برمی‌گرداند، در حالی که RAG از تکه‌های منتخب برای تولید پاسخ استفاده می‌کند.
