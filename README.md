@@ -1,5 +1,7 @@
 # Prismo — RAG Widget Platform
 
+**وب‌سایت / Live website:** https://rag-widget-beta.vercel.app/dashboard.html
+
 [فارسی](#persian) · [English](#english)
 
 ---
@@ -8,7 +10,8 @@
 
 ## فارسی
 
-**Prismo** یک پلتفرم ساخت دستیار هوش مصنوعی دانش‌محور است. هر کاربر می‌تواند دانشنامه‌ی خصوصی خود را بسازد، مدل چت و مدل Embedding را جداگانه تنظیم کند، پاسخ‌ها را آزمایش کند و در نهایت یک ویجت چت شخصی‌سازی‌شده را در وب‌سایت خود قرار دهد.
+
+> **درباره این مخزن:** این پروژه سورس‌کد وب‌سایت بالا است. فایل `.env` و اطلاعات محرمانه‌ی اتصال در مخزن قرار داده نشده‌اند؛ بنابراین برنامه بدون تنظیم فایل محیطی اجرا نمی‌شود و به دیتابیس اصلی متصل نخواهد شد. با این حال، می‌توانید پروژه را به‌صورت کامل در محیط محلی اجرا کنید؛ کافی است فایل `.env` را بر اساس `.env.example` تنظیم کنید و از SQLite محلی و تنظیمات/کلیدهای API خودتان استفاده کنید.
 
 ### قابلیت‌های اصلی
 
@@ -50,6 +53,8 @@
 ```
 
 ### شروع سریع
+
+**پیش‌نیاز:** پیش از اجرا، فایل `.env` را از روی `.env.example` بسازید و تنظیمات لازم را وارد کنید. بدون تنظیمات محیطی معتبر، برنامه اجرا نمی‌شود.
 
 **ویندوز:** فایل `setup.bat` را اجرا کنید. این اسکریپت محیط مجازی `.venv` را می‌سازد، وابستگی‌ها را نصب می‌کند، در صورت نیاز `.env` را از `.env.example` می‌سازد و برنامه را اجرا می‌کند.
 
@@ -120,6 +125,8 @@ pytest -q
 
 **Prismo** is a knowledge-powered AI assistant and embeddable chat-widget platform. Each user can maintain a private knowledge base, configure chat and embedding providers independently, test RAG responses, compare two models, and publish a customizable widget on another website.
 
+> **About this repository:** This repository contains the source code for the website linked above. The `.env` file and private connection credentials are not included, so the application will not start until its environment is configured and it will not connect to the original production database. You can still run the project locally; create `.env` from `.env.example` and configure local SQLite plus your own provider/API credentials.
+
 ### Key features
 
 - **Accounts and access control:** Username/password registration and login, JWT sessions, account blocking, and optional Google sign-in through Supabase Auth with PKCE.
@@ -160,6 +167,8 @@ Question → embedding → owner-scoped semantic retrieval
 ```
 
 ### Quick start
+
+**Prerequisite:** Before running the app, create `.env` from `.env.example` and provide the required settings. The application will not start without valid environment configuration.
 
 **Windows:** Run `setup.bat`. It creates `.venv`, installs dependencies, creates `.env` from `.env.example` when needed, and starts the application.
 
